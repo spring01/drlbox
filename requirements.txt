@@ -1,5 +1,4 @@
 Keras
-tensorflow-gpu
-gym
-gym[atari]
 h5py
+tensorflow-gpu
+gym[atari]
