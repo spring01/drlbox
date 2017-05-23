@@ -13,6 +13,13 @@ class PPSSWrapper(gym.Wrapper):
 
     metadata = {'render.modes': ['human', 'grayscale_array']}
 
+    '''
+        Arguments for the constructor:
+        env: Game environment to be PPSS wrapped;
+        resize: Resized frame shape; tuple of 2 integers (width, height);
+        num_frames: Number of frames to be stacked together; integer;
+        act_steps: Number of actions performed in a row for skipping; integer.
+    '''
     def __init__(self, env, resize=(84, 110), num_frames=4, act_steps=2):
         super(PPSSWrapper, self).__init__(env)
         width, height = resize
