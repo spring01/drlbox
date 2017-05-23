@@ -3,9 +3,9 @@ import numpy as np
 from PIL import Image
 
 
-class PSSWrapper(gym.Wrapper):
+class PPSSWrapper(gym.Wrapper):
     """
-        A wrapper for frame Preprocessing, frame Stacking, and frame Skipping.
+        A wrapper for frame PreProcessing, frame Stacking, and frame Skipping.
         Will convert input image to grayscale, resize to `resize`,
         stack `stack_frames` most recent resized frames together,
         and perform action for `act_steps` steps.
@@ -14,7 +14,7 @@ class PSSWrapper(gym.Wrapper):
     metadata = {'render.modes': ['human', 'grayscale_array']}
 
     def __init__(self, env, resize=(84, 110), stack_frames=4, act_steps=2):
-        super(PSSWrapper, self).__init__(env)
+        super(PPSSWrapper, self).__init__(env)
         self.resize = resize
         self.stack_frames = stack_frames
         self.act_steps = act_steps
@@ -32,10 +32,10 @@ class PSSWrapper(gym.Wrapper):
             self.state.append(self.preprocess(obs))
             total_reward += reward
             current_step += 1
-        if 'pss.stepcount' in info:
-            raise gym.error.Error('Key "pss.stepcount" already in info. Make sure you are not stacking ' \
-                                  'the PSSWrapper wrappers.')
-        info['pss.stepcount'] = self.stepcount
+        if 'ppss.stepcount' in info:
+            raise gym.error.Error('Key "ppss.stepcount" already in info. Make sure you are not stacking ' \
+                                  'the PPSSWrapper wrappers.')
+        info['ppss.stepcount'] = self.stepcount
         return self.state, total_reward, done, info
 
     def _reset(self):
