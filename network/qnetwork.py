@@ -7,18 +7,18 @@ from keras import backend as K
 
 
 def qnetwork_add_arguments(parser):
-    parser.add_argument('--model_name', default='dqn', type=str,
-        help='Model name')
-    parser.add_argument('--dense_size', default=256, type=int,
-        help='Number of hidden units in the dense layer')
+    parser.add_argument('--qnet_name', default='dqn', type=str,
+        help='Q-net name')
+    parser.add_argument('--qnet_size', default=256, type=int,
+        help='Number of hidden units in the first non-convolutional layer')
 
 '''
 Input arguments:
     input_shape: Tuple of the format (height, width, num_frames);
     num_actions: Number of actions in the environment; integer;
-    args: Need field `args.model_name` and `args.dense_size`:
-        args.model_name: Name of the model, e.g., 'dqn';
-        args.dense_size: Number of neurons in the first non-convolutional layer.
+    args: Need field `args.qnet_name` and `args.qnet_size`:
+        args.qnet_name: Name of the q-net, e.g., 'dqn';
+        args.qnet_size: Number of neurons in the first non-convolutional layer.
 '''
 def qnetwork(input_shape, num_actions, args):
     # input state
@@ -30,7 +30,7 @@ def qnetwork(input_shape, num_actions, args):
     conv3_64 = Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
 
     # if recurrent net then change input shape
-    if 'drqn' in args.model_name.lower():
+    if 'drqn' in args.qnet_name.lower():
         # recurrent net (drqn)
         height, width, num_frames = input_shape
         state_shape_drqn = num_frames, height, width, 1
@@ -43,7 +43,7 @@ def qnetwork(input_shape, num_actions, args):
         dist_conv2 = TimeDistributed(conv2_64)(dist_conv1)
         dist_convf = TimeDistributed(conv3_64)(dist_conv2)
         feature = TimeDistributed(Flatten())(dist_convf)
-    elif 'dqn' in args.model_name.lower():
+    elif 'dqn' in args.qnet_name.lower():
         # fully connected net (dqn)
         # extract features with convolutional layers
         conv1 = conv1_32(state)
@@ -52,17 +52,17 @@ def qnetwork(input_shape, num_actions, args):
         feature = Flatten()(convf)
 
     # network type. Dense for dqn; LSTM or GRU for drqn
-    if 'lstm' in args.model_name.lower():
+    if 'lstm' in args.qnet_name.lower():
         net_type = LSTM
-    elif 'gru' in args.model_name.lower():
+    elif 'gru' in args.qnet_name.lower():
         net_type = GRU
     else:
         net_type = Dense
 
     # dueling or regular dqn/drqn
-    if 'dueling' in args.model_name.lower():
-        value1 = net_type(args.dense_size, activation='relu')(feature)
-        adv1 = net_type(args.dense_size, activation='relu')(feature)
+    if 'dueling' in args.qnet_name.lower():
+        value1 = net_type(args.qnet_size, activation='relu')(feature)
+        adv1 = net_type(args.qnet_size, activation='relu')(feature)
         value2 = Dense(1)(value1)
         adv2 = Dense(num_actions)(adv1)
         mean_adv2 = Lambda(lambda x: K.mean(x, axis=1))(adv2)
@@ -73,13 +73,11 @@ def qnetwork(input_shape, num_actions, args):
         exp_value2 = Lambda(lambda x: K.dot(x, ones))(value2)
         q_value = add([exp_value2, sum_adv])
     else:
-        hid = net_type(args.dense_size, activation='relu')(feature)
+        hid = net_type(args.qnet_size, activation='relu')(feature)
         q_value = Dense(num_actions)(hid)
 
     # build model
     act = Input(shape=(num_actions,))
     q_value_act = dot([q_value, act], axes=1)
-    model = Model(inputs=[state, act], outputs=[q_value_act, q_value])
-    return model
-
+    return Model(inputs=[state, act], outputs=[q_value_act, q_value])
 
