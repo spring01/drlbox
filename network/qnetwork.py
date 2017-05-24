@@ -38,7 +38,7 @@ def qnetwork(input_shape, num_actions, args):
         perm_state = Lambda(lambda_perm_state)(state)
         dist_state = Lambda(lambda x: K.stack([x], axis=4))(perm_state)
 
-        # extract features with TimeDistributed wrapped convolutional layers
+        # extract features with `TimeDistributed` wrapped convolutional layers
         dist_conv1 = TimeDistributed(conv1_32)(dist_state)
         dist_conv2 = TimeDistributed(conv2_64)(dist_conv1)
         dist_convf = TimeDistributed(conv3_64)(dist_conv2)
