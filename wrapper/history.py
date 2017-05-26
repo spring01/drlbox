@@ -8,8 +8,6 @@ class HistoryWrapper(gym.Wrapper):
         and performs action for `act_steps` steps each time env.step is called.
     """
 
-    metadata = {'render.modes': ['human', 'rgb_array']}
-
     '''
         Arguments for the constructor:
         env: Game environment to be history stacking wrapped;
