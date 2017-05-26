@@ -14,10 +14,12 @@ class PreprocessWrapper(gym.Wrapper):
     '''
         Arguments for the constructor:
         env: Game environment to be preprocessed;
-        resize: Resized frame shape; tuple of 2 integers (width, height).
+        resize: Resized frame shape; tuple of 2 integers (height, width).
     '''
     def __init__(self, env, resize=(84, 110)):
         super(PreprocessWrapper, self).__init__(env)
+        assert(isinstance(env.observation_space, gym.spaces.Box))
+        assert(len(env.observation_space.shape) == 3)
         width, height = resize
         shape = height, width
         self.observation_space = gym.spaces.Box(low=0, high=255, shape=shape)
