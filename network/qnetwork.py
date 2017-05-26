@@ -1,4 +1,5 @@
 
+import numpy as np
 from keras.layers import Input, Conv2D, Flatten, Dense, Lambda
 from keras.layers import TimeDistributed, LSTM, GRU
 from keras.layers import add, dot
@@ -80,4 +81,12 @@ def qnetwork(input_shape, num_actions, args):
     act = Input(shape=(num_actions,))
     q_value_act = dot([q_value, act], axes=1)
     return Model(inputs=[state, act], outputs=[q_value_act, q_value])
+
+'''
+When a state is represented as a list of frames, this interface converts it
+to a correctly shaped numpy array which can be fed into the neural network
+'''
+def interface_list_of_frames(state):
+    return np.stack(state, axis=-1).astype(np.float32)
+
 

@@ -1,15 +1,15 @@
-
 import numpy as np
 import cPickle as pickle
 
 
+''' Proportional prioritization implemented as a ring-buffer. '''
 class PriorityMemory(object):
 
     @staticmethod
     def add_arguments(parser):
-        parser.add_argument('--memory_maxlen', default=100000, type=int,
+        parser.add_argument('--memory_maxlen', default=1000, type=int,
             help='Replay memory length')
-        parser.add_argument('--memory_fill', default=10000, type=int,
+        parser.add_argument('--memory_fill', default=100, type=int,
             help='Fill the replay memory to how much length before update')
         parser.add_argument('--memory_alpha', default=0.6, type=float,
             help='Exponent alpha in prioritized replay memory')
@@ -38,11 +38,13 @@ class PriorityMemory(object):
         batch_prob = prob[batch_idx]
         return batch, batch_idx, batch_prob
 
-    def get_batch_weights(self, batch_idx, batch_prob, iter_num):
-        wt_end = min(iter_num / self.train_steps, 1.0)
+    def update_beta(self, step_count):
+        wt_end = min(step_count / self.train_steps, 1.0)
         wt_start = 1.0 - wt_end
-        beta_annealed = self.beta0 * wt_start + 1.0 * wt_end
-        batch_weights = (self.length * batch_prob)**(-beta_annealed)
+        self.beta_annealed = self.beta0 * wt_start + 1.0 * wt_end
+
+    def get_batch_weights(self, batch_idx, batch_prob):
+        batch_weights = (self.length * batch_prob)**(-self.beta_annealed)
         batch_weights /= np.max(batch_weights)
         return batch_weights
 
@@ -72,8 +74,13 @@ class PriorityMemory(object):
     def load(self, filepath):
         with open(filepath, 'rb') as save:
             memory = pickle.load(save)
-        self.ring_buffer[:memory.length] = memory.ring_buffer[:memory.length]
-        self.priority[:memory.length] = memory.priority[:memory.length]
-        self.index = memory.length % self.maxlen
-        self.length = memory.length
+        load_length = min(memory.length, self.maxlen)
+        for i in range(load_length):
+            memory.index = (memory.index - 1) % memory.maxlen
+        for i in range(load_length):
+            self.ring_buffer[i] = memory.ring_buffer[memory.index]
+            self.priority[i] = memory.priority[memory.index]
+            memory.index = (memory.index + 1) % memory.maxlen
+        self.index = load_length % self.maxlen
+        self.length = load_length
 

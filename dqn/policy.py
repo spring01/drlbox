@@ -1,7 +1,7 @@
-
 import numpy as np
 
 
+''' Works with discrete actions '''
 class Policy(object):
 
     @staticmethod
@@ -18,6 +18,9 @@ class Policy(object):
     def select_action(self, *args, **kwargs):
         raise NotImplementedError('This method should be overriden.')
 
+    def update(self, *args, **kwargs):
+        pass
+
 
 class RandomPolicy(Policy):
 
@@ -25,7 +28,7 @@ class RandomPolicy(Policy):
         assert num_act >= 1
         self.num_act = num_act
 
-    def select_action(self, *args):
+    def select_action(self, *args, **kwargs):
         return np.random.randint(0, self.num_act)
 
 
@@ -34,25 +37,23 @@ class GreedyEpsPolicy(Policy):
     def __init__(self, args):
         self.epsilon = args.policy_eps
 
-    def select_action(self, q_values, *args):
+    def select_action(self, q_values):
         if np.random.rand() < self.epsilon:
             return np.random.randint(0, q_values.size)
         else:
             return np.argmax(q_values)
 
 
-class LinearDecayGreedyEpsPolicy(Policy):
+class LinearDecayGreedyEpsPolicy(GreedyEpsPolicy):
 
     def __init__(self, args):
-        self.start_value = args.policy_decay_from
-        self.end_value = args.policy_decay_to
+        self.start_eps = args.policy_decay_from
+        self.end_eps = args.policy_decay_to
         self.num_steps = float(args.policy_decay_steps)
 
-    def select_action(self, q_values, iter_num=0):
-        wt_end = min(iter_num / self.num_steps, 1.0)
+    def update(self, step_count):
+        wt_end = min(step_count / self.num_steps, 1.0)
         wt_start = 1.0 - wt_end
-        epsilon = self.start_value * wt_start + self.end_value * wt_end
-        if np.random.rand() <= epsilon:
-            return np.random.randint(0, q_values.size)
-        else:
-            return np.argmax(q_values)
+        self.epsilon = self.start_eps * wt_start + self.end_eps * wt_end
+
+
