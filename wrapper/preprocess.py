@@ -9,7 +9,7 @@ class PreprocessWrapper(gym.Wrapper):
         Will convert input image to grayscale and resize to `resize`.
     """
 
-    metadata = {'render.modes': ['human', 'rgb_array']}
+    metadata = {'render.modes': ['human', 'wrapped', 'rgb_array']}
 
     '''
         Arguments for the constructor:
@@ -44,6 +44,8 @@ class PreprocessWrapper(gym.Wrapper):
         if mode == 'rgb_array':
             return self.preprocessed_obs
         elif mode == 'human':
+            self.env.render()
+        elif mode == 'wrapped':
             from gym.envs.classic_control import rendering
             if self.viewer is None:
                 self.viewer = rendering.SimpleImageViewer()
