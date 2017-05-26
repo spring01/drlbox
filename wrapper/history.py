@@ -1,5 +1,4 @@
 import gym
-import numpy as np
 
 
 class HistoryWrapper(gym.Wrapper):
@@ -19,9 +18,8 @@ class HistoryWrapper(gym.Wrapper):
     '''
     def __init__(self, env, num_frames=4, act_steps=2):
         super(HistoryWrapper, self).__init__(env)
-        height, width = self.env.observation_space.shape
-        shape = height, width, num_frames
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=shape)
+        obs_space = tuple([env.observation_space] * num_frames)
+        self.observation_space = gym.spaces.Tuple(obs_space)
         self.num_frames = num_frames
         self.act_steps = act_steps
         self.viewer = None
@@ -36,28 +34,12 @@ class HistoryWrapper(gym.Wrapper):
             self.obs_list.append(obs)
             total_reward += reward
             current_step += 1
-        self.state = np.stack(self.obs_list, axis=2)
-        return self.state.astype(np.float32), total_reward, done, info
+        return tuple(self.obs_list), total_reward, done, info
 
     def _reset(self):
         obs = self.env.reset()
         self.obs_list = [obs] * self.num_frames
-        self.state = np.stack(self.obs_list, axis=2)
-        return self.state.astype(np.float32)
+        return tuple(self.obs_list)
 
-    def _render(self, mode='human', close=False):
-        if close:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-            return
-        if mode == 'grayscale_array':
-            return self.state
-        elif mode == 'human':
-            from gym.envs.classic_control import rendering
-            if self.viewer is None:
-                self.viewer = rendering.SimpleImageViewer()
-            img = np.stack([np.max(self.state, axis=2)] * 3, axis=2)
-            self.viewer.imshow(img)
 
 
