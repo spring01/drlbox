@@ -30,7 +30,7 @@ class DQN(object):
             help='Evaluation interval')
         parser.add_argument('--dqn_test_episodes', default=5, type=int,
             help='Number of episodes in testing')
-        parser.add_argument('--dqn_render', default=False, type=bool,
+        parser.add_argument('--dqn_render', default='true', type=str,
             help='Do rendering or not')
         parser.add_argument('--dqn_episode_seed', default=None, type=int,
             help='Setting seed to get the same episode each time')
@@ -52,7 +52,7 @@ class DQN(object):
         self.dqn_save_interval = args.dqn_save_interval
         self.dqn_test_interval = args.dqn_test_interval
         self.dqn_test_episodes = args.dqn_test_episodes
-        self.dqn_render = args.dqn_render
+        self.dqn_render = args.dqn_render.lower() == 'true'
         self.dqn_episode_seed = args.dqn_episode_seed
         self.null_act = np.zeros([1, num_actions])
         self.null_target = np.zeros([self.dqn_batch_size, num_actions])

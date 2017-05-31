@@ -1,4 +1,4 @@
 Keras
 h5py
-tensorflow-gpu
+tensorflow
 gym[atari]
