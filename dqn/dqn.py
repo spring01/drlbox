@@ -2,7 +2,7 @@
 import os
 import numpy as np
 
-class DQN(object):
+class DQN(object): # todo: start to simplify code
 
     '''
         Add arguments into parser.
