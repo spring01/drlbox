@@ -1,10 +1,9 @@
 
 import numpy as np
-from keras.layers import Input, Conv2D, Flatten, Dense, Lambda
-from keras.layers import TimeDistributed, LSTM, GRU
-from keras.layers import add, dot
-from keras.models import Model
-from keras import backend as K
+from tensorflow.contrib.keras.python.keras.layers import \
+    Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
+from tensorflow.contrib.keras.api.keras.models import Model
+from tensorflow.contrib.keras import backend as K
 
 
 def qnetwork_add_arguments(parser):

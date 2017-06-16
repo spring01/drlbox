@@ -18,6 +18,6 @@ def get_output_folder(parent_dir, env_name):
 
     parent_dir = os.path.join(parent_dir, env_name)
     parent_dir += '-run{}'.format(experiment_id)
-    subprocess.call(["mkdir", "-p", parent_dir])
+    subprocess.call(['mkdir', '-p', parent_dir])
     return parent_dir
 

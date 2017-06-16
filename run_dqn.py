@@ -4,12 +4,12 @@
 import os
 import gym
 import argparse
-from keras.optimizers import Adam
+from tensorflow.contrib.keras.api.keras.optimizers import Adam
 from dqn.dqn import DQN
 from dqn.objectives import mean_huber_loss, null_loss
 from dqn.policy import *
 from dqn.memory import PriorityMemory
-from dqn.util import get_output_folder
+from util import get_output_folder
 from network.qnetwork import *
 from wrapper import *
 
@@ -50,7 +50,7 @@ def main():
     if args.env in ['FlappyBird-v0']:
         import gym_ple
 
-    print '########## All arguments:', args
+    print('########## All arguments:', args)
     args.resize = tuple(args.resize)
 
     # environment
@@ -64,7 +64,8 @@ def main():
     input_shape = height, width, args.num_frames
     online = qnetwork(input_shape, num_actions, args)
     target = qnetwork(input_shape, num_actions, args)
-    q_net = {'online': online, 'target': target, 'interface': interface_list_of_frames}
+    q_net = {'online': online, 'target': target,
+             'interface': interface_list_of_frames}
 
     # memory
     memory = PriorityMemory(args.dqn_train_steps, args)
@@ -82,19 +83,19 @@ def main():
 
     # read weights/memory if requested
     if args.read_weights is not None:
-        agent.q_net['online'].load_weights(args.read_weights)
+        online.load_weights(args.read_weights)
     if args.read_memory is not None:
-        agent.memory.load(args.read_memory)
+        memory.load(args.read_memory)
 
     # running
     if args.mode == 'train':
-        print '########## training #############'
+        print('########## training #############')
         agent.train(env)
     elif args.mode == 'test':
-        print '########## testing #############'
+        print('########## testing #############')
         agent.test(env)
     elif args.mode == 'rand':
-        print '########## random #############'
+        print('########## random #############')
         agent.random(env)
 
 

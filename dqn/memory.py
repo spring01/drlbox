@@ -1,5 +1,6 @@
+
 import numpy as np
-import cPickle as pickle
+import pickle
 
 
 ''' Proportional prioritization implemented as a ring-buffer. '''
@@ -49,13 +50,13 @@ class PriorityMemory(object):
         return batch_weights
 
     def update_priority(self, batch_idx, batch_td_error):
-        batch_priority = np.abs(batch_td_error)
+        batch_priority = np.abs(batch_td_error.ravel())
         batch_priority[batch_priority > 1.0] = 1.0
         batch_priority[batch_priority == 0.0] = 1e-16
         self.priority[batch_idx] = batch_priority**self.alpha
 
     def clear(self):
-        self.ring_buffer = [None for _ in xrange(self.maxlen)]
+        self.ring_buffer = [None for _ in range(self.maxlen)]
         self.priority = np.zeros(self.maxlen)
         self.priority[0] = 1.0
         self.index = 0
@@ -65,7 +66,7 @@ class PriorityMemory(object):
         return self.length
 
     def print_status(self):
-        print '  memory length: {:d}/{:d}'.format(self.length, self.maxlen)
+        print('  memory length: {}/{}'.format(self.length, self.maxlen))
 
     def save(self, filepath):
         with open(filepath, 'wb') as save:

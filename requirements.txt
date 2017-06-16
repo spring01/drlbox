@@ -1,4 +1,3 @@
-Keras
 h5py
-tensorflow
+tensorflow>=1.1
 gym[atari]
