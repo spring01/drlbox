@@ -77,9 +77,7 @@ def qnetwork(input_shape, num_actions, args):
         q_value = Dense(num_actions)(hid)
 
     # build model
-    act = Input(shape=(num_actions,))
-    q_value_act = dot([q_value, act], axes=1)
-    return Model(inputs=[state, act], outputs=[q_value_act, q_value])
+    return Model(inputs=state, outputs=q_value)
 
 '''
 When a state is represented as a list of frames, this interface converts it

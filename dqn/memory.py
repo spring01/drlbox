@@ -50,7 +50,7 @@ class PriorityMemory(object):
         return batch_weights
 
     def update_priority(self, batch_idx, batch_td_error):
-        batch_priority = np.abs(batch_td_error.ravel())
+        batch_priority = np.abs(batch_td_error)
         batch_priority[batch_priority > 1.0] = 1.0
         batch_priority[batch_priority == 0.0] = 1e-16
         self.priority[batch_idx] = batch_priority**self.alpha

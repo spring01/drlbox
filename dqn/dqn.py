@@ -54,9 +54,6 @@ class DQN(object):
         self.dqn_test_episodes = args.dqn_test_episodes
         self.dqn_render = args.dqn_render.lower() == 'true'
         self.dqn_episode_seed = args.dqn_episode_seed
-        self.null_act = np.zeros([1, num_actions])
-        self.null_target = np.zeros([self.dqn_batch_size, num_actions])
-        self.one_hot_act = np.eye(num_actions, dtype=np.float32)
 
     def compile(self, loss, optimizer):
         self.online.compile(loss=loss, optimizer=optimizer)
@@ -152,13 +149,14 @@ class DQN(object):
 
         # save model
         if _every(step, self.dqn_save_interval):
-            weights_fn = os.path.join(self.output, 'online_{}.h5'.format(step))
+            output = self.output
+            weights_save = os.path.join(output, 'online_{}.h5'.format(step))
             print('########## saving models and memory #############')
-            self.online.save_weights(weights_fn)
-            print('online weights written to {}'.format(weights_fn))
-            memory_fn = os.path.join(self.output, 'memory.p')
-            self.memory.save(memory_fn)
-            print('replay memory written to {}'.format(memory_fn))
+            self.online.save_weights(weights_save)
+            print('online weights written to {}'.format(weights_save))
+            memory_save = os.path.join(output, 'memory.p')
+            self.memory.save(memory_save)
+            print('replay memory written to {}'.format(memory_save))
 
         # print losses
         if _every(step, self.dqn_print_loss_interval):
@@ -169,64 +167,61 @@ class DQN(object):
 
     def pick_action(self, state, policy):
         net_input = np.stack([self.state_to_input(state)])
-        q_online = self.online.predict([net_input, self.null_act])[1]
+        q_online = self.online.predict(net_input)
         return policy.select_action(q_online)
 
     def train_online(self):
-        batch, b_idx, b_prob, b_state, b_act, b_state_next = self.get_batch()
+        batch, b_idx, b_prob = self.memory.sample(self.dqn_batch_size)
         batch_wts = self.memory.get_batch_weights(b_idx, b_prob)
-        q_target_b, online = self.get_q_target(batch, b_state_next, b_act)
-        q_online_b_act = online.predict([b_state, b_act])[0]
-        self.memory.update_priority(b_idx, q_target_b - q_online_b_act)
-        online.train_on_batch([b_state, b_act], [q_target_b, self.null_target],
-                              sample_weight=[batch_wts, batch_wts])
+        b_state, q_target_b, td_error, online = self.process_batch(batch)
+        self.memory.update_priority(b_idx, td_error)
+        online.train_on_batch(b_state, q_target_b, sample_weight=batch_wts)
 
     def print_loss(self):
-        batch, _, _, b_state, b_act, b_state_next = self.get_batch()
-        q_target_b, _ = self.get_q_target(batch, b_state_next, b_act)
-        loss_online = self.online.evaluate([b_state, b_act],
-            [q_target_b, self.null_target], verbose=0)
-        loss_target = self.target.evaluate([b_state, b_act],
-            [q_target_b, self.null_target], verbose=0)
-        print('losses:', loss_online[0], loss_target[0])
+        batch, _, _ = self.memory.sample(self.dqn_batch_size)
+        b_state, q_target_b, _, _ = self.process_batch(batch)
+        loss_online = self.online.evaluate(b_state, q_target_b, verbose=0)
+        loss_target = self.target.evaluate(b_state, q_target_b, verbose=0)
+        print('losses:', loss_online, loss_target)
 
     def update_target(self):
         print('*** update the target network')
         self.target.set_weights(self.online.get_weights())
 
-    def get_batch(self):
-        batch, b_idx, b_prob = self.memory.sample(self.dqn_batch_size)
-        b_state = []
-        b_act = []
-        b_state_next = []
-        for st_m, act, rew, st_m_n, _ in batch:
-            st = self.state_to_input(st_m)
-            b_state.append(st)
-            b_act.append(self.one_hot_act[act])
-            st_n = self.state_to_input(st_m_n)
-            b_state_next.append(st_n)
-        b_state = np.stack(b_state)
-        b_act = np.stack(b_act)
-        b_state_next = np.stack(b_state_next)
-        return batch, b_idx, b_prob, b_state, b_act, b_state_next
-
-    def get_q_target(self, batch, b_state_next, b_act):
+    def process_batch(self, batch):
+        # roll online/target nets for double q-learning
         if np.random.rand() < 0.5:
             online = self.target
             target = self.online
         else:
             online = self.online
             target = self.target
-        q_online_b_n = online.predict([b_state_next, b_act])[1]
-        q_target_b_n = target.predict([b_state_next, b_act])[1]
-        q_target_b = []
-        ziplist = zip(q_online_b_n, q_target_b_n, batch)
-        for qon, qtn, (_, _, rew, _, db) in ziplist:
-            full_reward = rew
-            if not db:
+
+        # build stacked batch of states and batch of next states
+        b_state = []
+        b_state_next = []
+        for st_m, act, rew, st_m_n, _ in batch:
+            st = self.state_to_input(st_m)
+            b_state.append(st)
+            st_n = self.state_to_input(st_m_n)
+            b_state_next.append(st_n)
+        b_state = np.stack(b_state)
+        b_state_next = np.stack(b_state_next)
+
+        # compute target q-values and td-error
+        q_online_b = online.predict(b_state)
+        q_online_b_n = online.predict(b_state_next)
+        q_target_b_n = target.predict(b_state_next)
+        q_target_b = q_online_b.copy()
+        ziplist = zip(q_target_b, q_online_b_n, q_target_b_n, batch)
+        for qt, qon, qtn, trans in ziplist:
+            _, act, reward, _, done = trans
+            full_reward = reward
+            if not done:
                 full_reward += self.dqn_discount * qon[np.argmax(qtn)]
-            q_target_b.append([full_reward])
-        return np.stack(q_target_b), online
+            qt[act] = full_reward
+        td_error = np.sum(q_target_b - q_online_b, axis=1)
+        return b_state, q_target_b, td_error, online
 
 def _every(step, interval):
     return not (step % interval)

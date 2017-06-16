@@ -9,6 +9,3 @@ def huber_loss(y_true, y_pred, max_grad=1.):
 
 def mean_huber_loss(y_true, y_pred, max_grad=1.):
     return tf.reduce_mean(huber_loss(y_true, y_pred, max_grad))
-
-def null_loss(y_true, y_pred):
-    return tf.Variable(0.0)

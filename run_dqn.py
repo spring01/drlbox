@@ -6,7 +6,7 @@ import gym
 import argparse
 from tensorflow.contrib.keras.api.keras.optimizers import Adam
 from dqn.dqn import DQN
-from dqn.objectives import mean_huber_loss, null_loss
+from dqn.objectives import mean_huber_loss
 from dqn.policy import *
 from dqn.memory import PriorityMemory
 from util import get_output_folder
@@ -79,7 +79,7 @@ def main():
     # construct and compile the dqn agent
     output = get_output_folder(args.output, args.env)
     agent = DQN(num_actions, q_net, memory, policy, output, args)
-    agent.compile([mean_huber_loss, null_loss], Adam(lr=args.learning_rate))
+    agent.compile(mean_huber_loss, Adam(lr=args.learning_rate))
 
     # read weights/memory if requested
     if args.read_weights is not None:
