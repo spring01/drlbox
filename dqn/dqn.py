@@ -2,122 +2,52 @@
 import os
 import numpy as np
 
-class DQN(object): # todo: start to simplify code
+class DQN(object):
 
-    '''
-        Add arguments into parser.
-        These default values are suitable for a quick debug run.
-    '''
-    @staticmethod
-    def add_arguments(parser):
-        parser.add_argument('--dqn_discount', default=0.99, type=float,
-            help='Discount factor gamma')
-        parser.add_argument('--dqn_train_steps', default=1000, type=int,
-            help='Number of training sampled interactions with the environment')
-        parser.add_argument('--dqn_episode_maxlen', default=100000, type=int,
-            help='Maximum length of an episode')
-        parser.add_argument('--dqn_batch_size', default=32, type=int,
-            help='Minibatch size for Q-learning')
-        parser.add_argument('--dqn_online_interval', default=4, type=int,
-            help='Interval to train the online network')
-        parser.add_argument('--dqn_target_interval', default=500, type=int,
-            help='Interval to reset the target network')
-        parser.add_argument('--dqn_print_loss_interval', default=100, type=int,
-            help='Interval to print losses')
-        parser.add_argument('--dqn_save_interval', default=500, type=int,
-            help='Interval to save weights and memory')
-        parser.add_argument('--dqn_test_interval', default=500, type=int,
-            help='Evaluation interval')
-        parser.add_argument('--dqn_test_episodes', default=5, type=int,
-            help='Number of episodes in testing')
-        parser.add_argument('--dqn_render', default='true', type=str,
-            help='Do rendering or not')
-        parser.add_argument('--dqn_episode_seed', default=None, type=int,
-            help='Setting seed to get the same episode each time')
+    episode_maxlen        = 100000
+    batch_size            = 32
+    train_online_interval = 4
+    sync_target_interval  = 40000
+    save_interval         = 40000
 
-    def __init__(self, num_actions, q_net, memory, policy, output, args):
-        self.online = q_net['online']
-        self.target = q_net['target']
-        self.state_to_input = q_net['interface']
+    def __init__(self, num_actions, online, target, state_to_input,
+                 output, memory, policy, discount, train_steps):
+        self.online = online
+        self.target = target
+        self.state_to_input = state_to_input
+        self.output = output
         self.memory = memory
         self.policy = policy
-        self.output = output
-        self.dqn_discount = args.dqn_discount
-        self.dqn_train_steps = args.dqn_train_steps
-        self.dqn_episode_maxlen = args.dqn_episode_maxlen
-        self.dqn_batch_size = args.dqn_batch_size
-        self.dqn_online_interval = args.dqn_online_interval
-        self.dqn_target_interval = args.dqn_target_interval
-        self.dqn_print_loss_interval = args.dqn_print_loss_interval
-        self.dqn_save_interval = args.dqn_save_interval
-        self.dqn_test_interval = args.dqn_test_interval
-        self.dqn_test_episodes = args.dqn_test_episodes
-        self.dqn_render = args.dqn_render.lower() == 'true'
-        self.dqn_episode_seed = args.dqn_episode_seed
-
-    def compile(self, loss, optimizer):
-        self.online.compile(loss=loss, optimizer=optimizer)
-        self.target.compile(loss=loss, optimizer=optimizer)
-
-    def random(self, env):
-        total_reward = 0.0
-        for episode in range(self.dqn_test_episodes):
-            episode_reward = self.run_episode(env, 'rand', 0, store=False)[0]
-            print('  random episode reward: {:f}'.format(episode_reward))
-            total_reward += episode_reward
-        average_reward = total_reward / self.dqn_test_episodes
-        print('random average episode reward: {:f}'.format(average_reward))
+        self.discount = discount
+        self.train_steps = train_steps
 
     def train(self, env):
-        self.update_target()
+        self.sync_target()
 
-        print('########## burning in some steps #############')
+        print('########## filling in memory #############')
         while len(self.memory) < self.memory.fill:
-            self.run_episode(env, mode='test', store=True)
+            self.run_episode(env, train=False)
             self.memory.print_status()
 
         print('########## begin training #############')
         step = 0
-        episode_count = 0
-        while step <= self.dqn_train_steps:
-            _, step, test_flag = self.run_episode(env, 'train', step)
-            episode_count += 1
-            print('  iter {} out of {}'.format(step, self.dqn_train_steps))
-            print('  number of episodes: {}'.format(episode_count))
+        while step <= self.train_steps:
+            self.policy.update(step)
+            _, step = self.run_episode(env, step, train=True)
+            print('training step {} out of {}'.format(step, self.train_steps))
             self.memory.print_status()
-            if test_flag:
-                print('########## testing #############')
-                self.test(env)
 
-    def test(self, env):
-        total_reward = 0.0
-        for episode in range(self.dqn_test_episodes):
-            episode_reward = self.run_episode(env, mode='test')[0]
-            print('  episode reward: {}'.format(episode_reward))
-            total_reward += episode_reward
-        average_reward = total_reward / self.dqn_test_episodes
-        print('average episode reward: {}'.format(average_reward))
+    def sync_target(self):
+        self.target.set_weights(self.online.get_weights())
 
-    def run_episode(self, env, mode='rand', step=0, store=False):
-        print('*** New episode with mode:', mode)
-        policy = self.policy[mode]
-
-        if self.dqn_episode_seed is not None:
-            env.seed(self.dqn_episode_seed)
+    def run_episode(self, env, step=0, train=False):
         state = env.reset()
         episode_reward = 0.0
-        test_flag = False
-        for ep_iter in range(self.dqn_episode_maxlen):
-            policy.update(step)
-            act = self.pick_action(state, policy)
-            state_next, reward, done, info = env.step(act)
-            if self.dqn_render:
-                env.render()
+        for _ in range(self.episode_maxlen):
+            action = self.pick_action(state)
+            state_next, reward, done, info = env.step(action)
             episode_reward += reward
-            reward = self.clip_reward(reward)
-
-            if store:
-                self.memory.append((state, act, reward, state_next, done))
+            self.memory.append((state, action, reward, state_next, done))
             state = state_next
 
             # break if done
@@ -125,68 +55,42 @@ class DQN(object): # todo: start to simplify code
                 break
 
             # modify test_flag and step
-            if mode == 'train':
-                test_flag = self.extra_work_train(step) or test_flag
+            if train:
+                self.extra_work_train(step)
             step += 1
-        print('*** End of episode')
-        return episode_reward, step, test_flag
+        return episode_reward, step
 
-    def clip_reward(self, reward):
-        if reward > 0.0:
-            return 1.0;
-        elif reward < 0.0:
-            return -1.0
-        else:
-            return 0.0
+    def pick_action(self, state):
+        net_input = np.stack([self.state_to_input(state)])
+        q_online = self.online.predict(net_input)
+        return self.policy.select_action(q_online)
 
     def extra_work_train(self, step):
-        # update networks
-        if _every(step, self.dqn_online_interval):
+        # train online net
+        if _every(step, self.train_online_interval):
             self.memory.update_beta(step)
             self.train_online()
-        if _every(step, self.dqn_target_interval):
-            self.update_target()
+
+        # sync target net
+        if _every(step, self.sync_target_interval):
+            self.sync_target()
 
         # save model
-        if _every(step, self.dqn_save_interval):
+        if _every(step, self.save_interval):
             output = self.output
             weights_save = os.path.join(output, 'online_{}.h5'.format(step))
-            print('########## saving models and memory #############')
             self.online.save_weights(weights_save)
-            print('online weights written to {}'.format(weights_save))
+            print('online net weights written to {}'.format(weights_save))
             memory_save = os.path.join(output, 'memory.p')
             self.memory.save(memory_save)
             print('replay memory written to {}'.format(memory_save))
 
-        # print losses
-        if _every(step, self.dqn_print_loss_interval):
-            self.print_loss()
-
-        # return test flag
-        return _every(step, self.dqn_test_interval)
-
-    def pick_action(self, state, policy):
-        net_input = np.stack([self.state_to_input(state)])
-        q_online = self.online.predict(net_input)
-        return policy.select_action(q_online)
-
     def train_online(self):
-        batch, b_idx, b_prob = self.memory.sample(self.dqn_batch_size)
-        batch_wts = self.memory.get_batch_weights(b_idx, b_prob)
+        batch, b_idx, b_prob = self.memory.sample(self.batch_size)
+        batch_weights = self.memory.get_batch_weights(b_idx, b_prob)
         b_state, q_target_b, td_error, online = self.process_batch(batch)
         self.memory.update_priority(b_idx, td_error)
-        online.train_on_batch(b_state, q_target_b, sample_weight=batch_wts)
-
-    def print_loss(self):
-        batch, _, _ = self.memory.sample(self.dqn_batch_size)
-        b_state, q_target_b, _, _ = self.process_batch(batch)
-        loss_online = self.online.evaluate(b_state, q_target_b, verbose=0)
-        loss_target = self.target.evaluate(b_state, q_target_b, verbose=0)
-        print('losses:', loss_online, loss_target)
-
-    def update_target(self):
-        print('*** update the target network')
-        self.target.set_weights(self.online.get_weights())
+        online.train_on_batch(b_state, q_target_b, sample_weight=batch_weights)
 
     def process_batch(self, batch):
         # roll online/target nets for double q-learning
@@ -218,7 +122,7 @@ class DQN(object): # todo: start to simplify code
             _, act, reward, _, done = trans
             full_reward = reward
             if not done:
-                full_reward += self.dqn_discount * qon[np.argmax(qtn)]
+                full_reward += self.discount * qon[np.argmax(qtn)]
             qt[act] = full_reward
         td_error = np.sum(q_target_b - q_online_b, axis=1)
         return b_state, q_target_b, td_error, online

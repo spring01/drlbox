@@ -6,22 +6,11 @@ import pickle
 ''' Proportional prioritization implemented as a ring-buffer. '''
 class PriorityMemory(object):
 
-    @staticmethod
-    def add_arguments(parser):
-        parser.add_argument('--memory_maxlen', default=1000, type=int,
-            help='Replay memory length')
-        parser.add_argument('--memory_fill', default=100, type=int,
-            help='Fill the replay memory to how much length before update')
-        parser.add_argument('--memory_alpha', default=0.6, type=float,
-            help='Exponent alpha in prioritized replay memory')
-        parser.add_argument('--memory_beta0', default=0.4, type=float,
-            help='Initial beta in prioritized replay memory')
-
-    def __init__(self, train_steps, args):
-        self.maxlen = args.memory_maxlen
-        self.fill = args.memory_fill
-        self.alpha = args.memory_alpha
-        self.beta0 = args.memory_beta0
+    def __init__(self, train_steps, maxlen, fill, alpha, beta0):
+        self.maxlen = maxlen
+        self.fill = fill
+        self.alpha = alpha
+        self.beta0 = beta0
         self.train_steps = float(train_steps)
         self.indices = range(self.maxlen)
         self.clear()
@@ -66,7 +55,7 @@ class PriorityMemory(object):
         return self.length
 
     def print_status(self):
-        print('  memory length: {}/{}'.format(self.length, self.maxlen))
+        print('memory length: {}/{}'.format(self.length, self.maxlen))
 
     def save(self, filepath):
         with open(filepath, 'wb') as save:
@@ -76,7 +65,7 @@ class PriorityMemory(object):
         with open(filepath, 'rb') as save:
             memory = pickle.load(save)
         load_length = min(memory.length, self.maxlen)
-        for i in range(load_length):
+        for _ in range(load_length):
             memory.index = (memory.index - 1) % memory.maxlen
         for i in range(load_length):
             self.ring_buffer[i] = memory.ring_buffer[memory.index]

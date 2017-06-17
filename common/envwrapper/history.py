@@ -1,7 +1,7 @@
+
 import gym
 
-
-class HistoryWrapper(gym.Wrapper):
+class HistoryStacker(gym.Wrapper):
     """
         A wrapper for history stacking.
         Stacks `num_frames` most recent frames together,
@@ -15,7 +15,7 @@ class HistoryWrapper(gym.Wrapper):
         act_steps: Number of actions performed between states; integer.
     '''
     def __init__(self, env, num_frames=4, act_steps=2):
-        super(HistoryWrapper, self).__init__(env)
+        super(HistoryStacker, self).__init__(env)
         obs_space = tuple([env.observation_space] * num_frames)
         self.observation_space = gym.spaces.Tuple(obs_space)
         self.num_frames = num_frames

@@ -5,17 +5,6 @@ import numpy as np
 ''' Works with discrete actions '''
 class Policy(object):
 
-    @staticmethod
-    def add_arguments(parser):
-        parser.add_argument('--policy_eps', default=0.01, type=float,
-            help='Exploration probability in epsilon-greedy')
-        parser.add_argument('--policy_decay_from', default=1.0, type=float,
-            help='Starting probability in linear-decay epsilon-greedy')
-        parser.add_argument('--policy_decay_to', default=0.1, type=float,
-            help='Ending probability in linear-decay epsilon-greedy')
-        parser.add_argument('--policy_decay_steps', default=2000000, type=int,
-            help='Decay steps in linear-decay epsilon-greedy')
-
     def select_action(self, *args, **kwargs):
         raise NotImplementedError('This method should be overriden.')
 
@@ -35,8 +24,8 @@ class RandomPolicy(Policy):
 
 class GreedyEpsPolicy(Policy):
 
-    def __init__(self, args):
-        self.epsilon = args.policy_eps
+    def __init__(self, epsilon):
+        self.epsilon = epsilon
 
     def select_action(self, q_values):
         if np.random.rand() < self.epsilon:
@@ -47,13 +36,14 @@ class GreedyEpsPolicy(Policy):
 
 class LinearDecayGreedyEpsPolicy(GreedyEpsPolicy):
 
-    def __init__(self, args):
-        self.start_eps = args.policy_decay_from
-        self.end_eps = args.policy_decay_to
-        self.num_steps = float(args.policy_decay_steps)
+    def __init__(self, start_eps, end_eps, decay_steps):
+        self.start_eps = start_eps
+        self.end_eps = end_eps
+        self.decay_steps = float(decay_steps)
+        self.update(0)
 
-    def update(self, step_count):
-        wt_end = min(step_count / self.num_steps, 1.0)
+    def update(self, step):
+        wt_end = min(step / self.decay_steps, 1.0)
         wt_start = 1.0 - wt_end
         self.epsilon = self.start_eps * wt_start + self.end_eps * wt_end
 

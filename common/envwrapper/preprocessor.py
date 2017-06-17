@@ -1,9 +1,10 @@
+
 import gym
 import numpy as np
 from PIL import Image
 
 
-class PreprocessWrapper(gym.Wrapper):
+class Preprocessor(gym.Wrapper):
     """
         A wrapper for frame preprocessing.
         Will convert input image to grayscale and resize to `resize`.
@@ -17,7 +18,7 @@ class PreprocessWrapper(gym.Wrapper):
         resize: Resized frame shape; tuple of 2 integers (height, width).
     '''
     def __init__(self, env, resize=(84, 110)):
-        super(PreprocessWrapper, self).__init__(env)
+        super(Preprocessor, self).__init__(env)
         assert(isinstance(env.observation_space, gym.spaces.Box))
         assert(len(env.observation_space.shape) == 3)
         width, height = resize
