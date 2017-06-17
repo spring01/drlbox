@@ -1,7 +1,7 @@
 
 from tensorflow.contrib.keras.python.keras.layers import \
     Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
-from tensorflow.contrib.keras.api.keras.models import Model
+from tensorflow.contrib.keras.python.keras.models import Model
 from tensorflow.contrib.keras import backend as K
 
 
@@ -26,8 +26,6 @@ def build_qnet(input_shape, num_actions, qnet_name, qnet_size):
     # if recurrent net then change input shape
     if 'drqn' in qnet_name:
         # recurrent net (drqn)
-        height, width, num_frames = input_shape
-        state_shape_drqn = num_frames, height, width, 1
         lambda_perm_state = lambda x: K.permute_dimensions(x, [0, 3, 1, 2])
         perm_state = Lambda(lambda_perm_state)(state)
         dist_state = Lambda(lambda x: K.stack([x], axis=4))(perm_state)
