@@ -5,13 +5,13 @@ import gym
 import argparse
 from tensorflow.contrib.keras.api.keras.optimizers import Adam
 from dqn.dqn import DQN
-from dqn.objectives import mean_huber_loss
-from dqn.policy import LinearDecayGreedyEpsPolicy
 from dqn.memory import PriorityMemory
-from common.util import get_output_folder
-from common.neuralnet.qnet import build_qnet
-from common.interface import list_frames_to_array
 from common.envwrapper import Preprocessor, HistoryStacker, RewardClipper
+from common.policy import LinearDecayEpsGreedy
+from common.interface import list_frames_to_array
+from common.neuralnet.qnet import build_qnet
+from common.loss import mean_huber_loss
+from common.util import get_output_folder
 
 
 def main():
@@ -34,13 +34,13 @@ def main():
     # dqn arguments
     parser.add_argument('--dqn_discount', default=0.99, type=float,
         help='Discount factor gamma')
-    parser.add_argument('--dqn_train_steps', default=2000000, type=int,
+    parser.add_argument('--dqn_train_steps', default=2000, type=int,
         help='Number of training sample interactions with the environment')
 
     # memory arguments
-    parser.add_argument('--memory_maxlen', default=500000, type=int,
+    parser.add_argument('--memory_maxlen', default=1000, type=int,
         help='Replay memory length')
-    parser.add_argument('--memory_fill', default=50000, type=int,
+    parser.add_argument('--memory_fill', default=500, type=int,
         help='Fill the replay memory to how much length before update')
     parser.add_argument('--memory_alpha', default=0.6, type=float,
         help='Exponent alpha in prioritized replay memory')
@@ -102,9 +102,9 @@ def main():
                             fill=args.memory_fill,
                             alpha=args.memory_alpha,
                             beta0=args.memory_beta0)
-    policy = LinearDecayGreedyEpsPolicy(start_eps=args.policy_start_eps,
-                                        end_eps=args.policy_end_eps,
-                                        decay_steps=args.policy_decay_steps)
+    policy = LinearDecayEpsGreedy(start_eps=args.policy_start_eps,
+                                  end_eps=args.policy_end_eps,
+                                  decay_steps=args.policy_decay_steps)
 
     # construct and compile the dqn agent
     output = get_output_folder(args.output, args.env)
@@ -121,8 +121,6 @@ def main():
 
     # train the agent
     agent.train(env)
-
-
 
 
 if __name__ == '__main__':
