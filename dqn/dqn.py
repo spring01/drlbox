@@ -22,7 +22,7 @@ class DQN(object):
         self.train_steps = train_steps
 
     def train(self, env):
-        self.sync_target()
+        self.target.sync()
 
         print('########## filling in memory #############')
         while len(self.memory) < self.memory.fill:
@@ -36,9 +36,6 @@ class DQN(object):
             _, step = self.run_episode(env, step, train=True)
             print('training step {} out of {}'.format(step, self.train_steps))
             self.memory.print_status()
-
-    def sync_target(self):
-        self.target.set_weights(self.online.get_weights())
 
     def run_episode(self, env, step=0, train=False):
         state = env.reset()
@@ -62,7 +59,7 @@ class DQN(object):
 
     def pick_action(self, state):
         net_input = np.stack([self.state_to_input(state)])
-        q_online = self.online.predict(net_input)
+        q_online = self.online.action_values(net_input)[0]
         return self.policy.select_action(q_online)
 
     def extra_work_train(self, step):
@@ -73,12 +70,12 @@ class DQN(object):
 
         # sync target net
         if _every(step, self.sync_target_interval):
-            self.sync_target()
+            self.target.sync()
 
         # save model
         if _every(step, self.save_interval):
             output = self.output
-            weights_save = os.path.join(output, 'online_{}.h5'.format(step))
+            weights_save = os.path.join(output, 'weights_{}.p'.format(step))
             self.online.save_weights(weights_save)
             print('online net weights written to {}'.format(weights_save))
             memory_save = os.path.join(output, 'memory.p')
@@ -113,9 +110,9 @@ class DQN(object):
         b_state_next = np.stack(b_state_next)
 
         # compute target q-values and td-error
-        q_online_b = online.predict(b_state)
-        q_online_b_n = online.predict(b_state_next)
-        q_target_b_n = target.predict(b_state_next)
+        q_online_b = online.action_values(b_state)
+        q_online_b_n = online.action_values(b_state_next)
+        q_target_b_n = target.action_values(b_state_next)
         q_target_b = q_online_b.copy()
         ziplist = zip(q_target_b, q_online_b_n, q_target_b_n, batch)
         for qt, qon, qtn, trans in ziplist:

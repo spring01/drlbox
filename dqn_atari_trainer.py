@@ -3,13 +3,13 @@
 import os
 import gym
 import argparse
-from tensorflow.contrib.keras.api.keras.optimizers import Adam
+import tensorflow as tf
 from dqn.dqn import DQN
 from dqn.memory import PriorityMemory
 from common.envwrapper import Preprocessor, HistoryStacker, RewardClipper
 from common.policy import LinearDecayEpsGreedy
 from common.interface import list_frames_to_array
-from common.neuralnet.qnet import build_qnet
+from common.neuralnet.qnet import QNet, atari_qnet
 from common.loss import mean_huber_loss
 from common.util import get_output_folder
 
@@ -92,9 +92,16 @@ def main():
     width, height = args.resize
     input_shape = height, width, args.num_frames
     qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
-    online, target = (build_qnet(*qnet_args) for _ in range(2))
-    online.compile(loss=mean_huber_loss, optimizer=Adam(lr=args.learning_rate))
-    target.compile(loss=mean_huber_loss, optimizer=Adam(lr=args.learning_rate))
+
+    online_model, target_model = (atari_qnet(*qnet_args) for _ in range(2))
+    online, target = QNet(online_model), QNet(target_model)
+    sess = tf.Session()
+    for net in [online, target]:
+        net.set_loss(mean_huber_loss)
+        net.set_optimizer(tf.train.AdamOptimizer(args.learning_rate))
+        net.set_session(sess)
+    target.set_sync_weights(online.weights)
+    sess.run(tf.global_variables_initializer())
 
     # memory and policy
     memory = PriorityMemory(train_steps=args.dqn_train_steps,

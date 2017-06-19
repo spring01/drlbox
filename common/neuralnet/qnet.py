@@ -1,8 +1,43 @@
 
+import numpy as np
+import tensorflow as tf
 from tensorflow.contrib.keras.python.keras.layers import \
     Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
 from tensorflow.contrib.keras.python.keras.models import Model
 from tensorflow.contrib.keras import backend as K
+from .rlnet import RLNet
+
+
+class QNet(RLNet):
+
+    def __init__(self, model):
+        self.weights = model.weights
+        self.ph_state, = model.inputs
+        self.tf_values, = model.outputs
+
+    def set_loss(self, loss_function):
+        tf_values = self.tf_values
+        target_shape = tf_values.shape.as_list()
+        ph_target = tf.placeholder(tf.float32, target_shape)
+        batch_size, num_actions = target_shape
+        ph_weight = tf.placeholder(tf.float32, [batch_size])
+        weight_tile = tf.tile(tf.expand_dims(ph_weight, 1), [1, num_actions])
+        weighted_ph_target = weight_tile * ph_target
+        weighted_tf_values = weight_tile * tf_values
+        self.tf_loss = loss_function(weighted_ph_target, weighted_tf_values)
+        self.ph_target = ph_target
+        self.ph_sample_weight = ph_weight
+
+    def action_values(self, state):
+        return self.sess.run(self.tf_values, feed_dict={self.ph_state: state})
+
+    def train_on_batch(self, state, target, sample_weight=None):
+        if sample_weight is None:
+            sample_weight = np.ones(len(state), dtype=np.float32)
+        feed_dict = {self.ph_state:         state,
+                     self.ph_target:        target,
+                     self.ph_sample_weight: sample_weight}
+        self.sess.run(self.op_train, feed_dict=feed_dict)
 
 
 '''
@@ -12,7 +47,7 @@ Input arguments:
     qnet_name:   Name of the q-net, e.g., 'dqn';
     qnet_size:   Number of neurons in the first non-convolutional layer.
 '''
-def build_qnet(input_shape, num_actions, qnet_name, qnet_size):
+def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
     qnet_name = qnet_name.lower()
 
     # input state
