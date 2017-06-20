@@ -24,7 +24,8 @@ class HistoryStacker(gym.Wrapper):
 
     def _step(self, action):
         done = False
-        total_reward = 0
+        total_reward = 0.0
+        info = {}
         current_step = 0
         while current_step < self.act_steps and not done:
             obs, reward, done, info = self.env.step(action)

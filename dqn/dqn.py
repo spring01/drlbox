@@ -35,7 +35,6 @@ class DQN(object):
             self.policy.update(step)
             _, step = self.run_episode(env, step, train=True)
             print('training step {} out of {}'.format(step, self.train_steps))
-            self.memory.print_status()
 
     def run_episode(self, env, step=0, train=False):
         state = env.reset()
@@ -51,7 +50,6 @@ class DQN(object):
             if done:
                 break
 
-            # modify test_flag and step
             if train:
                 self.extra_work_train(step)
             step += 1
@@ -101,7 +99,7 @@ class DQN(object):
         # build stacked batch of states and batch of next states
         b_state = []
         b_state_next = []
-        for st_m, act, rew, st_m_n, _ in batch:
+        for st_m, act, _, st_m_n, _ in batch:
             st = self.state_to_input(st_m)
             b_state.append(st)
             st_n = self.state_to_input(st_m_n)
@@ -119,7 +117,7 @@ class DQN(object):
             _, act, reward, _, done = trans
             full_reward = reward
             if not done:
-                full_reward += self.discount * qon[np.argmax(qtn)]
+                full_reward += self.discount * qtn[qon.argmax()]
             qt[act] = full_reward
         td_error = np.sum(q_target_b - q_online_b, axis=1)
         return b_state, q_target_b, td_error, online

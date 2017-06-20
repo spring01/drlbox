@@ -2,6 +2,9 @@
 import numpy as np
 
 
+def null_interface(state):
+    return state
+
 '''
 When a state is represented as a list of frames, this interface converts it
 to a correctly shaped numpy array which can be fed into the neural network

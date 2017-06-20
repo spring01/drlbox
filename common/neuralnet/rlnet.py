@@ -31,9 +31,15 @@ class RLNet(object):
         raise NotImplementedError
 
     def sync(self):
-        return self.sess.run(self.op_sync)
+        self.sess.run(self.op_sync)
 
     def save_weights(self, filename):
-        with open(filename, 'wb') as pic:
-            pickle.dump(self.sess.run(self.weights), pic)
+        with open(filename, 'wb') as save:
+            pickle.dump(self.sess.run(self.weights), save)
+
+    def load_weights(self, filename):
+        with open(filename, 'rb') as save:
+            weights = pickle.load(save)
+        self.set_sync_weights(weights)
+        self.sync()
 

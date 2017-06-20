@@ -22,7 +22,7 @@ def main():
         help='Directory to save data to')
 
     # gym environment arguments
-    parser.add_argument('--env', default='Pong-v0',
+    parser.add_argument('--env', default='Breakout-v0',
         help='Environment name')
     parser.add_argument('--resize', nargs=2, type=int, default=(84, 110),
         help='Input shape')
@@ -58,7 +58,7 @@ def main():
     # qnet arguments
     parser.add_argument('--qnet_name', default='dqn', type=str,
         help='Q-net name')
-    parser.add_argument('--qnet_size', default=256, type=int,
+    parser.add_argument('--qnet_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
 
     # learning rate for the optimizer
@@ -93,10 +93,9 @@ def main():
     input_shape = height, width, args.num_frames
     qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
 
-    online_model, target_model = (atari_qnet(*qnet_args) for _ in range(2))
-    online, target = QNet(online_model), QNet(target_model)
+    online, target = (QNet(atari_qnet(*qnet_args)) for _ in range(2))
     sess = tf.Session()
-    for net in [online, target]:
+    for net in online, target:
         net.set_loss(mean_huber_loss)
         net.set_optimizer(tf.train.AdamOptimizer(args.learning_rate))
         net.set_session(sess)
