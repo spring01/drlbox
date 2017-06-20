@@ -16,18 +16,14 @@ episode_maxlen = 100000
 def main():
     parser = argparse.ArgumentParser(description='DQN Atari')
 
-    # output path
-    parser.add_argument('--output', default='output',
-        help='Directory to save data to')
-
     # gym environment arguments
     parser.add_argument('--env', default='Breakout-v0',
         help='Environment name')
-    parser.add_argument('--resize', nargs=2, type=int, default=(84, 110),
+    parser.add_argument('--env_resize', nargs=2, type=int, default=(84, 110),
         help='Input shape')
-    parser.add_argument('--num_frames', default=4, type=int,
+    parser.add_argument('--env_num_frames', default=4, type=int,
         help='Number of frames in a state')
-    parser.add_argument('--act_steps', default=4, type=int,
+    parser.add_argument('--env_act_steps', default=4, type=int,
         help='Do an action for how many steps')
 
     # policy arguments
@@ -56,17 +52,17 @@ def main():
         import gym_ple
 
     print('########## All arguments:', args)
-    args.resize = tuple(args.resize)
+    args.env_resize = tuple(args.env_resize)
 
     # environment
     env = gym.make(args.env)
-    env = Preprocessor(env, resize=args.resize)
-    env = HistoryStacker(env, args.num_frames, args.act_steps)
+    env = Preprocessor(env, resize=args.env_resize)
+    env = HistoryStacker(env, args.env_num_frames, args.env_act_steps)
     num_actions = env.action_space.n
 
     # q-net
-    width, height = args.resize
-    input_shape = height, width, args.num_frames
+    width, height = args.env_resize
+    input_shape = height, width, args.env_num_frames
     qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
     qnet = QNet(atari_qnet(*qnet_args))
     sess = tf.Session()

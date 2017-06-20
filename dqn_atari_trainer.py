@@ -17,23 +17,23 @@ from common.util import get_output_folder
 def main():
     parser = argparse.ArgumentParser(description='DQN Atari')
 
-    # output path
-    parser.add_argument('--output', default='output',
-        help='Directory to save data to')
-
     # gym environment arguments
     parser.add_argument('--env', default='Breakout-v0',
         help='Environment name')
-    parser.add_argument('--resize', nargs=2, type=int, default=(84, 110),
+    parser.add_argument('--env_resize', nargs=2, type=int, default=(84, 110),
         help='Input shape')
-    parser.add_argument('--num_frames', default=4, type=int,
+    parser.add_argument('--env_num_frames', default=4, type=int,
         help='Number of frames in a state')
-    parser.add_argument('--act_steps', default=4, type=int,
-        help='Do an action for how many steps')
+    parser.add_argument('--env_act_steps', default=4, type=int,
+        help='Do an action for how many steps before observing')
 
     # dqn arguments
+    parser.add_argument('--dqn_output', default='output',
+        help='Directory to save data to')
     parser.add_argument('--dqn_discount', default=0.99, type=float,
         help='Discount factor gamma')
+    parser.add_argument('--dqn_learning_rate', default=1e-4, type=float,
+        help='Learning rate')
     parser.add_argument('--dqn_train_steps', default=2000, type=int,
         help='Number of training sample interactions with the environment')
 
@@ -61,10 +61,6 @@ def main():
     parser.add_argument('--qnet_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
 
-    # learning rate for the optimizer
-    parser.add_argument('--learning_rate', default=1e-4, type=float,
-        help='Learning rate')
-
     # checkpoint
     parser.add_argument('--read_weights', default=None, type=str,
         help='Read weights from file')
@@ -79,25 +75,25 @@ def main():
         import gym_ple
 
     print('########## All arguments:', args)
-    args.resize = tuple(args.resize)
+    args.env_resize = tuple(args.env_resize)
 
     # environment
     env = gym.make(args.env)
-    env = Preprocessor(env, resize=args.resize)
-    env = HistoryStacker(env, args.num_frames, args.act_steps)
+    env = Preprocessor(env, resize=args.env_resize)
+    env = HistoryStacker(env, args.env_num_frames, args.env_act_steps)
     env = RewardClipper(env, -1.0, 1.0)
     num_actions = env.action_space.n
 
     # online/target q-nets
-    width, height = args.resize
-    input_shape = height, width, args.num_frames
+    width, height = args.env_resize
+    input_shape = height, width, args.env_num_frames
     qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
 
     online, target = (QNet(atari_qnet(*qnet_args)) for _ in range(2))
     sess = tf.Session()
     for net in online, target:
         net.set_loss(mean_huber_loss)
-        net.set_optimizer(tf.train.AdamOptimizer(args.learning_rate))
+        net.set_optimizer(tf.train.AdamOptimizer(args.dqn_learning_rate))
         net.set_session(sess)
     target.set_sync_weights(online.weights)
     sess.run(tf.global_variables_initializer())
@@ -113,7 +109,7 @@ def main():
                                   decay_steps=args.policy_decay_steps)
 
     # construct and compile the dqn agent
-    output = get_output_folder(args.output, args.env)
+    output = get_output_folder(args.dqn_output, args.env)
     agent = DQN(num_actions=num_actions, online=online, target=target,
                 state_to_input=list_frames_to_array,
                 output=output, memory=memory, policy=policy,
