@@ -82,10 +82,10 @@ class DQN(object):
 
     def train_online(self):
         batch, b_idx, b_prob = self.memory.sample(self.batch_size)
-        batch_weights = self.memory.get_batch_weights(b_idx, b_prob)
-        b_state, q_target_b, td_error, online = self.process_batch(batch)
+        b_weights = self.memory.get_batch_weights(b_idx, b_prob)
+        b_state, b_q_target, td_error, online = self.process_batch(batch)
         self.memory.update_priority(b_idx, td_error)
-        online.train_on_batch(b_state, q_target_b, sample_weight=batch_weights)
+        online.train_on_batch(b_state, b_q_target, sample_weight=b_weights)
 
     def process_batch(self, batch):
         # roll online/target nets for double q-learning
@@ -108,19 +108,19 @@ class DQN(object):
         b_state_next = np.stack(b_state_next)
 
         # compute target q-values and td-error
-        q_online_b = online.action_values(b_state)
-        q_online_b_n = online.action_values(b_state_next)
-        q_target_b_n = target.action_values(b_state_next)
-        q_target_b = q_online_b.copy()
-        ziplist = zip(q_target_b, q_online_b_n, q_target_b_n, batch)
+        b_q_online = online.action_values(b_state)
+        b_q_online_n = online.action_values(b_state_next)
+        b_q_target_n = target.action_values(b_state_next)
+        b_q_target = b_q_online.copy()
+        ziplist = zip(b_q_target, b_q_online_n, b_q_target_n, batch)
         for qt, qon, qtn, trans in ziplist:
             _, act, reward, _, done = trans
             full_reward = reward
             if not done:
                 full_reward += self.discount * qtn[qon.argmax()]
             qt[act] = full_reward
-        td_error = np.sum(q_target_b - q_online_b, axis=1)
-        return b_state, q_target_b, td_error, online
+        td_error = np.sum(b_q_target - b_q_online, axis=1)
+        return b_state, b_q_target, td_error, online
 
 def _every(step, interval):
     return not (step % interval)
