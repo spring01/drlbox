@@ -110,8 +110,7 @@ def main():
 
     # construct and compile the dqn agent
     output = get_output_folder(args.dqn_output, args.env)
-    agent = DQN(num_actions=num_actions, online=online, target=target,
-                state_to_input=list_frames_to_array,
+    agent = DQN(online, target, state_to_input=list_frames_to_array,
                 output=output, memory=memory, policy=policy,
                 discount=args.dqn_discount, train_steps=args.dqn_train_steps)
 

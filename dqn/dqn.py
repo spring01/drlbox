@@ -10,7 +10,7 @@ class DQN(object):
     sync_target_interval  = 40000
     save_interval         = 40000
 
-    def __init__(self, num_actions, online, target, state_to_input,
+    def __init__(self, online, target, state_to_input,
                  output, memory, policy, discount, train_steps):
         self.online = online
         self.target = target
