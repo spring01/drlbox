@@ -44,8 +44,14 @@ def main():
     parser.add_argument('--eval_episodes', default=20, type=int,
         help='Number of episodes in evaluation')
 
+    # rendering
+    parser.add_argument('--render', default='true', type=str,
+        choices=['true', 'True', 't', 'T', 'false', 'False', 'f', 'F'],
+        help='Do rendering or not')
+
     # parse arguments
     args = parser.parse_args()
+    render = args.render.lower() in ['true', 't']
 
     # add new environments here
     if args.env in ['FlappyBird-v0']:
@@ -76,12 +82,16 @@ def main():
     all_total_rewards = []
     for _ in range(args.eval_episodes):
         state = env.reset()
+        if render:
+            env.render()
         total_rewards = 0.0
         for i in range(episode_maxlen):
             state = list_frames_to_array(state)
             action_values = qnet.action_values(np.stack([state]))[0]
             action = policy.select_action(action_values)
             state, reward, done, info = env.step(action)
+            if render:
+                env.render()
             total_rewards += reward
             if done:
                 break

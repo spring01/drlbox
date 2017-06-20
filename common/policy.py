@@ -47,10 +47,8 @@ class LinearDecayEpsGreedy(EpsGreedy):
 
 class Stochastic(Policy):
 
-    def __init__(self, num_act):
-        assert num_act >= 1
-        self.num_act = num_act
-
-    def select_action(self, probs):
-        return np.random.choice(self.num_act, p=probs)
+    def select_action(self, action_values):
+        logsumexp = np.log(np.sum(np.exp(action_values)))
+        probs = np.exp(action_values - logsumexp)
+        return np.random.choice(len(probs), p=probs)
 
