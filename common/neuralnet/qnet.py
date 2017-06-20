@@ -1,5 +1,4 @@
 
-import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.keras.python.keras.layers import \
     Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
@@ -33,7 +32,7 @@ class QNet(RLNet):
 
     def train_on_batch(self, state, target, sample_weight=None):
         if sample_weight is None:
-            sample_weight = np.ones(len(state), dtype=np.float32)
+            sample_weight = [1.0] * len(state)
         feed_dict = {self.ph_state:         state,
                      self.ph_target:        target,
                      self.ph_sample_weight: sample_weight}
