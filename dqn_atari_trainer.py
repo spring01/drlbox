@@ -15,7 +15,7 @@ from common.util import get_output_folder
 
 
 def main():
-    parser = argparse.ArgumentParser(description='DQN')
+    parser = argparse.ArgumentParser(description='DQN Atari')
 
     # output path
     parser.add_argument('--output', default='output',

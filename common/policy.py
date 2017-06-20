@@ -24,11 +24,11 @@ class EpsGreedy(Policy):
     def __init__(self, epsilon):
         self.epsilon = epsilon
 
-    def select_action(self, q_values):
+    def select_action(self, action_values):
         if np.random.rand() < self.epsilon:
-            return np.random.randint(0, q_values.size)
+            return np.random.randint(0, action_values.size)
         else:
-            return np.argmax(q_values)
+            return action_values.argmax()
 
 
 class LinearDecayEpsGreedy(EpsGreedy):
