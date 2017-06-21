@@ -4,8 +4,8 @@ import numpy as np
 
 class DQN(object):
 
-    episode_maxlen        = 100000
-    batch_size            = 32
+    episode_maxlen = 100000
+    batch_size     = 32
 
     def __init__(self, online, target, state_to_input,
                  memory, policy, discount, train_steps,

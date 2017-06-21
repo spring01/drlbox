@@ -1,5 +1,4 @@
 
-
 import tensorflow as tf
 from tensorflow.contrib.keras.python.keras.layers import \
     Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
