@@ -6,20 +6,22 @@ class DQN(object):
 
     episode_maxlen        = 100000
     batch_size            = 32
-    train_online_interval = 4
-    sync_target_interval  = 40000
-    save_interval         = 40000
 
     def __init__(self, online, target, state_to_input,
-                 output, memory, policy, discount, train_steps):
+                 memory, policy, discount, train_steps,
+                 train_online_interval, sync_target_interval, save_interval,
+                 output):
         self.online = online
         self.target = target
         self.state_to_input = state_to_input
-        self.output = output
         self.memory = memory
         self.policy = policy
         self.discount = discount
         self.train_steps = train_steps
+        self.train_online_interval = train_online_interval
+        self.sync_target_interval = sync_target_interval
+        self.save_interval = save_interval
+        self.output = output
 
     def train(self, env):
         self.target.sync()
@@ -34,7 +36,7 @@ class DQN(object):
         while step <= self.train_steps:
             self.policy.update(step)
             _, step = self.run_episode(env, step, train=True)
-            print('training step {} out of {}'.format(step, self.train_steps))
+            print('training step {}/{}'.format(step, self.train_steps))
 
     def run_episode(self, env, step=0, train=False):
         state = env.reset()

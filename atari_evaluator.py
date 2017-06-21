@@ -8,13 +8,14 @@ from common.envwrapper import Preprocessor, HistoryStacker
 from common.policy import EpsGreedy
 from common.interface import list_frames_to_array
 from common.neuralnet.qnet import QNet, atari_qnet
+from common.neuralnet.acnet import ACNet, atari_acnet
 from common.util import get_output_folder
 
 
 episode_maxlen = 100000
 
 def main():
-    parser = argparse.ArgumentParser(description='DQN Atari')
+    parser = argparse.ArgumentParser(description='Deep RL Atari')
 
     # gym environment arguments
     parser.add_argument('--env', default='Breakout-v0',
@@ -30,10 +31,13 @@ def main():
     parser.add_argument('--policy_eps', default=0.01, type=float,
         help='Epsilon in epsilon-greedy policy')
 
-    # qnet arguments
-    parser.add_argument('--qnet_name', default='dqn', type=str,
-        help='Q-net name')
-    parser.add_argument('--qnet_size', default=512, type=int,
+    # neural net arguments
+    parser.add_argument('--net_type', default='qnet', type=str,
+        choices=['qnet', 'acnet'],
+        help='Neural net type')
+    parser.add_argument('--net_name', default='fully connected', type=str,
+        help='Neural net name')
+    parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
 
     # trained weights
@@ -53,10 +57,6 @@ def main():
     args = parser.parse_args()
     render = args.render.lower() in ['true', 't']
 
-    # add new environments here
-    if args.env in ['FlappyBird-v0']:
-        import gym_ple
-
     print('########## All arguments:', args)
     args.env_resize = tuple(args.env_resize)
 
@@ -66,15 +66,20 @@ def main():
     env = HistoryStacker(env, args.env_num_frames, args.env_act_steps)
     num_actions = env.action_space.n
 
-    # q-net
+    # neural net
+    net_type = args.net_type.lower()
+    if net_type == 'qnet':
+        net_builder = lambda args: QNet(atari_qnet(*args))
+    elif net_type == 'acnet':
+        net_builder = lambda args: ACNet(atari_acnet(*args))
     width, height = args.env_resize
     input_shape = height, width, args.env_num_frames
-    qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
-    qnet = QNet(atari_qnet(*qnet_args))
+    net_args = input_shape, num_actions, args.net_name, args.net_size
+    net = net_builder(net_args)
     sess = tf.Session()
-    qnet.set_session(sess)
+    net.set_session(sess)
     sess.run(tf.global_variables_initializer())
-    qnet.load_weights(args.read_weights)
+    net.load_weights(args.read_weights)
 
     # policy
     policy = EpsGreedy(epsilon=args.policy_eps)
@@ -87,7 +92,7 @@ def main():
         total_rewards = 0.0
         for i in range(episode_maxlen):
             state = list_frames_to_array(state)
-            action_values = qnet.action_values(np.stack([state]))[0]
+            action_values = net.action_values(np.stack([state]))[0]
             action = policy.select_action(action_values)
             state, reward, done, info = env.step(action)
             if render:
