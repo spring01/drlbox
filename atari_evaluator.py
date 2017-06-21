@@ -5,8 +5,8 @@ import argparse
 import numpy as np
 import tensorflow as tf
 from common.envwrapper import Preprocessor, HistoryStacker
-from common.policy import EpsGreedy, Stochastic
 from common.interface import list_frames_to_array
+from common.policy import EpsGreedy, Stochastic
 from common.neuralnet.qnet import QNet, atari_qnet
 from common.neuralnet.acnet import ACNet, atari_acnet
 from common.util import get_output_folder

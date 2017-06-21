@@ -27,20 +27,22 @@ def main():
     parser.add_argument('--env_act_steps', default=4, type=int,
         help='Do an action for how many steps before observing')
 
-    # dqn arguments
-    parser.add_argument('--dqn_output', default='output',
+    # rl arguments
+    parser.add_argument('--rl_save_path', default='./output',
         help='Directory to save data to')
-    parser.add_argument('--dqn_discount', default=0.99, type=float,
+    parser.add_argument('--rl_discount', default=0.99, type=float,
         help='Discount factor gamma')
-    parser.add_argument('--dqn_learning_rate', default=1e-4, type=float,
+    parser.add_argument('--rl_learning_rate', default=1e-4, type=float,
         help='Learning rate')
-    parser.add_argument('--dqn_train_steps', default=1000000, type=int,
+    parser.add_argument('--rl_train_steps', default=1000000, type=int,
         help='Number of training sample interactions with the environment')
-    parser.add_argument('--dqn_train_online_interval', default=4, type=int,
+
+    # intervals
+    parser.add_argument('--interval_train_online', default=4, type=int,
         help='Interval to train the online network')
-    parser.add_argument('--dqn_sync_target_interval', default=40000, type=int,
+    parser.add_argument('--interval_sync_target', default=40000, type=int,
         help='Interval to reset the target network')
-    parser.add_argument('--dqn_save_interval', default=40000, type=int,
+    parser.add_argument('--interval_save', default=40000, type=int,
         help='Interval to save weights and memory')
 
     # memory arguments
@@ -61,10 +63,10 @@ def main():
     parser.add_argument('--policy_decay_steps', default=500000, type=int,
         help='Decay steps in linear-decay epsilon-greedy')
 
-    # qnet arguments
-    parser.add_argument('--qnet_name', default='dqn', type=str,
-        help='Q-net name')
-    parser.add_argument('--qnet_size', default=512, type=int,
+    # neural net arguments
+    parser.add_argument('--net_name', default='dqn', type=str,
+        help='Neural net name')
+    parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
 
     # checkpoint
@@ -75,10 +77,6 @@ def main():
 
     # parse arguments
     args = parser.parse_args()
-
-    # add new environments here
-    if args.env in ['FlappyBird-v0']:
-        import gym_ple
 
     print('########## All arguments:', args)
     args.env_resize = tuple(args.env_resize)
@@ -93,19 +91,18 @@ def main():
     # online/target q-nets
     width, height = args.env_resize
     input_shape = height, width, args.env_num_frames
-    qnet_args = input_shape, num_actions, args.qnet_name, args.qnet_size
-
+    qnet_args = input_shape, num_actions, args.net_name, args.net_size
     online, target = (QNet(atari_qnet(*qnet_args)) for _ in range(2))
     sess = tf.Session()
     for net in online, target:
         net.set_loss(mean_huber_loss)
-        net.set_optimizer(tf.train.AdamOptimizer(args.dqn_learning_rate))
+        net.set_optimizer(tf.train.AdamOptimizer(args.rl_learning_rate))
         net.set_session(sess)
     target.set_sync_weights(online.weights)
     sess.run(tf.global_variables_initializer())
 
     # memory and policy
-    memory = PriorityMemory(train_steps=args.dqn_train_steps,
+    memory = PriorityMemory(train_steps=args.rl_train_steps,
                             maxlen=args.memory_maxlen,
                             fill=args.memory_fill,
                             alpha=args.memory_alpha,
@@ -115,13 +112,13 @@ def main():
                                   decay_steps=args.policy_decay_steps)
 
     # construct and compile the dqn agent
-    output = get_output_folder(args.dqn_output, args.env)
+    output = get_output_folder(args.rl_save_path, args.env)
     agent = DQN(online, target, state_to_input=list_frames_to_array,
                 memory=memory, policy=policy,
-                discount=args.dqn_discount, train_steps=args.dqn_train_steps,
-                train_online_interval=args.dqn_train_online_interval,
-                sync_target_interval=args.dqn_sync_target_interval,
-                save_interval=args.dqn_save_interval,
+                discount=args.rl_discount, train_steps=args.rl_train_steps,
+                interval_train_online=args.interval_train_online,
+                interval_sync_target=args.interval_sync_target,
+                interval_save=args.interval_save,
                 output=output)
 
     # read weights/memory if requested

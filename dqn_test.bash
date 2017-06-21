@@ -5,28 +5,28 @@ output="$(mktemp -d)"
 echo "made temp dir $output"
 
 # dqn
-python dqn_atari_trainer.py --dqn_train_steps 500 \
-    --dqn_sync_target_interval 200 --dqn_save_interval 200 \
+python dqn_atari_trainer.py --rl_train_steps 500 \
+    --interval_sync_target 200 --interval_save 200 \
     --memory_maxlen 200 --memory_fill 100 \
-    --qnet_name 'dqn' --qnet_size 256 --dqn_output $output
+    --net_name 'dqn' --net_size 256 --rl_save_path $output
 
 # dueling dqn
-python dqn_atari_trainer.py --dqn_train_steps 500 \
-    --dqn_sync_target_interval 200 --dqn_save_interval 200 \
+python dqn_atari_trainer.py --rl_train_steps 500 \
+    --interval_sync_target 200 --interval_save 200 \
     --memory_maxlen 200 --memory_fill 100 \
-    --qnet_name 'dueling dqn' --qnet_size 256 --dqn_output $output
+    --net_name 'dueling dqn' --net_size 256 --rl_save_path $output
 
 # drqn lstm
-python dqn_atari_trainer.py --dqn_train_steps 500 \
-    --dqn_sync_target_interval 200 --dqn_save_interval 200 \
+python dqn_atari_trainer.py --rl_train_steps 500 \
+    --interval_sync_target 200 --interval_save 200 \
     --memory_maxlen 200 --memory_fill 100 \
-    --qnet_name 'drqn gru' --qnet_size 128 --dqn_output $output
+    --net_name 'drqn gru' --net_size 128 --rl_save_path $output
 
 # dueling drqn gru
-python dqn_atari_trainer.py --dqn_train_steps 500 \
-    --dqn_sync_target_interval 200 --dqn_save_interval 200 \
+python dqn_atari_trainer.py --rl_train_steps 500 \
+    --interval_sync_target 200 --interval_save 200 \
     --memory_maxlen 200 --memory_fill 100 \
-    --qnet_name 'dueling drqn gru' --qnet_size 128 --dqn_output $output
+    --net_name 'dueling drqn gru' --net_size 128 --rl_save_path $output
 
 # evaluator
 python atari_evaluator.py --read_weights $output/Breakout-v0-run2/weights_4*.p \

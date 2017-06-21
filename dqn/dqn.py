@@ -9,7 +9,7 @@ class DQN(object):
 
     def __init__(self, online, target, state_to_input,
                  memory, policy, discount, train_steps,
-                 train_online_interval, sync_target_interval, save_interval,
+                 interval_train_online, interval_sync_target, interval_save,
                  output):
         self.online = online
         self.target = target
@@ -18,9 +18,9 @@ class DQN(object):
         self.policy = policy
         self.discount = discount
         self.train_steps = train_steps
-        self.train_online_interval = train_online_interval
-        self.sync_target_interval = sync_target_interval
-        self.save_interval = save_interval
+        self.interval_train_online = interval_train_online
+        self.interval_sync_target = interval_sync_target
+        self.interval_save = interval_save
         self.output = output
 
     def train(self, env):
@@ -64,16 +64,16 @@ class DQN(object):
 
     def extra_work_train(self, step):
         # train online net
-        if _every(step, self.train_online_interval):
+        if _every(step, self.interval_train_online):
             self.memory.update_beta(step)
             self.train_online()
 
         # sync target net
-        if _every(step, self.sync_target_interval):
+        if _every(step, self.interval_sync_target):
             self.target.sync()
 
         # save model
-        if _every(step, self.save_interval):
+        if _every(step, self.interval_save):
             output = self.output
             weights_save = os.path.join(output, 'weights_{}.p'.format(step))
             self.online.save_weights(weights_save)
