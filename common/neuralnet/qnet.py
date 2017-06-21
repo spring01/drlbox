@@ -43,11 +43,11 @@ class QNet(RLNet):
 Input arguments:
     input_shape: Tuple of the format (height, width, num_frames);
     num_actions: Number of actions in the environment; integer;
-    qnet_name:   Name of the q-net, e.g., 'dqn';
-    qnet_size:   Number of neurons in the first non-convolutional layer.
+    net_name:    Name of the q-net, e.g., 'dqn';
+    net_size:    Number of neurons in the first non-convolutional layer.
 '''
-def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
-    qnet_name = qnet_name.lower()
+def atari_qnet(input_shape, num_actions, net_name, net_size):
+    net_name = net_name.lower()
 
     # input state
     state = Input(shape=input_shape)
@@ -58,7 +58,7 @@ def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
     conv3_64 = Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
 
     # if recurrent net then change input shape
-    if 'drqn' in qnet_name:
+    if 'drqn' in net_name:
         # recurrent net (drqn)
         lambda_perm_state = lambda x: K.permute_dimensions(x, [0, 3, 1, 2])
         perm_state = Lambda(lambda_perm_state)(state)
@@ -69,7 +69,7 @@ def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
         dist_conv2 = TimeDistributed(conv2_64)(dist_conv1)
         dist_convf = TimeDistributed(conv3_64)(dist_conv2)
         feature = TimeDistributed(Flatten())(dist_convf)
-    elif 'dqn' in qnet_name:
+    elif 'dqn' in net_name:
         # fully connected net (dqn)
         # extract features with convolutional layers
         conv1 = conv1_32(state)
@@ -78,17 +78,17 @@ def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
         feature = Flatten()(convf)
 
     # network type. Dense for dqn; LSTM or GRU for drqn
-    if 'lstm' in qnet_name:
+    if 'lstm' in net_name:
         net_type = LSTM
-    elif 'gru' in qnet_name:
+    elif 'gru' in net_name:
         net_type = GRU
     else:
         net_type = Dense
 
     # dueling or regular dqn/drqn
-    if 'dueling' in qnet_name:
-        value1 = net_type(qnet_size, activation='relu')(feature)
-        adv1 = net_type(qnet_size, activation='relu')(feature)
+    if 'dueling' in net_name:
+        value1 = net_type(net_size, activation='relu')(feature)
+        adv1 = net_type(net_size, activation='relu')(feature)
         value2 = Dense(1)(value1)
         adv2 = Dense(num_actions)(adv1)
         mean_adv2 = Lambda(lambda x: K.mean(x, axis=1))(adv2)
@@ -99,7 +99,7 @@ def atari_qnet(input_shape, num_actions, qnet_name, qnet_size):
         exp_value2 = Lambda(lambda x: K.dot(x, ones))(value2)
         q_value = add([exp_value2, sum_adv])
     else:
-        hid = net_type(qnet_size, activation='relu')(feature)
+        hid = net_type(net_size, activation='relu')(feature)
         q_value = Dense(num_actions)(hid)
 
     # build model

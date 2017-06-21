@@ -52,11 +52,11 @@ class ACNet(RLNet):
 Input arguments:
     input_shape: Tuple of the format (height, width, num_frames);
     num_actions: Number of actions in the environment; integer;
-    acnet_name:  Name of the actor-critic net, e.g., 'fully connected';
-    acnet_size:  Number of neurons in the first non-convolutional layer.
+    net_name:    Name of the actor-critic net, e.g., 'fully connected';
+    net_size:    Number of neurons in the first non-convolutional layer.
 '''
-def atari_acnet(input_shape, num_actions, acnet_name, acnet_size):
-    acnet_name = acnet_name.lower()
+def atari_acnet(input_shape, num_actions, net_name, net_size):
+    net_name = net_name.lower()
 
     # input state
     state = Input(shape=input_shape)
@@ -67,7 +67,7 @@ def atari_acnet(input_shape, num_actions, acnet_name, acnet_size):
     conv3_64 = Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
 
     # if recurrent net then change input shape
-    if 'lstm' in acnet_name or 'gru' in acnet_name:
+    if 'lstm' in net_name or 'gru' in net_name:
         # recurrent net
         lambda_perm_state = lambda x: K.permute_dimensions(x, [0, 3, 1, 2])
         perm_state = Lambda(lambda_perm_state)(state)
@@ -80,11 +80,11 @@ def atari_acnet(input_shape, num_actions, acnet_name, acnet_size):
         feature = TimeDistributed(Flatten())(dist_convf)
 
         # specify net type for the following layer
-        if 'lstm' in acnet_name:
+        if 'lstm' in net_name:
             net_type = LSTM
-        elif 'gru' in acnet_name:
+        elif 'gru' in net_name:
             net_type = GRU
-    elif 'fully connected' in acnet_name:
+    elif 'fully connected' in net_name:
         # fully connected net
         # extract features with convolutional layers
         conv1 = conv1_32(state)
@@ -96,7 +96,7 @@ def atari_acnet(input_shape, num_actions, acnet_name, acnet_size):
         net_type = Dense
 
     # actor (policy) and critic (value) stream
-    hid = net_type(acnet_size, activation='relu')(feature)
+    hid = net_type(net_size, activation='relu')(feature)
     logits = Dense(num_actions)(hid)
     value = Dense(1)(hid)
 

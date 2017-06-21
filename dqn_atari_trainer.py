@@ -94,8 +94,8 @@ def main():
     # online/target q-nets
     width, height = args.env_resize
     input_shape = height, width, args.env_num_frames
-    qnet_args = input_shape, num_actions, args.net_name, args.net_size
-    online, target = (QNet(atari_qnet(*qnet_args)) for _ in range(2))
+    net_args = input_shape, num_actions, args.net_name, args.net_size
+    online, target = (QNet(atari_qnet(*net_args)) for _ in range(2))
     sess = tf.Session()
     for net in online, target:
         net.set_loss(mean_huber_loss)
