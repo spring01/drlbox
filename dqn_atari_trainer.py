@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+"""
+Atari game deep RL with deep Q-network (DQN)
+Supports deep recurrent Q-network (DRQN) and dueling architecture
+"""
 
 import os
 import gym

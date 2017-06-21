@@ -1,3 +1,8 @@
+"""
+Atari game deep RL evaluator
+Supports both DQN and A3C
+"""
+
 
 import sys
 import gym
