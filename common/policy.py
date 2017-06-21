@@ -48,7 +48,9 @@ class LinearDecayEpsGreedy(EpsGreedy):
 class Stochastic(Policy):
 
     def select_action(self, action_values):
-        logsumexp = np.log(np.sum(np.exp(action_values)))
+        max_value = action_values.max()
+        sumexp_shifted = np.sum(np.exp(action_values - max_value))
+        logsumexp = max_value + np.log(sumexp_shifted)
         probs = np.exp(action_values - logsumexp)
         return np.random.choice(len(probs), p=probs)
 
