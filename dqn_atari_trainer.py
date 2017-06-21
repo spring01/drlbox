@@ -34,13 +34,19 @@ def main():
         help='Discount factor gamma')
     parser.add_argument('--dqn_learning_rate', default=1e-4, type=float,
         help='Learning rate')
-    parser.add_argument('--dqn_train_steps', default=2000, type=int,
+    parser.add_argument('--dqn_train_steps', default=1000000, type=int,
         help='Number of training sample interactions with the environment')
+    parser.add_argument('--dqn_train_online_interval', default=4, type=int,
+        help='Interval to train the online network')
+    parser.add_argument('--dqn_sync_target_interval', default=40000, type=int,
+        help='Interval to reset the target network')
+    parser.add_argument('--dqn_save_interval', default=40000, type=int,
+        help='Interval to save weights and memory')
 
     # memory arguments
-    parser.add_argument('--memory_maxlen', default=1000, type=int,
+    parser.add_argument('--memory_maxlen', default=100000, type=int,
         help='Replay memory length')
-    parser.add_argument('--memory_fill', default=500, type=int,
+    parser.add_argument('--memory_fill', default=10000, type=int,
         help='Fill the replay memory to how much length before update')
     parser.add_argument('--memory_alpha', default=0.6, type=float,
         help='Exponent alpha in prioritized replay memory')
@@ -111,8 +117,12 @@ def main():
     # construct and compile the dqn agent
     output = get_output_folder(args.dqn_output, args.env)
     agent = DQN(online, target, state_to_input=list_frames_to_array,
-                output=output, memory=memory, policy=policy,
-                discount=args.dqn_discount, train_steps=args.dqn_train_steps)
+                memory=memory, policy=policy,
+                discount=args.dqn_discount, train_steps=args.dqn_train_steps,
+                train_online_interval=args.dqn_train_online_interval,
+                sync_target_interval=args.dqn_sync_target_interval,
+                save_interval=args.dqn_save_interval,
+                output=output)
 
     # read weights/memory if requested
     if args.read_weights is not None:
