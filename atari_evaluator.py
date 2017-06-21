@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 from common.envwrapper import Preprocessor, HistoryStacker
-from common.policy import EpsGreedy
+from common.policy import EpsGreedy, Stochastic
 from common.interface import list_frames_to_array
 from common.neuralnet.qnet import QNet, atari_qnet
 from common.neuralnet.acnet import ACNet, atari_acnet
@@ -28,6 +28,9 @@ def main():
         help='Do an action for how many steps')
 
     # policy arguments
+    parser.add_argument('--policy_type', default='epsilon greedy', type=str,
+        choices=['epsilon greedy', 'stochastic'],
+        help='Evaluation policy type')
     parser.add_argument('--policy_eps', default=0.01, type=float,
         help='Epsilon in epsilon-greedy policy')
 
@@ -35,7 +38,7 @@ def main():
     parser.add_argument('--net_type', default='qnet', type=str,
         choices=['qnet', 'acnet'],
         help='Neural net type')
-    parser.add_argument('--net_name', default='fully connected', type=str,
+    parser.add_argument('--net_name', default='dqn', type=str,
         help='Neural net name')
     parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
@@ -82,7 +85,10 @@ def main():
     net.load_weights(args.read_weights)
 
     # policy
-    policy = EpsGreedy(epsilon=args.policy_eps)
+    if args.policy_type == 'epsilon greedy':
+        policy = EpsGreedy(epsilon=args.policy_eps)
+    elif args.policy_type == 'stochastic':
+        policy = Stochastic()
 
     all_total_rewards = []
     for _ in range(args.eval_episodes):
