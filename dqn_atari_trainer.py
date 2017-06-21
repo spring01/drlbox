@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--env_act_steps', default=4, type=int,
         help='Do an action for how many steps before observing')
 
-    # rl arguments
+    # reinforcement learning arguments
     parser.add_argument('--rl_save_path', default='./output',
         help='Directory to save data to')
     parser.add_argument('--rl_discount', default=0.99, type=float,
