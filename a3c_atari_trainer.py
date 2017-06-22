@@ -106,10 +106,9 @@ def trainer(args):
 import os
 import signal
 import gym
-import numpy as np
 import tensorflow as tf
 from a3c.a3c import A3C
-from a3c.rollout import RollOut
+from a3c.rollout import Rollout
 from a3c.step_counter import StepCounter
 from common.envwrapper import Preprocessor, HistoryStacker, RewardClipper
 from common.policy import Stochastic
@@ -159,7 +158,7 @@ def worker(args):
 
     # policy and rollout
     policy = Stochastic()
-    rollout = RollOut(args.rollout_maxlen, num_actions)
+    rollout = Rollout(args.rollout_maxlen, num_actions)
 
     # begin tensorflow session, build a3c agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
