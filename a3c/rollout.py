@@ -2,7 +2,7 @@
 import numpy as np
 
 
-class RollOut(object):
+class Rollout(object):
 
     def __init__(self, maxlen, num_actions):
         self.action_1h_converter = np.eye(num_actions)
