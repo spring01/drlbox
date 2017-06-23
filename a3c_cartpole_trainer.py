@@ -1,5 +1,5 @@
 """
-Atari game deep RL with asynchronous advantage actor-critic (A3C)
+CartPole deep RL with asynchronous advantage actor-critic (A3C)
 Built with distributed tensorflow
 """
 
