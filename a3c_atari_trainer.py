@@ -86,7 +86,7 @@ def trainer(args):
         run_list = ['python', __file__]
         for key, value in args_dict.items():
             run_list.append('--{}'.format(key))
-            if key == 'env_resize':
+            if type(value) == tuple:
                 for val in map(str, value):
                     run_list.append(val)
             else:
