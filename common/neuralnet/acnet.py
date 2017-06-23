@@ -102,3 +102,23 @@ def atari_acnet(input_shape, num_actions, net_name, net_size):
     # build model
     return Model(inputs=state, outputs=[value, logits])
 
+
+'''
+Input arguments:
+    input_shape: Tuple of the format (height, width, num_frames);
+    num_actions: Number of actions in the environment; integer;
+    net_arch:    Architecture of the actor-critic net.
+'''
+def simple_acnet(input_shape, num_actions, net_arch):
+    # input state
+    state = Input(shape=input_shape)
+    layer = state
+    for num_hid in net_arch:
+        layer = Dense(num_hid, activation='relu')(layer)
+    logits = Dense(num_actions)(layer)
+    value = Dense(1)(layer)
+
+    # build model
+    return Model(inputs=state, outputs=[value, logits])
+
+
