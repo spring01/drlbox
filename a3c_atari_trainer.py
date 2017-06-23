@@ -83,7 +83,7 @@ def trainer(args):
     worker_list = []
     for worker_index in range(num_workers):
         args_dict['dtf_worker_index'] = worker_index
-        run_list = ['python', 'a3c_atari_trainer.py']
+        run_list = ['python', __file__]
         for key, value in args_dict.items():
             run_list.append('--{}'.format(key))
             if key == 'env_resize':
