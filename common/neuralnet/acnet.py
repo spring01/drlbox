@@ -4,6 +4,7 @@ from tensorflow.contrib.keras.python.keras.layers import \
     Input, Flatten, Lambda, Conv2D, Dense, LSTM, GRU, add, dot, TimeDistributed
 from tensorflow.contrib.keras.python.keras.models import Model
 from tensorflow.contrib.keras import backend as K
+from tensorflow.contrib.keras.python.keras.initializers import RandomNormal
 from .rlnet import RLNet
 
 
@@ -96,7 +97,7 @@ def atari_acnet(input_shape, num_actions, net_name, net_size):
 
     # actor (policy) and critic (value) stream
     hid = net_type(net_size, activation='relu')(feature)
-    logits = Dense(num_actions)(hid)
+    logits = Dense(num_actions, kernel_initializer='zeros')(hid)
     value = Dense(1)(hid)
 
     # build model
@@ -115,7 +116,7 @@ def simple_acnet(input_shape, num_actions, net_arch):
     layer = state
     for num_hid in net_arch:
         layer = Dense(num_hid, activation='relu')(layer)
-    logits = Dense(num_actions)(layer)
+    logits = Dense(num_actions, kernel_initializer='zeros')(layer)
     value = Dense(1)(layer)
 
     # build model
