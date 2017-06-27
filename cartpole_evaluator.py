@@ -11,7 +11,8 @@ import numpy as np
 import tensorflow as tf
 from common.policy import EpsGreedy, Stochastic
 from common.neuralnet.qnet import QNet
-from common.neuralnet.acnet import ACNet, simple_acnet
+from common.neuralnet.acnet import ACNet
+from simple_nets import simple_acnet, simple_qnet
 
 
 ENV = 'CartPole-v0'
@@ -61,7 +62,7 @@ def main():
     # neural net
     net_type = args.net_type.lower()
     if net_type == 'qnet':
-        net_builder = lambda args: QNet(atari_qnet(*args))
+        net_builder = lambda args: QNet(simple_qnet(*args))
     elif net_type == 'acnet':
         net_builder = lambda args: ACNet(simple_acnet(*args))
     net_args = input_shape, num_actions, args.net_arch

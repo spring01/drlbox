@@ -100,8 +100,9 @@ from a3c.a3c import A3C
 from a3c.rollout import Rollout
 from a3c.step_counter import StepCounter
 from common.policy import Stochastic
-from common.neuralnet.acnet import ACNet, simple_acnet
+from common.neuralnet.acnet import ACNet
 from common.util import get_output_folder
+from simple_nets import simple_acnet
 
 def worker(args):
     # environment
