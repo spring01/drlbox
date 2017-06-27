@@ -11,8 +11,9 @@ import tensorflow as tf
 from common.envwrapper import Preprocessor, HistoryStacker
 from common.interface import list_frames_to_array
 from common.policy import EpsGreedy, Stochastic
-from common.neuralnet.qnet import QNet, atari_qnet
-from common.neuralnet.acnet import ACNet, atari_acnet
+from common.neuralnet.qnet import QNet
+from common.neuralnet.acnet import ACNet
+from atari_nets import atari_acnet, atari_qnet
 
 
 episode_maxlen = 100000
@@ -38,10 +39,10 @@ def main():
         help='Epsilon in epsilon-greedy policy')
 
     # neural net arguments
-    parser.add_argument('--net_type', default='qnet', type=str,
+    parser.add_argument('--net_type', default='acnet', type=str,
         choices=['qnet', 'acnet'],
         help='Neural net type')
-    parser.add_argument('--net_name', default='dqn', type=str,
+    parser.add_argument('--net_name', default='fully connected', type=str,
         help='Neural net name')
     parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')

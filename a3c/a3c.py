@@ -49,7 +49,7 @@ class A3C(object):
                     state = self.state_to_input(state)
                     break
             b_state_1more = rollout.get_batch_state()
-            b_value = acnet_local.value(b_state_1more)
+            b_value = acnet_local.state_value(b_state_1more)
             b_action_1h, b_adv, b_target = rollout.get_batch_target(b_value)
             b_state = b_state_1more[:-1]
             acnet_local.train_on_batch(b_state, b_action_1h, b_adv, b_target)

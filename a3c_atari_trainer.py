@@ -113,8 +113,9 @@ from a3c.step_counter import StepCounter
 from common.envwrapper import Preprocessor, HistoryStacker, RewardClipper
 from common.policy import Stochastic
 from common.interface import list_frames_to_array
-from common.neuralnet.acnet import ACNet, atari_acnet
+from common.neuralnet.acnet import ACNet
 from common.util import get_output_folder
+from atari_nets import atari_acnet
 
 def worker(args):
     # environment
