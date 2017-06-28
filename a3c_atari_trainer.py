@@ -43,7 +43,7 @@ def arguments():
         help='Number of training sample interactions with the environment')
 
     # intervals
-    parser.add_argument('--interval_save', default=40000, type=int,
+    parser.add_argument('--interval_save', default=10000, type=int,
         help='Interval to save weights')
 
     # rollout arguments
