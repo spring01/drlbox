@@ -29,7 +29,7 @@ def main():
         help='Epsilon in epsilon-greedy policy')
 
     # neural net arguments
-    parser.add_argument('--net_type', default='qnet', type=str,
+    parser.add_argument('--net_type', default='acnet', type=str,
         choices=['qnet', 'acnet'],
         help='Neural net type')
     parser.add_argument('--net_arch', nargs='+', type=int, default=(16, 16, 16),
