@@ -59,7 +59,10 @@ class A3C(object):
                 if step - last_step > self.interval_save:
                     self.save_weights(step)
                     last_step = step
-                print('training step {}/{}'.format(step, self.train_steps))
+                loss_args = b_state, b_action_1h, b_adv, b_target
+                b_loss = acnet_local.state_loss(*loss_args)
+                str_step = 'training step {}/{}'.format(step, self.train_steps)
+                print(str_step + ', loss {:3.3f}'.format(b_loss))
 
     def save_weights(self, step):
         weights_save = os.path.join(self.output, 'weights_{}.p'.format(step))
