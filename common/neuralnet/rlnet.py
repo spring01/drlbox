@@ -30,6 +30,9 @@ class RLNet(object):
     def train_on_batch(self, *args, **kwargs):
         raise NotImplementedError
 
+    def state_loss(self, *args, **kwargs):
+        raise NotImplementedError
+
     def sync(self):
         self.sess.run(self.op_sync)
 
