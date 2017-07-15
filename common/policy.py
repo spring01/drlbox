@@ -52,5 +52,6 @@ class Stochastic(Policy):
         sumexp_shifted = np.sum(np.exp(action_values - max_value))
         logsumexp = max_value + np.log(sumexp_shifted)
         probs = np.exp(action_values - logsumexp)
+        probs /= np.sum(probs)
         return np.random.choice(len(probs), p=probs)
 
