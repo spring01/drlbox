@@ -35,6 +35,7 @@ class A3C(object):
 
         state = env.reset()
         state = self.state_to_input(state)
+        episode_reward = 0.0
         while step <= self.train_steps:
             acnet_local.sync()
             rollout.reset(state)
@@ -42,11 +43,14 @@ class A3C(object):
                 action_values = acnet_local.action_values([state])[0]
                 action = self.policy.select_action(action_values)
                 state, reward, done, info = env.step(action)
+                episode_reward += reward
                 state = self.state_to_input(state)
                 rollout.append(state, action, reward, done)
                 if done:
                     state = env.reset()
                     state = self.state_to_input(state)
+                    print('episode reward {:5.2f}'.format(episode_reward))
+                    episode_reward = 0.0
                     break
             b_state_1more = rollout.get_batch_state()
             b_value = acnet_local.state_value(b_state_1more)
