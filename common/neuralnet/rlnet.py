@@ -5,6 +5,8 @@ import tensorflow as tf
 
 class RLNet(object):
 
+    op_sync = None
+
     def set_session(self, sess):
         self.sess = sess
 
@@ -43,6 +45,8 @@ class RLNet(object):
     def load_weights(self, filename):
         with open(filename, 'rb') as save:
             weights = pickle.load(save)
+        old_op_sync = self.op_sync # restore current self.op_sync later
         self.set_sync_weights(weights)
         self.sync()
+        self.op_sync = old_op_sync
 
