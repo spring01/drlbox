@@ -6,7 +6,7 @@ from keras.models import Model
 
 '''
 Input arguments:
-    input_shape: Tuple of the format (height, width, num_frames);
+    input_shape: Tuple of the format (dim_input,);
     num_actions: Number of actions in the environment; integer;
     net_arch:    Architecture of the actor-critic net.
 '''
@@ -20,9 +20,9 @@ def simple_acnet(input_shape, num_actions, net_arch):
 
 '''
 Input arguments:
-    input_shape: Tuple of the format (height, width, num_frames);
+    input_shape: Tuple of the format (dim_input,);
     num_actions: Number of actions in the environment; integer;
-    net_arch:    Architecture of the actor-critic net.
+    net_arch:    Architecture of the q-net.
 '''
 def simple_qnet(input_shape, num_actions, net_arch):
     state, feature = _simple_state_feature(input_shape, net_arch)
