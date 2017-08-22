@@ -27,7 +27,6 @@ Input arguments:
 def simple_qnet(input_shape, num_actions, net_arch):
     state, feature = _simple_state_feature(input_shape, net_arch)
     q_value = kl.Dense(num_actions)(feature)
-    value = kl.Dense(1)(feature)
     return Model(inputs=state, outputs=q_value)
 
 
