@@ -1,7 +1,7 @@
 
-import keras.layers as kl
-from keras.initializers import RandomNormal
-from keras.models import Model
+import tensorflow.contrib.keras.api.keras.layers as kl
+from tensorflow.contrib.keras.api.keras.initializers import RandomNormal
+from tensorflow.contrib.keras.api.keras.models import Model
 
 
 '''
