@@ -77,6 +77,15 @@ def arguments():
 ''' trainer block '''
 import time
 import subprocess
+import signal
+
+class TrainingIndicator(object):
+    train = True
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.handler)
+        signal.signal(signal.SIGTERM, self.handler)
+    def handler(self, signum, frame):
+        self.train = False
 
 def trainer(args):
     num_workers = int(args.dtf_num_workers)
@@ -95,13 +104,12 @@ def trainer(args):
                 run_list.append(str(value))
         worker = subprocess.Popen(run_list, stderr=subprocess.STDOUT)
         worker_list.append(worker)
-    try:
-        # waiting for the master worker to kill it...
-        while True:
-            time.sleep(1)
-    finally:
-        for worker in worker_list:
-            worker.terminate()
+    train = TrainingIndicator()
+    while train.train:
+        time.sleep(1)
+    for worker in worker_list:
+        worker.terminate()
+    print('A3C training ends')
 
 
 ''' worker block '''
