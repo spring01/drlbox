@@ -41,6 +41,8 @@ def arguments():
         help='Learning rate')
     parser.add_argument('--rl_train_steps', default=1000000, type=int,
         help='Number of training sample interactions with the environment')
+    parser.add_argument('--rl_entropy_weight', default=0.01, type=float,
+        help='Weight of the entropy term in A3C loss')
 
     # intervals
     parser.add_argument('--interval_save', default=10000, type=int,
@@ -151,7 +153,7 @@ def worker(args):
     # local net
     with tf.device(worker_dev):
         acnet_local = ACNet(atari_acnet(*net_args))
-        acnet_local.set_loss()
+        acnet_local.set_loss(entropy_weight=args.rl_entropy_weight)
         adam = tf.train.AdamOptimizer(args.rl_learning_rate)
         acnet_local.set_optimizer(adam, train_weights=global_weights)
         acnet_local.set_sync_weights(global_weights)
