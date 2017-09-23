@@ -2,7 +2,7 @@
 import os
 import numpy as np
 
-class DQN(object):
+class DQN:
 
     episode_maxlen = 100000
     batch_size     = 32

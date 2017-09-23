@@ -3,7 +3,7 @@ import pickle
 import tensorflow as tf
 
 
-class RLNet(object):
+class RLNet:
 
     op_sync = None
 

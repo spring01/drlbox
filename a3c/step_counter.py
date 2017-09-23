@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 
-class StepCounter(object):
+class StepCounter:
 
     def __init__(self):
         self.tf_step_count = tf.Variable(0)

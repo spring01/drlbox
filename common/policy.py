@@ -3,7 +3,7 @@ import numpy as np
 
 
 ''' Works with discrete actions '''
-class Policy(object):
+class Policy:
 
     def select_action(self, *args, **kwargs):
         raise NotImplementedError('This method should be overriden.')

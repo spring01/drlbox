@@ -2,7 +2,7 @@
 import os
 
 
-class A3C(object):
+class A3C:
 
     def __init__(self, is_master,
                  acnet_global, acnet_local, state_to_input,

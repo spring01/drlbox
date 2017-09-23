@@ -79,7 +79,7 @@ import time
 import subprocess
 import signal
 
-class TrainingIndicator(object):
+class TrainingIndicator:
     train = True
     def __init__(self):
         signal.signal(signal.SIGINT, self.handler)

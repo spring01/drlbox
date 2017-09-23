@@ -4,7 +4,7 @@ import pickle
 
 
 ''' Proportional prioritization implemented as a ring-buffer. '''
-class PriorityMemory(object):
+class PriorityMemory:
 
     def __init__(self, train_steps, maxlen, fill, alpha, beta0):
         self.maxlen = maxlen
