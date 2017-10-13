@@ -19,6 +19,10 @@ class Random(Policy):
         return np.random.randint(0, self.num_act)
 
 
+'''
+With prob epsilon select a random action; otherwise greedy
+(so that when epsilon = 0.0 it falls back to greedy policy)
+'''
 class EpsGreedy(Policy):
 
     def __init__(self, epsilon):
@@ -47,6 +51,7 @@ class LinearDecayEpsGreedy(EpsGreedy):
 
 class Stochastic(Policy):
 
+    ''' `action_values` are supposed to be 'logits', i.e., before softmax '''
     def select_action(self, action_values):
         max_value = action_values.max()
         sumexp_shifted = np.sum(np.exp(action_values - max_value))
