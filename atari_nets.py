@@ -85,7 +85,7 @@ def _atari_state_feature_net(input_shape, net_name):
             net = kl.LSTM
         elif 'gru' in net_name:
             net = kl.GRU
-    elif 'fully connected' in net_name:
+    elif 'fc' in net_name:
         # fully connected net
         # extract features with convolutional layers
         conv1 = conv1_32(state)

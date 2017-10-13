@@ -63,7 +63,7 @@ def arguments():
         help='Do an action for how many steps')
 
     # neural net arguments
-    parser.add_argument('--net_name', default='fully connected', type=str,
+    parser.add_argument('--net_name', default='fc', type=str,
         help='Neural net name')
     parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')
@@ -138,6 +138,7 @@ def worker(args):
     # ports, cluster, and server
     port_list = [args.dtf_port_begin + i for i in range(args.dtf_num_workers)]
     worker_index = args.dtf_worker_index
+    is_master = worker_index == 0
     port = port_list[worker_index]
     cluster_list = ['localhost:{}'.format(port) for port in port_list]
     cluster = tf.train.ClusterSpec({'local': cluster_list})
@@ -154,7 +155,10 @@ def worker(args):
 
     # global net
     with tf.device(rep_dev):
-        acnet_global = ACNet(atari_acnet(*net_args))
+        model = atari_acnet(*net_args)
+        if is_master:
+            model.summary()
+        acnet_global = ACNet(model)
         global_weights = acnet_global.weights
         step_counter_global = StepCounter()
 
@@ -173,7 +177,6 @@ def worker(args):
 
     # begin tensorflow session, build a3c agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
-        is_master = worker_index == 0
         sess.run(tf.global_variables_initializer())
         for obj in acnet_global, acnet_local, step_counter_global:
             obj.set_session(sess)
