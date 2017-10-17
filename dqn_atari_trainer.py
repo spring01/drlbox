@@ -68,7 +68,7 @@ def main():
         help='Decay steps in linear-decay epsilon-greedy')
 
     # neural net arguments
-    parser.add_argument('--net_name', default='dqn', type=str,
+    parser.add_argument('--net_name', default='fc', type=str,
         help='Neural net name')
     parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')

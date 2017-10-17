@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--net_type', default='acnet', type=str,
         choices=['qnet', 'acnet'],
         help='Neural net type')
-    parser.add_argument('--net_name', default='fully connected', type=str,
+    parser.add_argument('--net_name', default='fc', type=str,
         help='Neural net name')
     parser.add_argument('--net_size', default=512, type=int,
         help='Number of hidden units in the first non-convolutional layer')

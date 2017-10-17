@@ -6,7 +6,7 @@ echo "made temp dir $output"
 
 # a3c fully connected
 python a3c_atari_trainer.py --dtf_num_workers 8 --rl_train_steps 500 \
-    --interval_save 200 --net_name 'fully connected' --net_size 256 \
+    --interval_save 200 --net_name 'fc' --net_size 256 \
     --rl_save_path $output
 
 # a3c lstm
