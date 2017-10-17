@@ -13,7 +13,7 @@ from common.interface import list_frames_to_array
 from common.policy import EpsGreedy, Stochastic
 from common.neuralnet.qnet import QNet
 from common.neuralnet.acnet import ACNet
-from atari_nets import atari_acnet, atari_qnet
+from model.atari_nets import atari_acnet, atari_qnet
 
 
 episode_maxlen = 100000

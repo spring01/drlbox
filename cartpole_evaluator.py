@@ -12,7 +12,7 @@ import tensorflow as tf
 from common.policy import EpsGreedy, Stochastic
 from common.neuralnet.qnet import QNet
 from common.neuralnet.acnet import ACNet
-from simple_nets import simple_acnet, simple_qnet
+from model.simple_nets import simple_acnet, simple_qnet
 
 
 ENV = 'CartPole-v0'

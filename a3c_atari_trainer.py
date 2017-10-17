@@ -117,7 +117,7 @@ from common.policy import Stochastic
 from common.interface import list_frames_to_array
 from common.neuralnet.acnet import ACNet
 from common.util import get_output_folder
-from atari_nets import atari_acnet
+from model.atari_nets import atari_acnet
 
 def worker(args):
     # environment

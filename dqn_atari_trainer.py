@@ -15,7 +15,7 @@ from common.interface import list_frames_to_array
 from common.neuralnet.qnet import QNet
 from common.loss import mean_huber_loss
 from common.util import get_output_folder
-from atari_nets import atari_qnet
+from model.atari_nets import atari_qnet
 
 
 def main():
