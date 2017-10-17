@@ -1,8 +1,7 @@
 
-import tensorflow.contrib.keras.api.keras.layers as kl
-from tensorflow.contrib.keras.api.keras.initializers import RandomNormal
-from tensorflow.contrib.keras.api.keras.models import Model
-
+from tensorflow.contrib.keras.api.keras import layers, models, initializers
+Input, Dense = layers.Dense, layers.Input
+RandomNormal = initializers.RandomNormal
 
 '''
 Input arguments:
@@ -13,9 +12,9 @@ Input arguments:
 def simple_acnet(input_shape, num_actions, net_arch):
     state, feature = _simple_state_feature(input_shape, net_arch)
     near_zeros = RandomNormal(stddev=1e-3)
-    logits = kl.Dense(num_actions, kernel_initializer=near_zeros)(feature)
-    value = kl.Dense(1)(feature)
-    return Model(inputs=state, outputs=[value, logits])
+    logits = Dense(num_actions, kernel_initializer=near_zeros)(feature)
+    value = Dense(1)(feature)
+    return models.Model(inputs=state, outputs=[value, logits])
 
 
 '''
@@ -26,15 +25,15 @@ Input arguments:
 '''
 def simple_qnet(input_shape, num_actions, net_arch):
     state, feature = _simple_state_feature(input_shape, net_arch)
-    q_value = kl.Dense(num_actions)(feature)
-    return Model(inputs=state, outputs=q_value)
+    q_value = Dense(num_actions)(feature)
+    return models.Model(inputs=state, outputs=q_value)
 
 
 def _simple_state_feature(input_shape, net_arch):
-    state = kl.Input(shape=input_shape)
+    state = Input(shape=input_shape)
     feature = state
     for num_hid in net_arch:
-        feature = kl.Dense(num_hid, activation='relu')(feature)
+        feature = Dense(num_hid, activation='relu')(feature)
     return state, feature
 
 

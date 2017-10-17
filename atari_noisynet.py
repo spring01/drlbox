@@ -1,8 +1,9 @@
 
-from tensorflow.contrib.keras.api.keras \
-    import layers as kl, activations as ka, initializers as ki, backend as K
-from tensorflow.contrib.keras.api.keras.models import Model
+from tensorflow.contrib.keras.api.keras import \
+    layers, initializers, activations, models, backend as K
 from tensorflow.contrib.keras.python.keras.engine.topology import Layer
+Input, Conv2D, Flatten = layers.Input, layers.Conv2D, layers.Flatten
+RandomNormal, Constant = initializers.RandomNormal, initializers.Constant
 
 
 '''
@@ -16,28 +17,28 @@ Input arguments:
 def atari_acnet(input_shape, num_actions, net_size):
     state, feature = _atari_state_feature(input_shape)
     hid = NoisyDense(net_size, activation='relu')(feature)
-    near_zeros = ki.RandomNormal(stddev=1e-3)
+    near_zeros = RandomNormal(stddev=1e-3)
     logits = NoisyDense(num_actions, kernel_initializer=near_zeros)(hid)
     value = NoisyDense(1)(hid)
 
     # build model
-    return Model(inputs=state, outputs=[value, logits])
+    return models.Model(inputs=state, outputs=[value, logits])
 
 
 def _atari_state_feature(input_shape):
     # input state
-    state = kl.Input(shape=input_shape)
+    state = Input(shape=input_shape)
 
     # convolutional layers
-    conv1_32 = kl.Conv2D(32, (8, 8), strides=(4, 4), activation='relu')
-    conv2_64 = kl.Conv2D(64, (4, 4), strides=(2, 2), activation='relu')
-    conv3_64 = kl.Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
+    conv1_32 = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')
+    conv2_64 = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')
+    conv3_64 = Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
 
     # extract features with convolutional layers
     conv1 = conv1_32(state)
     conv2 = conv2_64(conv1)
     convf = conv3_64(conv2)
-    feature = kl.Flatten()(convf)
+    feature = Flatten()(convf)
 
     return state, feature
 
@@ -48,9 +49,9 @@ class NoisyDense(Layer):
                  kernel_initializer='glorot_uniform', bias_initializer='zeros',
                  **kwargs):
         self.output_dim = output_dim
-        self.activation = ka.get(activation)
-        self.kernel_initializer = ki.get(kernel_initializer)
-        self.bias_initializer = ki.get(bias_initializer)
+        self.activation = activations.get(activation)
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
         super().__init__(**kwargs)
 
     def build(self, input_shape):
@@ -67,11 +68,11 @@ class NoisyDense(Layer):
                                     trainable=True)
         self.scale_k = self.add_weight(name='noise_k',
                                        shape=kernel_shape,
-                                       initializer=ki.Constant(value=0.017),
+                                       initializer=Constant(value=0.017),
                                        trainable=True)
         self.scale_b = self.add_weight(name='noise_b',
                                        shape=bias_shape,
-                                       initializer=ki.Constant(value=0.017),
+                                       initializer=Constant(value=0.017),
                                        trainable=True)
         self.noise_k = K.random_normal(kernel_shape, mean=0.0, stddev=1.0)
         self.noise_b = K.random_normal(bias_shape, mean=0.0, stddev=1.0)
