@@ -95,6 +95,8 @@ def _atari_state_feature_net(input_shape, net_name):
 
         # specify net type for the following layer
         net = kl.Dense
+    else:
+        raise ValueError('`net_name` is not recognized')
 
     return state, feature, net
 
