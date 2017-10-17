@@ -1,13 +1,10 @@
 
-'''
-Using keras.engine which is not in tf.keras, so depends on regular keras for now
-'''
-import keras.layers as kl
-import keras.activations
-from keras import backend as K
-from keras.initializers import RandomNormal, Constant
-from keras.models import Model
-from keras.engine.topology import Layer
+import tensorflow.contrib.keras.api.keras.layers as kl
+import tensorflow.contrib.keras.api.keras.activations as ka
+from tensorflow.contrib.keras.api.keras import backend as K
+import tensorflow.contrib.keras.api.keras.initializers as ki
+from tensorflow.contrib.keras.api.keras.models import Model
+from tensorflow.contrib.keras.python.keras.engine.topology import Layer
 
 
 '''
@@ -21,7 +18,7 @@ Input arguments:
 def atari_acnet(input_shape, num_actions, net_size):
     state, feature = _atari_state_feature(input_shape)
     hid = NoisyDense(net_size, activation='relu')(feature)
-    near_zeros = RandomNormal(stddev=1e-3)
+    near_zeros = ki.RandomNormal(stddev=1e-3)
     logits = NoisyDense(num_actions, kernel_initializer=near_zeros)(hid)
     value = NoisyDense(1)(hid)
 
@@ -53,14 +50,14 @@ class NoisyDense(Layer):
                  kernel_initializer='glorot_uniform', bias_initializer='zeros',
                  **kwargs):
         self.output_dim = output_dim
-        self.activation = keras.activations.get(activation)
-        self.kernel_initializer = kernel_initializer
-        self.bias_initializer = bias_initializer
+        self.activation = ka.get(activation)
+        self.kernel_initializer = ki.get(kernel_initializer)
+        self.bias_initializer = ki.get(bias_initializer)
         super().__init__(**kwargs)
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        kernel_shape = input_shape[1], self.output_dim
+        kernel_shape = int(input_shape[1]), self.output_dim
         bias_shape = self.output_dim,
         self.kernel = self.add_weight(name='kernel',
                                       shape=kernel_shape,
@@ -72,11 +69,11 @@ class NoisyDense(Layer):
                                     trainable=True)
         self.scale_k = self.add_weight(name='noise_k',
                                        shape=kernel_shape,
-                                       initializer=Constant(value=0.017),
+                                       initializer=ki.Constant(value=0.017),
                                        trainable=True)
         self.scale_b = self.add_weight(name='noise_b',
                                        shape=bias_shape,
-                                       initializer=Constant(value=0.017),
+                                       initializer=ki.Constant(value=0.017),
                                        trainable=True)
         self.noise_k = K.random_normal(kernel_shape, mean=0.0, stddev=1.0)
         self.noise_b = K.random_normal(bias_shape, mean=0.0, stddev=1.0)
@@ -94,3 +91,11 @@ class NoisyDense(Layer):
         return (input_shape[0], self.output_dim)
 
 
+import numpy as np
+
+state = np.ones([1, 80, 60, 4])
+num_actions = 6
+net_size = 256
+
+model = atari_acnet(state.shape[1:], num_actions, net_size)
+model.summary()
