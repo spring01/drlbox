@@ -1,8 +1,6 @@
 
-import tensorflow.contrib.keras.api.keras.layers as kl
-import tensorflow.contrib.keras.api.keras.activations as ka
-from tensorflow.contrib.keras.api.keras import backend as K
-import tensorflow.contrib.keras.api.keras.initializers as ki
+from tensorflow.contrib.keras.api.keras \
+    import layers as kl, activations as ka, initializers as ki, backend as K
 from tensorflow.contrib.keras.api.keras.models import Model
 from tensorflow.contrib.keras.python.keras.engine.topology import Layer
 
@@ -90,12 +88,3 @@ class NoisyDense(Layer):
     def compute_output_shape(self, input_shape):
         return (input_shape[0], self.output_dim)
 
-
-import numpy as np
-
-state = np.ones([1, 80, 60, 4])
-num_actions = 6
-net_size = 256
-
-model = atari_acnet(state.shape[1:], num_actions, net_size)
-model.summary()
