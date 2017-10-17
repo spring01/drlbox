@@ -9,7 +9,7 @@ from tensorflow.contrib.keras.api.keras.models import Model
 Input arguments:
     input_shape: Tuple of the format (height, width, num_frames);
     num_actions: Number of actions in the environment; integer;
-    net_name:    Name of the actor-critic net, e.g., 'fully connected';
+    net_name:    Name of the actor-critic net, e.g., 'fc' (fully connected);
     net_size:    Number of neurons in the first non-convolutional layer.
 '''
 def atari_acnet(input_shape, num_actions, net_name, net_size):
