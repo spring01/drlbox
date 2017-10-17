@@ -77,15 +77,7 @@ def arguments():
 ''' trainer block '''
 import time
 import subprocess
-import signal
-
-class TrainingIndicator:
-    train = True
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.handler)
-        signal.signal(signal.SIGTERM, self.handler)
-    def handler(self, signum, frame):
-        self.train = False
+from a3c.train_indicator import TrainingIndicator
 
 def trainer(args):
     num_workers = int(args.dtf_num_workers)
