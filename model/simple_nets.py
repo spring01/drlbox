@@ -9,7 +9,7 @@ def state_to_input(state):
 
 '''
 Input arguments:
-    observation_space: Observation space of the environment; Box;
+    observation_space: Observation space of the environment; len-1 Tuple of Box;
     action_space:      Action space of the environment; Discrete;
     net_arch_str:      Architecture of the actor-critic net, e.g., '16 16 16'.
 '''
@@ -28,7 +28,8 @@ def qnet(observation_space, action_space, net_arch_str):
 
 def _simple_state_feature(observation_space, net_arch_str):
     net_arch = net_arch_str.split(' ')
-    state = Input(shape=observation_space.spaces[0].shape)
+    net_arch = [int(num) for num in net_arch]
+    state = Input(shape=observation_space.spaces[-1].shape)
     feature = state
     for num_hid in net_arch:
         feature = Dense(num_hid, activation='relu')(feature)
