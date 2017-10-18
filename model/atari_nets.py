@@ -22,11 +22,10 @@ Input arguments:
     net_size:          Number of neurons in the first non-convolutional layer.
 '''
 def acnet(observation_space, action_space, net_name, net_size):
-    input_shape = _space_to_shape(observation_space)
     num_actions = action_space.n
-    net_name = net_name.lower()
     net_size = int(net_size)
-    state, feature, net = _atari_state_feature_net(input_shape, net_name)
+    net_name = net_name.lower()
+    state, feature, net = _atari_state_feature_net(observation_space, net_name)
 
     # actor (policy) and critic (value) stream
     hid = net(net_size, activation='relu')(feature)
@@ -46,10 +45,10 @@ Input arguments:
     net_size:          Number of neurons in the first non-convolutional layer.
 '''
 def qnet(observation_space, action_space, net_name, net_size):
-    input_shape = _space_to_shape(observation_space)
     num_actions = action_space.n
+    net_size = int(net_size)
     net_name = net_name.lower()
-    state, feature, net = _atari_state_feature_net(input_shape, net_name)
+    state, feature, net = _atari_state_feature_net(observation_space, net_name)
 
     # dueling or regular dqn/drqn
     if 'dueling' in net_name:
@@ -72,7 +71,11 @@ def qnet(observation_space, action_space, net_name, net_size):
     return models.Model(inputs=state, outputs=q_value)
 
 
-def _atari_state_feature_net(input_shape, net_name):
+def _atari_state_feature_net(observation_space, net_name):
+    num_frames = len(observation_space.spaces)
+    height, width = observation_space.spaces[0].shape
+    input_shape = height, width, num_frames
+
     # input state
     state = Input(shape=input_shape)
 
@@ -113,11 +116,6 @@ def _atari_state_feature_net(input_shape, net_name):
         raise ValueError('`net_name` is not recognized')
 
     return state, feature, net
-
-def _space_to_shape(observation_space):
-    num_frames = len(observation_space.spaces)
-    height, width = observation_space.spaces[0].shape
-    return height, width, num_frames
 
 
 '''

@@ -42,5 +42,3 @@ def _simple_state_feature(observation_space, net_arch_str):
     return state, feature
 
 
-Preprocessor = None
-
