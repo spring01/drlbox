@@ -1,39 +1,46 @@
 
 from tensorflow.contrib.keras.api.keras import layers, models, initializers
-Input, Dense = layers.Dense, layers.Input
+Input, Dense = layers.Input, layers.Dense
 RandomNormal = initializers.RandomNormal
+
+
+def state_to_input(state):
+    return state[-1]
 
 '''
 Input arguments:
-    input_shape: Tuple of the format (dim_input,);
-    num_actions: Number of actions in the environment; integer;
-    net_arch:    Architecture of the actor-critic net.
+    observation_space: Observation space of the environment; Box;
+    action_space:      Action space of the environment; Discrete;
+    net_arch_str:      Architecture of the actor-critic net, e.g., '16 16 16'.
 '''
-def simple_acnet(input_shape, num_actions, net_arch):
-    state, feature = _simple_state_feature(input_shape, net_arch)
+def acnet(observation_space, action_space, net_arch_str):
+    state, feature = _simple_state_feature(observation_space, net_arch_str)
     near_zeros = RandomNormal(stddev=1e-3)
-    logits = Dense(num_actions, kernel_initializer=near_zeros)(feature)
+    logits = Dense(action_space.n, kernel_initializer=near_zeros)(feature)
     value = Dense(1)(feature)
     return models.Model(inputs=state, outputs=[value, logits])
 
 
 '''
 Input arguments:
-    input_shape: Tuple of the format (dim_input,);
-    num_actions: Number of actions in the environment; integer;
-    net_arch:    Architecture of the q-net.
+    observation_space: Observation space of the environment; Box;
+    action_space:      Action space of the environment; Discrete;
+    net_arch_str:      Architecture of the q-net, e.g., '16 16 16'.
 '''
-def simple_qnet(input_shape, num_actions, net_arch):
-    state, feature = _simple_state_feature(input_shape, net_arch)
-    q_value = Dense(num_actions)(feature)
+def qnet(observation_space, action_space, net_arch_str):
+    state, feature = _simple_state_feature(observation_space, net_arch_str)
+    q_value = Dense(action_space.n)(feature)
     return models.Model(inputs=state, outputs=q_value)
 
 
-def _simple_state_feature(input_shape, net_arch):
-    state = Input(shape=input_shape)
+def _simple_state_feature(observation_space, net_arch_str):
+    net_arch = net_arch_str.split(' ')
+    state = Input(shape=observation_space.spaces[0].shape)
     feature = state
     for num_hid in net_arch:
         feature = Dense(num_hid, activation='relu')(feature)
     return state, feature
 
+
+Preprocessor = None
 

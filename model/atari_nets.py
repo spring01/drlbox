@@ -5,15 +5,27 @@ Input, Dense, Lambda = layers.Input, layers.Dense, layers.Lambda
 Conv2D, Flatten = layers.Conv2D, layers.Flatten
 LSTM, GRU, TimeDistributed = layers.LSTM, layers.GRU, layers.TimeDistributed
 
+import numpy as np
+'''
+When a state is represented as a list of frames, this interface converts it
+to a correctly shaped numpy array which can be fed into the neural network
+'''
+def state_to_input(state):
+    return np.stack(state, axis=-1).astype(np.float32)
+
+
 '''
 Input arguments:
-    input_shape: Tuple of the format (height, width, num_frames);
-    num_actions: Number of actions in the environment; integer;
-    net_name:    Name of the actor-critic net, e.g., 'fc' (fully connected);
-    net_size:    Number of neurons in the first non-convolutional layer.
+    observation_space: Observation space of the environment; Tuple of Boxes;
+    action_space:      Action space of the environment; Discrete;
+    net_name:          Name of the actor-critic net, e.g., 'fc';
+    net_size:          Number of neurons in the first non-convolutional layer.
 '''
-def atari_acnet(input_shape, num_actions, net_name, net_size):
+def acnet(observation_space, action_space, net_name, net_size):
+    input_shape = _space_to_shape(observation_space)
+    num_actions = action_space.n
     net_name = net_name.lower()
+    net_size = int(net_size)
     state, feature, net = _atari_state_feature_net(input_shape, net_name)
 
     # actor (policy) and critic (value) stream
@@ -28,12 +40,14 @@ def atari_acnet(input_shape, num_actions, net_name, net_size):
 
 '''
 Input arguments:
-    input_shape: Tuple of the format (height, width, num_frames);
-    num_actions: Number of actions in the environment; integer;
-    net_name:    Name of the q-net, e.g., 'dqn';
-    net_size:    Number of neurons in the first non-convolutional layer.
+    observation_space: Observation space of the environment; Tuple of Boxes;
+    action_space:      Action space of the environment; Discrete;
+    net_name:          Name of the q-net, e.g., 'dqn';
+    net_size:          Number of neurons in the first non-convolutional layer.
 '''
-def atari_qnet(input_shape, num_actions, net_name, net_size):
+def qnet(observation_space, action_space, net_name, net_size):
+    input_shape = _space_to_shape(observation_space)
+    num_actions = action_space.n
     net_name = net_name.lower()
     state, feature, net = _atari_state_feature_net(input_shape, net_name)
 
@@ -99,4 +113,71 @@ def _atari_state_feature_net(input_shape, net_name):
         raise ValueError('`net_name` is not recognized')
 
     return state, feature, net
+
+def _space_to_shape(observation_space):
+    num_frames = len(observation_space.spaces)
+    height, width = observation_space.spaces[0].shape
+    return height, width, num_frames
+
+
+'''
+Atari game env preprocessor
+'''
+import gym
+from PIL import Image
+
+
+class Preprocessor(gym.Wrapper):
+    """
+        A wrapper for frame preprocessing.
+        Will convert input image to grayscale and resize to `resize`.
+    """
+
+    metadata = {'render.modes': ['human', 'wrapped', 'rgb_array']}
+    resize = 84, 110 # tuple of 2 integers (height, width).
+
+    '''
+        Arguments for the constructor:
+        env: Game environment to be preprocessed.
+    '''
+    def __init__(self, env):
+        super().__init__(env)
+        assert(isinstance(env.observation_space, gym.spaces.Box))
+        assert(len(env.observation_space.shape) == 3)
+        width, height = self.resize
+        shape = height, width
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=shape)
+        self.viewer = None
+
+    def _step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        self.preprocessed_obs = self.preprocess(obs)
+        return self.preprocessed_obs, reward, done, info
+
+    def _reset(self):
+        self.preprocessed_obs = self.preprocess(self.env.reset())
+        return self.preprocessed_obs
+
+    def _render(self, mode='human', close=False):
+        if close:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+            return
+        if mode == 'rgb_array':
+            return self.preprocessed_obs
+        elif mode == 'human':
+            self.env.render()
+        elif mode == 'wrapped':
+            from gym.envs.classic_control import rendering
+            if self.viewer is None:
+                self.viewer = rendering.SimpleImageViewer()
+            img = np.stack([self.preprocessed_obs] * 3, axis=2)
+            self.viewer.imshow(img)
+
+    def preprocess(self, obs):
+        img = Image.fromarray(obs)
+        img = img.convert('L')
+        img = img.resize(self.resize)
+        return np.asarray(img)
 
