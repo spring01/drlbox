@@ -20,13 +20,6 @@ def acnet(observation_space, action_space, net_arch_str):
     value = Dense(1)(feature)
     return models.Model(inputs=state, outputs=[value, logits])
 
-
-'''
-Input arguments:
-    observation_space: Observation space of the environment; Box;
-    action_space:      Action space of the environment; Discrete;
-    net_arch_str:      Architecture of the q-net, e.g., '16 16 16'.
-'''
 def qnet(observation_space, action_space, net_arch_str):
     state, feature = _simple_state_feature(observation_space, net_arch_str)
     q_value = Dense(action_space.n)(feature)

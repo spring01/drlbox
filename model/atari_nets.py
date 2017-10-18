@@ -36,14 +36,6 @@ def acnet(observation_space, action_space, net_name, net_size):
     # build model
     return models.Model(inputs=state, outputs=[value, logits])
 
-
-'''
-Input arguments:
-    observation_space: Observation space of the environment; Tuple of Boxes;
-    action_space:      Action space of the environment; Discrete;
-    net_name:          Name of the q-net, e.g., 'dqn';
-    net_size:          Number of neurons in the first non-convolutional layer.
-'''
 def qnet(observation_space, action_space, net_name, net_size):
     num_actions = action_space.n
     net_size = int(net_size)
