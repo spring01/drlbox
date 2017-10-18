@@ -5,12 +5,12 @@ Supports *only Python3* (oops).
 - tensorflow>=1.3
 - gym[atari]
 
-## Minimal sample usage (of Atari Breakout):
-- DQN training: `python dqn_atari_trainer.py`
-- A3C training: `python a3c_atari_trainer.py`
-- Evaluation: `python atari_evaluator.py --read_weights SAVED_WEIGHTS`
+## Minimal sample usage (of CartPole):
+- DQN training: `python dqn_trainer.py`
+- A3C training: `python a3c_trainer.py`
+- Evaluation: `python evaluator.py --read_weights SAVED_WEIGHTS`
 
-## (Relatively) Full tests:
+## (Relatively) Full tests, including CartPole and Atari Breakout:
 - DQN: `bash dqn_test.bash`
 - A3C: `bash a3c_test.bash`
 
