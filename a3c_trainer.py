@@ -63,20 +63,29 @@ def arguments():
     parser.add_argument('--env_act_steps', default=1, type=int,
         help='Do an action consecutively for how many steps')
 
-    # additional arguments for user extension
+    # additional arguments for the nn model
     parser.add_argument('--additional', nargs='+', type=str,
         default=['model.simple_nets', '16 16 16'],
         help='`module additional_args`')
 
     # parse arguments
     args = parser.parse_args()
+    print('########## All arguments:', args)
     return args
 
 
 ''' trainer block '''
 import time
 import subprocess
-from a3c.train_indicator import TrainingIndicator
+import signal
+
+class TrainingIndicator:
+    train = True
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.handler)
+        signal.signal(signal.SIGTERM, self.handler)
+    def handler(self, signum, frame):
+        self.train = False
 
 def trainer(args):
     num_workers = int(args.dtf_num_workers)
@@ -137,22 +146,23 @@ def worker(args):
 
     # dynamically import net and interface
     module, additional_args = args.additional[0], args.additional[1:]
-    info = importlib.import_module(module)
+    model_spec = importlib.import_module(module)
 
     # environment
     if args.env_import is not None:
         importlib.import_module(args.env_import)
     env = gym.make(args.env)
-    if info.Preprocessor is not None:
-        env = info.Preprocessor(env)
+    if hasattr(model_spec, 'Preprocessor'):
+        env = model_spec.Preprocessor(env)
     env = HistoryStacker(env, args.env_num_frames, args.env_act_steps)
     env = RewardClipper(env, -1.0, 1.0)
 
+    # arguments for building nets
     model_args = env.observation_space, env.action_space, *additional_args
 
     # global net
     with tf.device(rep_dev):
-        model = info.acnet(*model_args)
+        model = model_spec.acnet(*model_args)
         if is_master:
             model.summary()
         acnet_global = ACNet(model)
@@ -161,7 +171,7 @@ def worker(args):
 
     # local net
     with tf.device(worker_dev):
-        acnet_local = ACNet(info.acnet(*model_args))
+        acnet_local = ACNet(model_spec.acnet(*model_args))
         acnet_local.set_loss(entropy_weight=args.rl_entropy_weight)
         adam = tf.train.AdamOptimizer(args.rl_learning_rate)
         acnet_local.set_optimizer(adam, train_weights=global_weights)
@@ -179,7 +189,7 @@ def worker(args):
             obj.set_session(sess)
         agent = A3C(is_master=is_master,
                     acnet_global=acnet_global, acnet_local=acnet_local,
-                    state_to_input=info.state_to_input,
+                    state_to_input=model_spec.state_to_input,
                     policy=policy, rollout=rollout,
                     discount=args.rl_discount,
                     train_steps=args.rl_train_steps,
