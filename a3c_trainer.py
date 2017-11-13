@@ -44,6 +44,8 @@ def arguments():
         help='Number of training sample interactions with the environment')
     parser.add_argument('--rl_entropy_weight', default=0.01, type=float,
         help='Weight of the entropy term in A3C loss')
+    parser.add_argument('--rl_load_weights', default=None,
+        help='If specified, load weights and start training from there')
 
     # intervals
     parser.add_argument('--interval_save', default=10000, type=int,
@@ -189,6 +191,8 @@ def worker(args):
         if is_master:
             output = get_output_folder(args.rl_save_path, args.env)
             agent.set_output(output)
+        if args.rl_load_weights is not None:
+            acnet_global.load_weights(args.rl_load_weights)
 
         # train the agent
         agent.train(env)
