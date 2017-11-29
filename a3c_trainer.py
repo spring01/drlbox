@@ -171,7 +171,7 @@ def worker(args):
 
     # policy and rollout
     policy = Stochastic()
-    rollout = Rollout(args.rollout_maxlen, env.action_space.n)
+    rollout = Rollout(args.rollout_maxlen, env.action_space.n, args.rl_discount)
 
     # begin tensorflow session, build a3c agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
@@ -182,7 +182,6 @@ def worker(args):
                     acnet_global=acnet_global, acnet_local=acnet_local,
                     state_to_input=model_spec.state_to_input,
                     policy=policy, rollout=rollout,
-                    discount=args.rl_discount,
                     train_steps=args.rl_train_steps,
                     step_counter=step_counter_global,
                     interval_save=args.interval_save)

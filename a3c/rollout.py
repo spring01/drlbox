@@ -4,9 +4,10 @@ import numpy as np
 
 class Rollout:
 
-    def __init__(self, maxlen, num_actions):
+    def __init__(self, maxlen, num_actions, discount):
         self.action_1h_converter = np.eye(num_actions)
         self.maxlen = maxlen
+        self.discount = discount
 
     def reset(self, state):
         self.state_list = [state]
@@ -29,7 +30,7 @@ class Rollout:
         reward_long = 0.0 if self.done else batch_value[-1]
         reward_long_list = []
         for reward in reversed(self.reward_list):
-            reward_long = reward + 0.99 * reward_long
+            reward_long = reward + self.discount * reward_long
             reward_long_list.append(reward_long)
         batch_target = np.stack(reversed(reward_long_list))
         batch_adv = batch_target - batch_value[:-1]
