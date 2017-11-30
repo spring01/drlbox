@@ -34,7 +34,7 @@ def arguments():
              ' will be occupied')
 
     # reinforcement learning arguments
-    parser.add_argument('--rl_save_path', default='output',
+    parser.add_argument('--rl_save_path', default='./output',
         help='Directory to save data to')
     parser.add_argument('--rl_discount', default=0.99, type=float,
         help='Discount factor gamma')

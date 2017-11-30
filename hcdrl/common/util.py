@@ -5,6 +5,9 @@ import subprocess
 
 def get_output_folder(parent_dir, env_name):
     experiment_id = 0
+    if not os.path.isdir(parent_dir):
+        subprocess.call(['mkdir', '-p', parent_dir])
+        print('Made output dir', parent_dir)
     for folder_name in os.listdir(parent_dir):
         if not os.path.isdir(os.path.join(parent_dir, folder_name)):
             continue
