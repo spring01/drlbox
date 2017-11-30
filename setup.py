@@ -33,7 +33,7 @@ setup(
     keywords='deep reinforcement learning',
     packages=find_packages(),
     install_requires=['tensorflow>=1.3', 'gym>=0.9.3', 'gym[atari]'],
-    scripts=['bin/a3c_trainer.py',
-             'bin/dqn_trainer.py',
-             'bin/evaluator.py'],
+    scripts=['bin/hcdrl_a3c.py',
+             'bin/hcdrl_dqn.py',
+             'bin/hcdrl_evaluator.py'],
 )
