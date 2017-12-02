@@ -44,6 +44,8 @@ def arguments():
         help='Number of training sample interactions with the environment')
     parser.add_argument('--rl_entropy_weight', default=0.01, type=float,
         help='Weight of the entropy term in A3C loss')
+    parser.add_argument('--rl_reward_bound', default=[-1.0, 1.0], type=float,
+        nargs=2, help='Lower and upper bound for clipped reward')
     parser.add_argument('--rl_load_weights', default=None,
         help='If specified, load weights and start training from there')
 
@@ -146,7 +148,8 @@ def worker(args):
     if hasattr(model_spec, 'Preprocessor'):
         env = model_spec.Preprocessor(env)
     env = HistoryStacker(env, args.env_num_frames, args.env_act_steps)
-    env = RewardClipper(env, -1.0, 1.0)
+    lower, upper = args.rl_reward_bound
+    env = RewardClipper(env, lower, upper)
 
     # arguments for building nets
     model_args = env.observation_space, env.action_space, *additional_args
