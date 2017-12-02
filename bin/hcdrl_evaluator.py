@@ -33,7 +33,7 @@ def main():
         help='Do an action for how many steps')
 
     # policy arguments
-    parser.add_argument('--policy_type', default='greedy', type=str,
+    parser.add_argument('--policy_type', default='stochastic', type=str,
         choices=['greedy', 'stochastic'],
         help='Evaluation policy type')
     parser.add_argument('--policy_eps', default=0.01, type=float,
