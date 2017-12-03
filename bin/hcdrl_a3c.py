@@ -15,6 +15,7 @@ def main():
 
 ''' arguments block '''
 import argparse
+import os
 
 def arguments():
     parser = argparse.ArgumentParser(description='A3C Trainer')
@@ -70,7 +71,12 @@ def arguments():
     # additional arguments for the nn model
     parser.add_argument('--additional', nargs='+', type=str,
         default=['hcdrl.model.simple_nets', '16 16 16'],
-        help='`module additional_args`')
+        help='module additional_args')
+
+    # path for dynamic imports
+    parser.add_argument('--import_path', nargs='+', type=str,
+        default=[os.getcwd()],
+        help='path where the user-defined scripts are located')
 
     # parse arguments
     args = parser.parse_args()
@@ -108,6 +114,7 @@ def trainer(args):
 
 ''' worker block '''
 import os
+import sys
 import signal
 import gym
 import tensorflow as tf
@@ -138,6 +145,8 @@ def worker(args):
                                              cluster=cluster)
 
     # dynamically import net and interface
+    for path in args.import_path:
+        sys.path.append(path)
     module, additional_args = args.additional[0], args.additional[1:]
     model_spec = importlib.import_module(module)
 

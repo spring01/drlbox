@@ -4,6 +4,7 @@ Supports deep recurrent Q-network (DRQN) and dueling architecture
 """
 
 import os
+import sys
 import gym
 import argparse
 import tensorflow as tf
@@ -79,11 +80,18 @@ def main():
         default=['hcdrl.model.simple_nets', '16 16 16'],
         help='`module additional_args`')
 
+    # path for dynamic imports
+    parser.add_argument('--import_path', nargs='+', type=str,
+        default=[os.getcwd()],
+        help='path where the user-defined scripts are located')
+
     # parse arguments
     args = parser.parse_args()
     print('########## All arguments:', args)
 
     # dynamically import net and interface
+    for path in args.import_path:
+        sys.path.append(path)
     module, additional_args = args.additional[0], args.additional[1:]
     model_spec = importlib.import_module(module)
 
