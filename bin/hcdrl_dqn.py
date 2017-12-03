@@ -88,6 +88,8 @@ def main():
     model_spec = importlib.import_module(module)
 
     # environment
+    if args.env_import is not None:
+        importlib.import_module(args.env_import)
     env = gym.make(args.env)
     if hasattr(model_spec, 'Preprocessor'):
         env = model_spec.Preprocessor(env)
