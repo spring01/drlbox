@@ -18,9 +18,11 @@ class ACNet(RLNet):
 
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
-        ph_action = tf.placeholder(tf.float32, tf_logits.shape.as_list())
 
-        log_probs_act = tf.reduce_sum(log_probs * ph_action, axis=1)
+        ph_action = tf.placeholder(tf.int32, [None])
+        action_1h = tf.one_hot(ph_action, depth=tf_logits.shape[1])
+        log_probs_act = tf.reduce_sum(log_probs * action_1h, axis=1)
+
         neg_policy_loss = tf.reduce_sum(log_probs_act * ph_advantage)
         value_loss = tf.nn.l2_loss(self.tf_value - ph_target)
         neg_entropy = tf.reduce_sum(probs * log_probs) * entropy_weight
