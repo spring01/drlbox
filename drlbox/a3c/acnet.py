@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from .rlnet import RLNet
+from ..common.rlnet import RLNet
 
 
 class ACNet(RLNet):
@@ -13,12 +13,12 @@ class ACNet(RLNet):
 
     def set_loss(self, entropy_weight=0.01):
         tf_logits = self.tf_logits
-        log_probs = tf.nn.log_softmax(tf_logits)
-        probs = tf.nn.softmax(tf_logits)
-
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
 
+        # discrete action
+        log_probs = tf.nn.log_softmax(tf_logits)
+        probs = tf.nn.softmax(tf_logits)
         ph_action = tf.placeholder(tf.int32, [None])
         action_1h = tf.one_hot(ph_action, depth=tf_logits.shape[1])
         log_probs_act = tf.reduce_sum(log_probs * action_1h, axis=1)

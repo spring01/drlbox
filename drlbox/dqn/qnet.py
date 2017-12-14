@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from .rlnet import RLNet
+from ..common.rlnet import RLNet
 
 
 class QNet(RLNet):
