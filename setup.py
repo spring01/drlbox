@@ -10,11 +10,11 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='hcdrl',
+    name='DRLBOX',
     version='0.0.1',
-    description="HC's deep RL playground",
+    description="Deep Reinforcement Learning as a (black) BOX",
     long_description=long_description,
-    url='https://github.com/spring01/hcdrl',
+    url='https://github.com/spring01/drlbox',
     author='Haichen Li',
     author_email='lihc2012@gmail.com',
     license='GPLv3',
@@ -32,8 +32,8 @@ setup(
     ],
     keywords='deep reinforcement learning',
     packages=find_packages(),
-    install_requires=['tensorflow>=1.3', 'gym>=0.9.3', 'gym[atari]'],
-    scripts=['bin/hcdrl_a3c.py',
-             'bin/hcdrl_dqn.py',
-             'bin/hcdrl_evaluator.py'],
+    install_requires=['tensorflow>=1.3', 'gym>=0.9.3'],
+    scripts=['bin/drlbox_a3c.py',
+             'bin/drlbox_dqn.py',
+             'bin/drlbox_evaluator.py'],
 )
