@@ -31,6 +31,7 @@ class ACNet(RLNet):
             ph_action = tf.placeholder(tf.int32, [None, dim_action])
             mean = tf_logits[:, :dim_action]
             var = tf_logits[:, dim_action:]
+            var = tf.log(tf.exp(var) + 1.0)
             log_norm = tf.reduce_sum((ph_act - mean)**2 / (2.0 * var), axis=1)
             factor = 0.5 * tf.reduce_sum(np.log(2 * np.pi) + tf.log(var), axis=1)
             log_probs_act = -(log_norm + factor)
