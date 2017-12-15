@@ -2,7 +2,6 @@
 import numpy as np
 
 
-''' Works with discrete actions '''
 class Policy:
 
     def select_action(self, *args, **kwargs):
@@ -22,6 +21,7 @@ class Random(Policy):
 '''
 With prob epsilon select a random action; otherwise greedy
 (so that when epsilon = 0.0 it falls back to greedy policy)
+Works only with discrete actions
 '''
 class EpsGreedy(Policy):
 
@@ -34,7 +34,9 @@ class EpsGreedy(Policy):
         else:
             return action_values.argmax()
 
-
+'''
+Also works only with discrete actions
+'''
 class LinearDecayEpsGreedy(EpsGreedy):
 
     def __init__(self, start_eps, end_eps, decay_steps):
@@ -49,9 +51,11 @@ class LinearDecayEpsGreedy(EpsGreedy):
         self.epsilon = self.start_eps * wt_start + self.end_eps * wt_end
 
 
-class Stochastic(Policy):
+class StochasticDiscrete(Policy):
 
-    ''' `action_values` are supposed to be 'logits', i.e., before softmax '''
+    '''
+    `action_values` are supposed to be 'logits', i.e., before softmax
+    '''
     def select_action(self, action_values):
         max_value = action_values.max()
         sumexp_shifted = np.sum(np.exp(action_values - max_value))
@@ -59,4 +63,20 @@ class Stochastic(Policy):
         probs = np.exp(action_values - logsumexp)
         probs /= np.sum(probs)
         return np.random.choice(len(probs), p=probs)
+
+class StochasticContinuous(Policy):
+
+    def __init__(self, low, high):
+        self.low = low
+        self.high = high
+
+    '''
+    `action_values` are supposed to be 'logits'
+    first half is Gaussian mean, second half is Gaussian variance
+    '''
+    def select_action(self, action_values):
+        dim_action = len(action_values) // 2
+
+        return None
+
 
