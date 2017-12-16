@@ -71,12 +71,14 @@ class StochasticContinuous(Policy):
         self.high = high
 
     '''
-    `action_values` are supposed to be 'logits'
-    first half is Gaussian mean, second half is Gaussian variance
+    `action_values` are supposed to be 'logits', and in the continuous case
+    its first half is the Gaussian mean, second half is the Gaussian variance
     '''
     def select_action(self, action_values):
-        dim_action = len(action_values) // 2
-
-        return None
+        dim_action = len(action_values) - 1
+        mean, var = action_values[:-1], action_values[-1]
+        cov = var * np.eye(dim_action)
+        action = np.random.multivariate_normal(mean, cov)
+        return np.clip(action, a_min=self.low, a_max=self.high)
 
 
