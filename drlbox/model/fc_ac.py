@@ -21,13 +21,17 @@ def model(observation_space, action_space, arch_str):
         feature = layers.Dense(num_hid, activation='relu')(feature)
     if isinstance(action_space, gym.spaces.discrete.Discrete): # discrete action
         size_logits = action_space.n
+        action_mode = 'discrete'
     elif isinstance(action_space, gym.spaces.box.Box): # continuous action
-        size_logits = 2 * len(action_space.shape)
+        size_logits = len(action_space.shape) + 1
+        action_mode = 'continuous'
     else:
         raise ValueError('type of action_space is illegal')
     near_zeros = initializers.RandomNormal(stddev=1e-3)
     logits = layers.Dense(size_logits, kernel_initializer=near_zeros)(feature)
     value = layers.Dense(1)(feature)
-    return models.Model(inputs=state, outputs=[value, logits])
+    model = models.Model(inputs=state, outputs=[value, logits])
+    model.action_mode = action_mode
+    return model
 
 

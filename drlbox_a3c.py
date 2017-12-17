@@ -89,7 +89,7 @@ from drlbox.a3c.a3c import A3C
 from drlbox.a3c.acnet import ACNet
 from drlbox.a3c.rollout import Rollout
 from drlbox.a3c.step_counter import StepCounter
-from drlbox.common.policy import StochasticDiscrete
+from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.util import get_output_folder
 
 
@@ -112,10 +112,11 @@ def worker(args, config):
     # gym environment
     env_spec = importlib.import_module(args.import_env[0])
     env, env_name = env_spec.make_env(*args.import_env[1:])
+    action_space = env.action_space
 
     # tensorflow-keras model
     model_spec = importlib.import_module(args.import_model[0])
-    model_args = env.observation_space, env.action_space, *args.import_model[1:]
+    model_args = env.observation_space, action_space, *args.import_model[1:]
 
     # global net
     with tf.device(rep_dev):
@@ -136,7 +137,13 @@ def worker(args, config):
         step_counter_global.set_increment()
 
     # policy and rollout
-    policy = StochasticDiscrete()
+    if model.action_mode == 'discrete':
+        policy = StochasticDiscrete()
+    elif model.action_mode == 'continuous':
+        policy = StochasticContinuous(action_space.low, action_space.high)
+    else:
+        raise ValueError('action_mode not recognized')
+    print(policy)
     rollout = Rollout(config.RL_ROLLOUT_MAXLEN, config.RL_DISCOUNT)
 
     # begin tensorflow session, build a3c agent and train
