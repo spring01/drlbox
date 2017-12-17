@@ -38,7 +38,8 @@ def arguments():
     # user-definable imports
     parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
         help='path where the user-defined scripts are located')
-    parser.add_argument('--import_env', nargs='+', default=None,
+    parser.add_argument('--import_env', nargs='+',
+        default=['drlbox.env.default', 'CartPole-v0'],
         help='openai gym environment.')
     parser.add_argument('--import_model', nargs='+',
         default=['drlbox.model.fc_ac', '200 100'],
@@ -109,14 +110,8 @@ def worker(args, config):
                                              cluster=cluster)
 
     # gym environment
-    if args.import_env is None:
-        import_env = 'drlbox.env.default'
-        env_args = []
-    else:
-        import_env = args.import_env[0]
-        env_args = args.import_env[1:]
-    env_spec = importlib.import_module(import_env)
-    env, env_name = env_spec.make_env(*env_args)
+    env_spec = importlib.import_module(args.import_env[0])
+    env, env_name = env_spec.make_env(*args.import_env[1:])
 
     # tensorflow-keras model
     model_spec = importlib.import_module(args.import_model[0])

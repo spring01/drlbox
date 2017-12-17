@@ -1,6 +1,6 @@
 
 import gym
 
-def make_env(name='CartPole-v0'):
+def make_env(name):
     return gym.make(name), name
 
