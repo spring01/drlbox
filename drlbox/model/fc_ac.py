@@ -4,7 +4,7 @@ from tensorflow.contrib.keras import layers, models, initializers
 
 
 def state_to_input(state):
-    return state
+    return state.ravel()
 
 '''
 Input arguments:

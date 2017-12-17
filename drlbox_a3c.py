@@ -38,11 +38,10 @@ def arguments():
     # user-definable imports
     parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
         help='path where the user-defined scripts are located')
-    parser.add_argument('--import_env', nargs='+',
-        default=['drlbox.env.default', 'CartPole-v0'],
+    parser.add_argument('--import_env', nargs='+', default=None,
         help='openai gym environment.')
     parser.add_argument('--import_model', nargs='+',
-        default=['drlbox.model.fc_ac', '16 16 16'],
+        default=['drlbox.model.fc_ac', '200 100'],
         help='neural network model')
     parser.add_argument('--import_config', default='drlbox.config.a3c_debug',
         help='algorithm configurations')
@@ -89,7 +88,6 @@ from drlbox.a3c.a3c import A3C
 from drlbox.a3c.acnet import ACNet
 from drlbox.a3c.rollout import Rollout
 from drlbox.a3c.step_counter import StepCounter
-from drlbox.common.envwrapper import HistoryStacker, RewardClipper
 from drlbox.common.policy import StochasticDiscrete
 from drlbox.common.util import get_output_folder
 
@@ -111,8 +109,14 @@ def worker(args, config):
                                              cluster=cluster)
 
     # gym environment
-    env_spec = importlib.import_module(args.import_env[0])
-    env, env_name = env_spec.make_env(*args.import_env[1:])
+    if args.import_env is None:
+        import_env = 'drlbox.env.default'
+        env_args = []
+    else:
+        import_env = args.import_env[0]
+        env_args = args.import_env[1:]
+    env_spec = importlib.import_module(import_env)
+    env, env_name = env_spec.make_env(*env_args)
 
     # tensorflow-keras model
     model_spec = importlib.import_module(args.import_model[0])
