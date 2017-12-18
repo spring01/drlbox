@@ -44,7 +44,7 @@ def arguments():
     parser.add_argument('--import_model', nargs='+',
         default=['drlbox.model.fc_ac', '200 100'],
         help='neural network model')
-    parser.add_argument('--import_config', default='drlbox.config.a3c_debug',
+    parser.add_argument('--import_config', default='drlbox.config.a3c_default',
         help='algorithm configurations')
 
     # parse arguments
