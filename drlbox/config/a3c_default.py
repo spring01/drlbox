@@ -1,5 +1,7 @@
 
-NUM_WORKERS = 8
+import multiprocessing
+
+NUM_WORKERS = multiprocessing.cpu_count()
 PORT_BEGIN  = 2220
 SAVE_PATH   = './output'
 
