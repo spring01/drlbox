@@ -143,7 +143,6 @@ def worker(args, config):
         policy = StochasticContinuous(action_space.low, action_space.high)
     else:
         raise ValueError('action_mode not recognized')
-    print(policy)
     rollout = Rollout(config.RL_ROLLOUT_MAXLEN, config.RL_DISCOUNT)
 
     # begin tensorflow session, build a3c agent and train
