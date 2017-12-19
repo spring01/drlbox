@@ -8,8 +8,8 @@ def state_to_input(state):
 
 '''
 Input arguments:
-    observation_space: Observation space of the environment; len-1 Tuple of Box;
-    action_space:      Action space of the environment; Discrete;
+    observation_space: Observation space of the environment;
+    action_space:      Action space of the environment;
     arch_str:          Architecture of the actor-critic net, e.g., '16 16 16'.
 '''
 def model(observation_space, action_space, arch_str):
