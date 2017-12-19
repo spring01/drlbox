@@ -38,7 +38,10 @@ class ReplayMemory:
         return memory
 
 
-''' Ring-buffer uniformly sampled replay memory. '''
+'''
+Ring-buffer uniformly sampled replay memory.
+Both `append` and `sample` are O(1)
+'''
 class UniformReplay(ReplayMemory):
 
     def append(self, transition):
@@ -57,7 +60,10 @@ class UniformReplay(ReplayMemory):
 
 
 
-''' Proportional prioritization implemented as a ring-buffer. '''
+'''
+Proportional prioritization implemented as a ring-buffer.
+todo: change implementation to heap
+'''
 class PriorityReplay(ReplayMemory):
 
     def __init__(self, maxlen, train_steps, alpha, beta0):
