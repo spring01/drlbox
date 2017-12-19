@@ -8,11 +8,14 @@ Built with distributed tensorflow
 import sys
 import importlib
 
+DEFAULT_CONFIG = 'drlbox.config.a3c_default'
+
 def main():
     args = arguments()
     # dynamically import net and interface
     for path in args.import_path:
         sys.path.append(path)
+    config = importlib.import_module(DEFAULT_CONFIG)
     config = importlib.import_module(args.import_config)
     if args.a3c_running_mode == 'trainer':
         trainer(args, config)
@@ -44,7 +47,7 @@ def arguments():
     parser.add_argument('--import_model', nargs='+',
         default=['drlbox.model.fc_ac', '200 100'],
         help='neural network model')
-    parser.add_argument('--import_config', default='drlbox.config.a3c_default',
+    parser.add_argument('--import_config', default=DEFAULT_CONFIG,
         help='algorithm configurations')
 
     # parse arguments
