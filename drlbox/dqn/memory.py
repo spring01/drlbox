@@ -3,12 +3,65 @@ import numpy as np
 import pickle
 
 
-''' Proportional prioritization implemented as a ring-buffer. '''
-class PriorityMemory:
+FILL_PERCENT = 0.1
 
-    def __init__(self, train_steps, maxlen, fill, alpha, beta0):
+class ReplayMemory:
+
+    def __init__(self, maxlen):
         self.maxlen = maxlen
-        self.fill = fill
+        self.indices = range(self.maxlen)
+        self.clear()
+
+    def append(self, transition):
+        raise NotImplementedError
+
+    def sample(self, batch_size):
+        raise NotImplementedError
+
+    def __len__(self):
+        return self.length
+
+    def usable(self):
+        return self.length >= FILL_PERCENT * self.maxlen
+
+    def print_status(self):
+        print('memory length: {}/{}'.format(self.length, self.maxlen))
+
+    def save(self, filepath):
+        with open(filepath, 'wb') as save:
+            pickle.dump(self, save, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(filepath):
+        with open(filepath, 'rb') as save:
+            memory = pickle.load(save)
+        return memory
+
+
+''' Ring-buffer uniformly sampled replay memory. '''
+class UniformReplay(ReplayMemory):
+
+    def append(self, transition):
+        self.ring_buffer[self.index] = transition
+        self.index = (self.index + 1) % self.maxlen
+        self.length = min(self.length + 1, self.maxlen)
+
+    def sample(self, batch_size):
+        idx = random.sample(self.indices, batch_size)
+        return [self.ring_buffer[i] for i in idx]
+
+    def clear(self):
+        self.ring_buffer = [None] * self.maxlen
+        self.index = 0
+        self.length = 0
+
+
+
+''' Proportional prioritization implemented as a ring-buffer. '''
+class PriorityReplay(ReplayMemory):
+
+    def __init__(self, maxlen, train_steps, alpha, beta0):
+        self.maxlen = maxlen
         self.alpha = alpha
         self.beta0 = beta0
         self.train_steps = float(train_steps)
@@ -45,32 +98,10 @@ class PriorityMemory:
         self.priority[batch_idx] = batch_priority**self.alpha
 
     def clear(self):
-        self.ring_buffer = [None for _ in range(self.maxlen)]
+        self.ring_buffer = [None] * self.maxlen
         self.priority = np.zeros(self.maxlen)
         self.priority[0] = 1.0
         self.index = 0
         self.length = 0
 
-    def __len__(self):
-        return self.length
-
-    def print_status(self):
-        print('memory length: {}/{}'.format(self.length, self.maxlen))
-
-    def save(self, filepath):
-        with open(filepath, 'wb') as save:
-            pickle.dump(self, save, protocol=pickle.HIGHEST_PROTOCOL)
-
-    def load(self, filepath):
-        with open(filepath, 'rb') as save:
-            memory = pickle.load(save)
-        load_length = min(memory.length, self.maxlen)
-        for _ in range(load_length):
-            memory.index = (memory.index - 1) % memory.maxlen
-        for i in range(load_length):
-            self.ring_buffer[i] = memory.ring_buffer[memory.index]
-            self.priority[i] = memory.priority[memory.index]
-            memory.index = (memory.index + 1) % memory.maxlen
-        self.index = load_length % self.maxlen
-        self.length = load_length
 
