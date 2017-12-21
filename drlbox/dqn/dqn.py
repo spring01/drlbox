@@ -72,7 +72,7 @@ class DQN:
         if _every(step, self.interval_sync_target):
             self.target.sync()
 
-        # save model
+        # save model and memory
         if _every(step, self.interval_save):
             output = self.output
             weights_save = os.path.join(output, 'weights_{}.p'.format(step))
@@ -83,8 +83,7 @@ class DQN:
             print('replay memory written to {}'.format(memory_save))
 
     def train_online(self):
-        batch, b_idx, b_prob = self.memory.sample(self.batch_size)
-        b_weights = self.memory.get_batch_weights(b_idx, b_prob)
+        batch, b_idx, b_weights = self.memory.sample(self.batch_size)
         b_state, b_q_target, td_error, online = self.process_batch(batch)
         self.memory.update_priority(b_idx, td_error)
         online.train_on_batch(b_state, b_q_target, sample_weight=b_weights)

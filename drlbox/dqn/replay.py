@@ -5,24 +5,33 @@ import pickle
 
 FILL_PERCENT = 0.1
 
-class ReplayMemory:
+'''
+Ring-buffer uniformly sampled replay memory.
+Both `append` and `sample` are O(1)
+'''
+class Replay:
 
     def __init__(self, maxlen):
         self.maxlen = maxlen
-        self.indices = range(self.maxlen)
-        self.clear()
+        self.indices = list(range(self.maxlen))
+        self.ring_buffer = [None] * self.maxlen
+        self.index = 0
+        self.length = 0
 
     def append(self, transition):
-        raise NotImplementedError
+        self.ring_buffer[self.index] = transition
+        self.index = (self.index + 1) % self.maxlen
+        self.length = min(self.length + 1, self.maxlen)
 
     def sample(self, batch_size):
-        raise NotImplementedError
+        idx = random.sample(self.indices, batch_size)
+        return [self.ring_buffer[i] for i in idx]
 
     def __len__(self):
         return self.length
 
     def usable(self):
-        return self.length >= FILL_PERCENT * self.maxlen
+        return len(self) >= FILL_PERCENT * self.maxlen
 
     def print_status(self):
         print('memory length: {}/{}'.format(self.length, self.maxlen))
@@ -39,75 +48,86 @@ class ReplayMemory:
 
 
 '''
-Ring-buffer uniformly sampled replay memory.
-Both `append` and `sample` are O(1)
+Proportional prioritization with ring-buffer and sum-tree indexing.
 '''
-class UniformReplay(ReplayMemory):
+class PriorityReplay(Replay):
 
-    def append(self, transition):
-        self.ring_buffer[self.index] = transition
-        self.index = (self.index + 1) % self.maxlen
-        self.length = min(self.length + 1, self.maxlen)
+    max_priority = 1.0
+    error_eps = 1e-2
 
-    def sample(self, batch_size):
-        idx = random.sample(self.indices, batch_size)
-        return [self.ring_buffer[i] for i in idx]
-
-    def clear(self):
+    def __init__(self, maxlen, alpha=0.6, beta=0.4, beta_delta=1e-8):
+        self.maxlen = maxlen
+        self.rt_offset = maxlen - 1
         self.ring_buffer = [None] * self.maxlen
+        self.sum_tree = np.zeros(2 * self.maxlen - 1)
         self.index = 0
         self.length = 0
-
-
-
-'''
-Proportional prioritization implemented as a ring-buffer.
-todo: change implementation to heap
-'''
-class PriorityReplay(ReplayMemory):
-
-    def __init__(self, maxlen, train_steps, alpha, beta0):
-        self.maxlen = maxlen
         self.alpha = alpha
-        self.beta0 = beta0
-        self.train_steps = float(train_steps)
-        self.indices = range(self.maxlen)
-        self.clear()
+        self.beta = beta
+        self.beta_delta = beta_delta
 
     def append(self, transition):
         self.ring_buffer[self.index] = transition
-        self.priority[self.index] = np.max(self.priority)
+        self.update_sumtree(self.index, self.max_priority)
         self.index = (self.index + 1) % self.maxlen
         self.length = min(self.length + 1, self.maxlen)
 
     def sample(self, batch_size):
-        prob = self.priority / np.sum(self.priority)
-        batch_idx = np.random.choice(self.indices, batch_size, False, prob)
-        batch = [self.ring_buffer[i] for i in batch_idx]
-        batch_prob = prob[batch_idx]
-        return batch, batch_idx, batch_prob
-
-    def update_beta(self, step_count):
-        wt_end = min(step_count / self.train_steps, 1.0)
-        wt_start = 1.0 - wt_end
-        self.beta_annealed = self.beta0 * wt_start + 1.0 * wt_end
-
-    def get_batch_weights(self, batch_idx, batch_prob):
-        batch_weights = (self.length * batch_prob)**(-self.beta_annealed)
+        seg = self.sum_tree[0] / batch_size
+        rand_list = [(np.random.rand() + i) * seg for i in range(batch_size)]
+        batch, batch_idx, batch_prob = [], [], []
+        for rand in rand_list:
+            ring_idx, priority, transition = self.get_leaf(rand)
+            batch.append(transition)
+            batch_idx.append(ring_idx)
+            batch_prob.append(priority / self.sum_tree[0])
+        batch_weights = batch_prob**(-self.beta)
         batch_weights /= np.max(batch_weights)
-        return batch_weights
+        self.beta = min(1.0, self.beta + self.beta_delta)
+        return batch, batch_idx, batch_weights
 
     def update_priority(self, batch_idx, batch_td_error):
         batch_priority = np.abs(batch_td_error)
-        batch_priority[batch_priority > 1.0] = 1.0
-        batch_priority[batch_priority == 0.0] = 1e-16
-        self.priority[batch_idx] = batch_priority**self.alpha
+        batch_priority += self.error_eps
+        batch_priority[batch_priority > self.max_priority] = self.max_priority
+        batch_priority **= self.alpha
+        for ring_idx, priority in zip(batch_idx, batch_priority):
+            self.update_sumtree(ring_idx, priority)
 
-    def clear(self):
-        self.ring_buffer = [None] * self.maxlen
-        self.priority = np.zeros(self.maxlen)
-        self.priority[0] = 1.0
-        self.index = 0
-        self.length = 0
+    def get_leaf(self, value):
+        """
+        Tree structure and array storage:
+        Tree index:
+             0         -> storing priority sum
+            / \
+          1     2
+         / \   / \
+        3   4 5   6    -> storing priority for transitions
+        Array type for storing:
+        [0, 1, 2, 3, 4, 5, 6]
+        """
+        parent = 0
+        while True:
+            left = 2 * parent + 1
+            right = left + 1
+            if left >= len(self.sum_tree):  # reach bottom, end search
+                leaf_idx = parent
+                break
+            else:
+                if value <= self.sum_tree[left]:
+                    parent = left
+                else:
+                    value -= self.sum_tree[left]
+                    parent = right
+        ring_idx = leaf_idx - self.rt_offset
+        return ring_idx, self.sum_tree[leaf_idx], self.ring_buffer[ring_idx]
+
+    def update_sumtree(self, ring_idx, priority):
+        leaf_idx = ring_idx + self.rt_offset
+        change = priority - self.sum_tree[leaf_idx]
+        self.sum_tree[leaf_idx] = priority
+        while leaf_idx:
+            leaf_idx = (leaf_idx - 1) // 2
+            self.sum_tree[leaf_idx] += change
 
 
