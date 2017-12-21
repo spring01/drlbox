@@ -37,6 +37,8 @@ def arguments():
         help='Index of the current worker')
     parser.add_argument('--load_weights', default=None,
         help='If specified, load weights and start training from there')
+    parser.add_argument('--save', default='./output',
+        help='Directory to save data to')
 
     # user-definable imports
     parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
@@ -163,7 +165,7 @@ def worker(args, config):
 
         # set output path if this is the master worker
         if is_master:
-            output = get_output_folder(config.SAVE_PATH, env_name)
+            output = get_output_folder(args.save, env_name)
             agent.set_output(output)
         if args.load_weights is not None:
             acnet_global.load_weights(args.load_weights)

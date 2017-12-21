@@ -1,7 +1,6 @@
 
 NUM_WORKERS = 1
 PORT_BEGIN  = 2220
-SAVE_PATH   = './output'
 
 '''
 Reinforcement learning hyperparameters
