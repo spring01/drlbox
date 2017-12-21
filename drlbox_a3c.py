@@ -135,8 +135,8 @@ def worker(args, config):
     # local net
     with tf.device(worker_dev):
         acnet_local = ACNet(model_spec.model(*model_args))
-        acnet_local.set_loss(entropy_weight=config.RL_ENTROPY_WEIGHT)
-        adam = tf.train.AdamOptimizer(config.RL_LEARNING_RATE)
+        acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
+        adam = tf.train.AdamOptimizer(config.LEARNING_RATE)
         acnet_local.set_optimizer(adam, train_weights=global_weights)
         acnet_local.set_sync_weights(global_weights)
         step_counter_global.set_increment()
@@ -148,7 +148,7 @@ def worker(args, config):
         policy = StochasticContinuous(action_space.low, action_space.high)
     else:
         raise ValueError('action_mode not recognized')
-    rollout = Rollout(config.RL_ROLLOUT_MAXLEN, config.RL_DISCOUNT)
+    rollout = Rollout(config.ROLLOUT_MAXLEN, config.DISCOUNT)
 
     # begin tensorflow session, build a3c agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
@@ -159,9 +159,9 @@ def worker(args, config):
                     acnet_global=acnet_global, acnet_local=acnet_local,
                     state_to_input=model_spec.state_to_input,
                     policy=policy, rollout=rollout,
-                    train_steps=config.RL_TRAIN_STEPS,
+                    train_steps=config.TRAIN_STEPS,
                     step_counter=step_counter_global,
-                    interval_save=config.RL_INTERVAL_SAVE)
+                    interval_save=config.INTERVAL_SAVE)
 
         # set output path if this is the master worker
         if is_master:
