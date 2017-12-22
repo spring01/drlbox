@@ -6,9 +6,7 @@ class A3C:
 
     def __init__(self, is_master,
                  acnet_global, acnet_local, state_to_input,
-                 policy, rollout,
-                 train_steps, step_counter,
-                 interval_save):
+                 policy, rollout, train_steps, step_counter, interval_save):
         self.is_master = is_master
         self.acnet_global = acnet_global
         self.acnet_local = acnet_local
