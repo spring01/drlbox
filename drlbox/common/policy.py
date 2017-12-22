@@ -37,18 +37,20 @@ class EpsGreedy(Policy):
 '''
 Also works only with discrete actions
 '''
-class LinearDecayEpsGreedy(EpsGreedy):
+class DecayEpsGreedy(EpsGreedy):
 
-    def __init__(self, start_eps, end_eps, decay_steps):
-        self.start_eps = start_eps
-        self.end_eps = end_eps
-        self.decay_steps = float(decay_steps)
-        self.update(0)
+    def __init__(self, eps_start, eps_end, eps_delta):
+        self.epsilon = eps_start
+        self.eps_end = eps_end
+        self.eps_delta = eps_delta
 
-    def update(self, step):
-        wt_end = min(step / self.decay_steps, 1.0)
-        wt_start = 1.0 - wt_end
-        self.epsilon = self.start_eps * wt_start + self.end_eps * wt_end
+    def select_action(self, action_values):
+        if np.random.rand() < self.epsilon:
+            action = np.random.randint(0, action_values.size)
+        else:
+            action = action_values.argmax()
+        self.epsilon = max(self.eps_end, self.epsilon - self.eps_delta)
+        return action
 
 
 class StochasticDiscrete(Policy):
