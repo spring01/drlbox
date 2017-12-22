@@ -1,23 +1,22 @@
 
 import os
 import numpy as np
+from .replay import PriorityReplay
 
 class DQN:
 
-    episode_maxlen = 100000
-    batch_size     = 32
-
     def __init__(self, online, target, state_to_input,
-                 memory, policy, discount, train_steps,
+                 replay, policy, discount, train_steps, batch_size,
                  interval_train_online, interval_sync_target, interval_save,
                  output):
         self.online = online
         self.target = target
         self.state_to_input = state_to_input
-        self.memory = memory
+        self.replay = replay
         self.policy = policy
         self.discount = discount
         self.train_steps = train_steps
+        self.batch_size = batch_size
         self.interval_train_online = interval_train_online
         self.interval_sync_target = interval_sync_target
         self.interval_save = interval_save
@@ -26,26 +25,25 @@ class DQN:
     def train(self, env):
         self.target.sync()
 
-        print('########## filling in memory #############')
-        while len(self.memory) < self.memory.fill:
+        print('########## filling in replay memory #############')
+        while not self.replay.usable():
             self.run_episode(env, train=False)
-            self.memory.print_status()
+            self.replay.print_status()
 
         print('########## begin training #############')
         step = 0
         while step <= self.train_steps:
-            self.policy.update(step)
             _, step = self.run_episode(env, step, train=True)
             print('training step {}/{}'.format(step, self.train_steps))
 
     def run_episode(self, env, step=0, train=False):
         state = env.reset()
         episode_reward = 0.0
-        for _ in range(self.episode_maxlen):
+        while True:
             action = self.pick_action(state)
             state_next, reward, done, info = env.step(action)
             episode_reward += reward
-            self.memory.append((state, action, reward, state_next, done))
+            self.replay.append((state, action, reward, state_next, done))
             state = state_next
 
             # break if done
@@ -65,27 +63,27 @@ class DQN:
     def extra_work_train(self, step):
         # train online net
         if _every(step, self.interval_train_online):
-            self.memory.update_beta(step)
             self.train_online()
 
         # sync target net
         if _every(step, self.interval_sync_target):
             self.target.sync()
 
-        # save model and memory
+        # save model and replay
         if _every(step, self.interval_save):
             output = self.output
             weights_save = os.path.join(output, 'weights_{}.p'.format(step))
             self.online.save_weights(weights_save)
             print('online net weights written to {}'.format(weights_save))
-            memory_save = os.path.join(output, 'memory.p')
-            self.memory.save(memory_save)
-            print('replay memory written to {}'.format(memory_save))
+            replay_save = os.path.join(output, 'replay.p')
+            self.replay.save(replay_save)
+            print('replay memory written to {}'.format(replay_save))
 
     def train_online(self):
-        batch, b_idx, b_weights = self.memory.sample(self.batch_size)
-        b_state, b_q_target, td_error, online = self.process_batch(batch)
-        self.memory.update_priority(b_idx, td_error)
+        batch, b_idx, b_weights = self.replay.sample(self.batch_size)
+        b_state, b_q_target, abs_td_error, online = self.process_batch(batch)
+        if isinstance(self.replay, PriorityReplay):
+            self.replay.update_priority(b_idx, abs_td_error)
         online.train_on_batch(b_state, b_q_target, sample_weight=b_weights)
 
     def process_batch(self, batch):
@@ -120,8 +118,8 @@ class DQN:
             if not done:
                 full_reward += self.discount * qtn[qon.argmax()]
             qt[act] = full_reward
-        td_error = np.sum(b_q_target - b_q_online, axis=1)
-        return b_state, b_q_target, td_error, online
+        abs_td_error = np.abs(np.sum(b_q_target - b_q_online, axis=1))
+        return b_state, b_q_target, abs_td_error, online
 
 def _every(step, interval):
     return not (step % interval)

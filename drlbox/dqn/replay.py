@@ -1,5 +1,5 @@
 
-import numpy as np
+import random
 import pickle
 
 
@@ -11,9 +11,12 @@ Both `append` and `sample` are O(1)
 '''
 class Replay:
 
-    def __init__(self, maxlen):
+    def __init__(self, maxlen, minlen=None):
         self.maxlen = maxlen
-        self.indices = list(range(self.maxlen))
+        if minlen is None:
+            self.minlen = FILL_PERCENT * self.maxlen
+        else:
+            self.minlen = minlen
         self.ring_buffer = [None] * self.maxlen
         self.index = 0
         self.length = 0
@@ -24,17 +27,17 @@ class Replay:
         self.length = min(self.length + 1, self.maxlen)
 
     def sample(self, batch_size):
-        idx = random.sample(self.indices, batch_size)
-        return [self.ring_buffer[i] for i in idx]
+        batch_idx = [random.randrange(len(self)) for _ in range(batch_size)]
+        return [self.ring_buffer[i] for i in batch_idx], batch_idx, None
 
     def __len__(self):
         return self.length
 
     def usable(self):
-        return len(self) >= FILL_PERCENT * self.maxlen
+        return len(self) >= self.minlen
 
     def print_status(self):
-        print('memory length: {}/{}'.format(self.length, self.maxlen))
+        print('replay length: {}/{}'.format(self.length, self.maxlen))
 
     def save(self, filepath):
         with open(filepath, 'wb') as save:
@@ -43,8 +46,8 @@ class Replay:
     @staticmethod
     def load(filepath):
         with open(filepath, 'rb') as save:
-            memory = pickle.load(save)
-        return memory
+            replay = pickle.load(save)
+        return replay
 
 
 '''
@@ -55,43 +58,39 @@ class PriorityReplay(Replay):
     max_priority = 1.0
     error_eps = 1e-2
 
-    def __init__(self, maxlen, alpha=0.6, beta=0.4, beta_delta=1e-8):
-        self.maxlen = maxlen
+    def __init__(self, maxlen, minlen=None,
+                 alpha=0.6, beta=0.4, beta_delta=1e-8):
+        super().__init__(maxlen, minlen)
         self.rt_offset = maxlen - 1
-        self.ring_buffer = [None] * self.maxlen
-        self.sum_tree = np.zeros(2 * self.maxlen - 1)
-        self.index = 0
-        self.length = 0
+        self.sum_tree = [0.0] * (2 * self.maxlen - 1)
         self.alpha = alpha
         self.beta = beta
         self.beta_delta = beta_delta
 
     def append(self, transition):
-        self.ring_buffer[self.index] = transition
         self.update_sumtree(self.index, self.max_priority)
-        self.index = (self.index + 1) % self.maxlen
-        self.length = min(self.length + 1, self.maxlen)
+        super().append(transition)
 
     def sample(self, batch_size):
-        seg = self.sum_tree[0] / batch_size
-        rand_list = [(np.random.rand() + i) * seg for i in range(batch_size)]
-        batch, batch_idx, batch_prob = [], [], []
+        len_seg = self.sum_tree[0] / batch_size
+        rand_list = [(random.random() + i) * len_seg for i in range(batch_size)]
+        batch, batch_idx, batch_weights = [], [], []
         for rand in rand_list:
             ring_idx, priority, transition = self.get_leaf(rand)
             batch.append(transition)
             batch_idx.append(ring_idx)
-            batch_prob.append(priority / self.sum_tree[0])
-        batch_weights = batch_prob**(-self.beta)
-        batch_weights /= np.max(batch_weights)
+            weight = (priority / self.sum_tree[0])**(-self.beta)
+            batch_weights.append(weight)
+        max_weight = max(batch_weights)
+        batch_weights = [w / max_weight for w in batch_weights]
         self.beta = min(1.0, self.beta + self.beta_delta)
         return batch, batch_idx, batch_weights
 
-    def update_priority(self, batch_idx, batch_td_error):
-        batch_priority = np.abs(batch_td_error)
-        batch_priority += self.error_eps
-        batch_priority[batch_priority > self.max_priority] = self.max_priority
-        batch_priority **= self.alpha
-        for ring_idx, priority in zip(batch_idx, batch_priority):
+    def update_priority(self, batch_idx, batch_error):
+        for ring_idx, error in zip(batch_idx, batch_error):
+            priority = abs(error) + self.error_eps
+            priority = min(self.max_priority, priority)
+            priority **= self.alpha
             self.update_sumtree(ring_idx, priority)
 
     def get_leaf(self, value):

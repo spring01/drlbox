@@ -13,9 +13,9 @@ Input arguments:
     arch_str:          Architecture of the q net, e.g., '16 16 16'.
 '''
 def model(observation_space, action_space, arch_str):
-    net_arch = net_arch_str.split(' ')
+    net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    state = layers.Input(shape=observation_space.spaces[-1].shape)
+    state = layers.Input(shape=observation_space.shape)
     feature = state
     for num_hid in net_arch:
         feature = layers.Dense(num_hid, activation='relu')(feature)
