@@ -1,6 +1,6 @@
 
 import gym.spaces
-from tensorflow.contrib.keras import layers, models, initializers
+from tensorflow.contrib.keras import layers, models
 
 
 def state_to_input(state):

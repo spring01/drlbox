@@ -1,5 +1,5 @@
 
-from tensorflow.contrib.keras import layers, initializers, models, backend as K
+from tensorflow.contrib.keras import layers, models, backend as K
 from .atari_fc_ac import atari_state_feature_net
 
 import numpy as np
@@ -43,8 +43,4 @@ def model(observation_space, action_space, net_name='fc', net_size=512):
 
     # build model
     return models.Model(inputs=state, outputs=q_value)
-
-
-
-
 
