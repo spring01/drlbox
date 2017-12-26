@@ -49,8 +49,13 @@ def main():
     # dynamically import net and interface
     for path in args.import_path:
         sys.path.append(path)
-    config = importlib.import_module(DEFAULT_CONFIG)
+    config_def = importlib.import_module(DEFAULT_CONFIG)
     config = importlib.import_module(args.import_config)
+
+    # set default configurations in config
+    for key, value in config_def.__dict__.items():
+        if key not in config.__dict__:
+            config.__dict__[key] = value
 
     # gym environment
     env_spec = importlib.import_module(args.import_env[0])
@@ -68,7 +73,9 @@ def main():
     sess = tf.Session()
     for net in online, target:
         net.set_loss(mean_huber_loss)
-        net.set_optimizer(tf.train.AdamOptimizer(config.LEARNING_RATE))
+        adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
+                                      epsilon=config.ADAM_EPSILON)
+        net.set_optimizer(adam)
         net.set_session(sess)
     target.set_sync_weights(online.weights)
     sess.run(tf.global_variables_initializer())

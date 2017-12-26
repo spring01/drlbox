@@ -4,6 +4,7 @@ Reinforcement learning hyperparameters
 '''
 DISCOUNT        = 0.99
 LEARNING_RATE   = 1e-4
+ADAM_EPSILON    = 1e-4
 TRAIN_STEPS     = 10000000
 BATCH_SIZE      = 32
 

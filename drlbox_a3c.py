@@ -12,11 +12,18 @@ DEFAULT_CONFIG = 'drlbox.config.a3c_default'
 
 def main():
     args = arguments()
+
     # dynamically import net and interface
     for path in args.import_path:
         sys.path.append(path)
-    config = importlib.import_module(DEFAULT_CONFIG)
+    config_def = importlib.import_module(DEFAULT_CONFIG)
     config = importlib.import_module(args.import_config)
+
+    # set default configurations in config
+    for key, value in config_def.__dict__.items():
+        if key not in config.__dict__:
+            config.__dict__[key] = value
+
     if args.a3c_running_mode == 'trainer':
         trainer(args, config)
     elif args.a3c_running_mode == 'worker':
@@ -136,7 +143,8 @@ def worker(args, config):
     with tf.device(worker_dev):
         acnet_local = ACNet(model_spec.model(*model_args))
         acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
-        adam = tf.train.AdamOptimizer(config.LEARNING_RATE)
+        adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
+                                      epsilon=config.ADAM_EPSILON)
         acnet_local.set_optimizer(adam, train_weights=global_weights)
         acnet_local.set_sync_weights(global_weights)
         step_counter_global.set_increment()
