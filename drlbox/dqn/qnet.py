@@ -12,9 +12,8 @@ class QNet(RLNet):
 
     def set_loss(self, loss_function):
         tf_values = self.tf_values
-        target_shape = tf_values.shape.as_list()
-        ph_target = tf.placeholder(tf.float32, target_shape)
-        batch_size, num_actions = target_shape
+        batch_size, num_actions = tf_values.shape
+        ph_target = tf.placeholder(tf.float32, [batch_size, num_actions])
         ph_weight = tf.placeholder(tf.float32, [batch_size])
         weight_tile = tf.tile(tf.expand_dims(ph_weight, 1), [1, num_actions])
         weighted_ph_target = weight_tile * ph_target

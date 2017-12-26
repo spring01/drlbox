@@ -25,10 +25,10 @@ def main():
         help='Directory to save data to')
 
     # train from saved weights/replay
-    parser.add_argument('--read_weights', default=None, type=str,
-        help='Read weights from file')
-    parser.add_argument('--read_replay', default=None, type=str,
-        help='Read replay from file')
+    parser.add_argument('--load_weights', default=None, type=str,
+        help='If specified, load weights and start training from there')
+    parser.add_argument('--load_replay', default=None, type=str,
+        help='If specified, load replay memory and start training from there')
 
     # user-definable imports
     parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
@@ -91,10 +91,10 @@ def main():
     policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
 
     # read weights/memory if requested
-    if args.read_weights is not None:
-        online.load_weights(args.read_weights)
-    if args.read_replay is not None:
-        replay = Replay.load(args.read_replay)
+    if args.load_weights is not None:
+        online.load_weights(args.load_weights)
+    if args.load_replay is not None:
+        replay = Replay.load(args.load_replay)
 
     # construct and compile the dqn agent
     output = get_output_folder(args.save, env_name)
