@@ -54,7 +54,7 @@ def arguments():
         default=['drlbox.env.default', 'CartPole-v0'],
         help='openai gym environment.')
     parser.add_argument('--import_model', nargs='+',
-        default=['drlbox.model.fc_ac', '200 100'],
+        default=['drlbox.model.fully_connected', '200 100'],
         help='neural network model')
     parser.add_argument('--import_config', default=DEFAULT_CONFIG,
         help='algorithm configurations')
@@ -103,6 +103,7 @@ from drlbox.a3c.rollout import Rollout
 from drlbox.a3c.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.util import get_output_folder
+from drlbox.model.actor_critic import actor_critic_model
 
 
 def worker(args, config):
@@ -128,11 +129,12 @@ def worker(args, config):
 
     # tensorflow-keras model
     model_spec = importlib.import_module(args.import_model[0])
-    model_args = env.observation_space, action_space, *args.import_model[1:]
+    feature_args = env.observation_space, *args.import_model[1:]
 
     # global net
     with tf.device(rep_dev):
-        model = model_spec.model(*model_args)
+        state, feature = model_spec.feature(*feature_args)
+        model = actor_critic_model(state, feature, action_space)
         if is_master:
             model.summary()
         acnet_global = ACNet(model)
@@ -141,7 +143,9 @@ def worker(args, config):
 
     # local net
     with tf.device(worker_dev):
-        acnet_local = ACNet(model_spec.model(*model_args))
+        state, feature = model_spec.feature(*feature_args)
+        model = actor_critic_model(state, feature, action_space)
+        acnet_local = ACNet(model)
         acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
         adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                       epsilon=config.ADAM_EPSILON)
