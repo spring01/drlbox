@@ -14,6 +14,7 @@ from drlbox.dqn.replay import Replay, PriorityReplay
 from drlbox.common.policy import DecayEpsGreedy
 from drlbox.common.loss import mean_huber_loss
 from drlbox.common.util import get_output_folder
+from drlbox.model.q_network import q_network_model
 import importlib
 
 
@@ -36,9 +37,9 @@ def main():
     parser.add_argument('--import_env', nargs='+',
         default=['drlbox.env.default', 'CartPole-v0'],
         help='openai gym environment.')
-    parser.add_argument('--import_model', nargs='+',
-        default=['drlbox.model.fc_q', '200 100'],
-        help='neural network model')
+    parser.add_argument('--import_feature', nargs='+',
+        default=['drlbox.feature.fc', '200 100'],
+        help='neural network feature builder')
     parser.add_argument('--import_config', default=DEFAULT_CONFIG,
         help='algorithm configurations')
 
@@ -62,12 +63,16 @@ def main():
     env, env_name = env_spec.make_env(*args.import_env[1:])
     action_space = env.action_space
 
-    # tensorflow-keras model
-    model_spec = importlib.import_module(args.import_model[0])
-    model_args = env.observation_space, action_space, *args.import_model[1:]
+    # tensorflow-keras feature builder
+    feature_spec = importlib.import_module(args.import_feature[0])
+    feature_args = env.observation_space, *args.import_feature[1:]
 
     # online/target q-nets
-    model_o, model_t = (model_spec.model(*model_args) for _ in range(2))
+    state_o, feature_o = feature_spec.feature(*feature_args)
+    model_o = q_network_model(state_o, feature_o, action_space)
+    state_t, feature_t = feature_spec.feature(*feature_args)
+    model_t = q_network_model(state_t, feature_t, action_space)
+
     model_o.summary()
     online, target = (QNet(model) for model in (model_o, model_t))
     sess = tf.Session()
@@ -105,7 +110,7 @@ def main():
 
     # construct and compile the dqn agent
     output = get_output_folder(args.save, env_name)
-    agent = DQN(online, target, state_to_input=model_spec.state_to_input,
+    agent = DQN(online, target, state_to_input=feature_spec.state_to_input,
                 replay=replay, policy=policy, discount=config.DISCOUNT,
                 train_steps=config.TRAIN_STEPS, batch_size=config.BATCH_SIZE,
                 interval_train_online=config.INTERVAL_TRAIN_ONLINE,

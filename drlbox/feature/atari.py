@@ -1,7 +1,7 @@
 
-from tensorflow.contrib.keras import layers, initializers, models, backend as K
-
 import numpy as np
+from tensorflow.contrib.keras import layers, backend as K
+
 '''
 When a state is represented as a list of frames, this interface converts it
 to a correctly shaped numpy array which can be fed into the neural network
@@ -13,29 +13,12 @@ def state_to_input(state):
 '''
 Input arguments:
     observation_space: Observation space of the environment; Tuple of Boxes;
-    action_space:      Action space of the environment; Discrete;
     net_name:          Name of the actor-critic net, e.g., 'fc';
     net_size:          Number of neurons in the first non-convolutional layer.
 '''
-def model(observation_space, action_space, net_name='fc', net_size=512):
-    num_actions = action_space.n
+def feature(observation_space, net_name='fc', net_size=512):
     net_size = int(net_size)
     net_name = net_name.lower()
-    state, feature, net = atari_state_feature_net(observation_space, net_name)
-
-    # actor (policy) and critic (value) stream
-    hid = net(net_size, activation='relu')(feature)
-    near_zeros = initializers.RandomNormal(stddev=1e-3)
-    logits = layers.Dense(num_actions, kernel_initializer=near_zeros)(hid)
-    value = layers.Dense(1)(hid)
-
-    # build model
-    model = models.Model(inputs=state, outputs=[value, logits])
-    model.action_mode = 'discrete'
-    return model
-
-
-def atari_state_feature_net(observation_space, net_name):
     num_frames = len(observation_space.spaces)
     height, width = observation_space.spaces[0].shape
     input_shape = height, width, num_frames
@@ -79,6 +62,7 @@ def atari_state_feature_net(observation_space, net_name):
     else:
         raise ValueError('`net_name` is not recognized')
 
-    return state, feature, net
-
+    # actor (policy) and critic (value) stream
+    feature = net(net_size, activation='relu')(feature)
+    return state, feature
 

@@ -127,13 +127,13 @@ def worker(args, config):
     env, env_name = env_spec.make_env(*args.import_env[1:])
     action_space = env.action_space
 
-    # tensorflow-keras model
-    model_spec = importlib.import_module(args.import_feature[0])
+    # tensorflow-keras feature builder
+    feature_spec = importlib.import_module(args.import_feature[0])
     feature_args = env.observation_space, *args.import_feature[1:]
 
     # global net
     with tf.device(rep_dev):
-        state, feature = model_spec.feature(*feature_args)
+        state, feature = feature_spec.feature(*feature_args)
         model = actor_critic_model(state, feature, action_space)
         if is_master:
             model.summary()
@@ -143,7 +143,7 @@ def worker(args, config):
 
     # local net
     with tf.device(worker_dev):
-        state, feature = model_spec.feature(*feature_args)
+        state, feature = feature_spec.feature(*feature_args)
         model = actor_critic_model(state, feature, action_space)
         acnet_local = ACNet(model)
         acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
@@ -169,7 +169,7 @@ def worker(args, config):
             obj.set_session(sess)
         agent = A3C(is_master=is_master,
                     acnet_global=acnet_global, acnet_local=acnet_local,
-                    state_to_input=model_spec.state_to_input,
+                    state_to_input=feature_spec.state_to_input,
                     policy=policy, rollout=rollout,
                     train_steps=config.TRAIN_STEPS,
                     step_counter=step_counter_global,
