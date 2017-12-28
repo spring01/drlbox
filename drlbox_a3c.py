@@ -89,7 +89,6 @@ def worker(manager):
         if is_master:
             model.summary()
         acnet_global = ACNet(model)
-        global_weights = acnet_global.weights
         step_counter_global = StepCounter()
 
     # local net
@@ -99,8 +98,8 @@ def worker(manager):
         acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
         adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                       epsilon=config.ADAM_EPSILON)
-        acnet_local.set_optimizer(adam, train_weights=global_weights)
-        acnet_local.set_sync_weights(global_weights)
+        acnet_local.set_optimizer(adam, train_weights=acnet_global.weights)
+        acnet_local.set_sync_weights(acnet_global.weights)
         step_counter_global.set_increment()
 
     # policy and rollout
