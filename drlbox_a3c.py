@@ -53,9 +53,9 @@ def arguments():
     parser.add_argument('--import_env', nargs='+',
         default=['drlbox.env.default', 'CartPole-v0'],
         help='openai gym environment.')
-    parser.add_argument('--import_model', nargs='+',
-        default=['drlbox.model.fully_connected', '200 100'],
-        help='neural network model')
+    parser.add_argument('--import_feature', nargs='+',
+        default=['drlbox.feature.fc', '200 100'],
+        help='neural network feature builder')
     parser.add_argument('--import_config', default=DEFAULT_CONFIG,
         help='algorithm configurations')
 
@@ -128,8 +128,8 @@ def worker(args, config):
     action_space = env.action_space
 
     # tensorflow-keras model
-    model_spec = importlib.import_module(args.import_model[0])
-    feature_args = env.observation_space, *args.import_model[1:]
+    model_spec = importlib.import_module(args.import_feature[0])
+    feature_args = env.observation_space, *args.import_feature[1:]
 
     # global net
     with tf.device(rep_dev):

@@ -5,7 +5,7 @@ from tensorflow.contrib.keras import layers, models, initializers
 
 '''
 Input arguments:
-    state:          Model input
+    state:          Model input;
     feature:        Output of the feature function;
     action_space:   Action space of the environment;
 '''
