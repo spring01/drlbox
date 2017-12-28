@@ -10,7 +10,6 @@ from drlbox.dqn.replay import Replay, PriorityReplay
 from drlbox.common.manager import Manager
 from drlbox.common.policy import DecayEpsGreedy
 from drlbox.common.loss import mean_huber_loss
-from drlbox.common.util import get_output_folder
 from drlbox.model.q_network import q_network_model
 
 
@@ -64,14 +63,13 @@ def main():
         replay = Replay.load(args.load_replay)
 
     # construct and compile the dqn agent
-    output = get_output_folder(args.save, manager.env_name)
     agent = DQN(online, target, state_to_input=manager.state_to_input,
                 replay=replay, policy=policy, discount=config.DISCOUNT,
                 train_steps=config.TRAIN_STEPS, batch_size=config.BATCH_SIZE,
                 interval_train_online=config.INTERVAL_TRAIN_ONLINE,
                 interval_sync_target=config.INTERVAL_SYNC_TARGET,
                 interval_save=config.INTERVAL_SAVE,
-                output=output)
+                output=manager.get_output_folder())
 
     # train the agent
     agent.train(manager.env)

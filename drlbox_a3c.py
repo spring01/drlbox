@@ -63,7 +63,6 @@ from drlbox.a3c.acnet import ACNet
 from drlbox.a3c.rollout import Rollout
 from drlbox.a3c.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.util import get_output_folder
 from drlbox.model.actor_critic import actor_critic_model
 
 
@@ -125,12 +124,8 @@ def worker(manager):
                     policy=policy, rollout=rollout,
                     train_steps=config.TRAIN_STEPS,
                     step_counter=step_counter_global,
-                    interval_save=config.INTERVAL_SAVE)
-
-        # set output path if this is the master worker
-        if is_master:
-            output = get_output_folder(args.save, manager.env_name)
-            agent.set_output(output)
+                    interval_save=config.INTERVAL_SAVE,
+                    output=manager.get_output_folder())
         if args.load_weights is not None:
             acnet_global.load_weights(args.load_weights)
 

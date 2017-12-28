@@ -4,9 +4,9 @@ import os
 
 class A3C:
 
-    def __init__(self, is_master,
-                 acnet_global, acnet_local, state_to_input,
-                 policy, rollout, train_steps, step_counter, interval_save):
+    def __init__(self, is_master, acnet_global, acnet_local, state_to_input,
+                 policy, rollout, train_steps, step_counter, interval_save,
+                 output):
         self.is_master = is_master
         self.acnet_global = acnet_global
         self.acnet_local = acnet_local
@@ -16,8 +16,6 @@ class A3C:
         self.train_steps = train_steps
         self.step_counter = step_counter
         self.interval_save = interval_save
-
-    def set_output(self, output):
         self.output = output
 
     def train(self, env):
