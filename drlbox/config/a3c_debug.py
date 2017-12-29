@@ -1,5 +1,0 @@
-
-NUM_WORKERS     = 1
-TRAIN_STEPS     = 500
-INTERVAL_SAVE   = 200
-

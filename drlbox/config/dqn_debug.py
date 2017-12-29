@@ -1,8 +1,0 @@
-
-TRAIN_STEPS             = 1000
-INTERVAL_SAVE           = 400
-INTERVAL_SYNC_TARGET    = 400
-REPLAY_MAXLEN           = 100
-REPLAY_MINLEN           = 50
-POLICY_DECAY_STEPS      = 500
-
