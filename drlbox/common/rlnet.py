@@ -17,10 +17,11 @@ class RLNet:
     def set_loss(self, *args, **kwargs):
         raise NotImplementedError
 
-    def set_optimizer(self, optimizer, clip_norm=40.0, train_weights=None):
+    def set_optimizer(self, optimizer, clip_norm=None, train_weights=None):
         weights = self.weights
         grads = tf.gradients(self.tf_loss, weights)
-        grads, _ = tf.clip_by_global_norm(grads, clip_norm)
+        if clip_norm is not None:
+            grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
             train_weights = weights
         grads_and_vars = list(zip(grads, train_weights))
