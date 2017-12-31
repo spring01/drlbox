@@ -107,8 +107,8 @@ def worker(manager):
     if model.action_mode == 'discrete':
         policy = StochasticDiscrete()
     elif model.action_mode == 'continuous':
-        policy = StochasticContinuous(low=manager.env.action_space.low,
-                                      high=manager.env.action_space.high)
+        act_space = manager.env.action_space
+        policy = StochasticContinuous(low=act_space.low, high=act_space.high)
     else:
         raise ValueError('action_mode not recognized')
     rollout = Rollout(config.ROLLOUT_MAXLEN, config.DISCOUNT)
