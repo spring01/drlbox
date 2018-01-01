@@ -1,5 +1,6 @@
 
 from tensorflow.contrib.keras import layers
+from .preact_layers import DensePreact
 
 
 def state_to_input(state):
@@ -16,7 +17,7 @@ def feature(observation_space, arch_str):
     state = layers.Input(shape=observation_space.shape)
     feature = state
     for num_hid in net_arch:
-        feature = layers.Dense(num_hid, activation='relu')(feature)
+        feature = DensePreact(num_hid, activation='relu')(feature)
     return state, feature
 
 
