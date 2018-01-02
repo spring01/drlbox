@@ -7,14 +7,13 @@ from tensorflow.python.ops import array_ops
 KfacOptimizer = tf.contrib.kfac.optimizer.KfacOptimizer
 
 
-class KTROptimizer(KfacOptimizer):
+class KfacOptimizerTV(KfacOptimizer):
 
     def __init__(
           self,
           learning_rate,
           cov_ema_decay,
           damping,
-          trust_radius,
           layer_collection,
           var_list=None,
           momentum=0.,
@@ -58,7 +57,6 @@ class KTROptimizer(KfacOptimizer):
         variables = var_list
         if variables is None:
           variables = tf_variables.trainable_variables()
-        self.trust_radius = trust_radius
 
         self._fisher_est = est.FisherEstimator(variables, cov_ema_decay, damping,
                                                layer_collection)
@@ -91,7 +89,6 @@ class KTROptimizer(KfacOptimizer):
 
         super(KfacOptimizer, self).__init__(learning_rate, name=name)
 
-
     def apply_gradients(self, grads_and_vars, train_vars, *args, **kwargs):
         """Applies gradients to variables.
         Args:
@@ -109,16 +106,9 @@ class KTROptimizer(KfacOptimizer):
         # Compute step.
         steps_and_vars = self._compute_update_steps(grads_and_vars)
 
-        # Compute trust region learning rate
-        steps = [st for st, _ in steps_and_vars]
-        fsteps_and_vars = self._fisher_est.multiply(steps_and_vars)
-        zip_fs = zip(fsteps_and_vars, steps)
-        fnorm = [tf.reduce_sum(fst * st) for (fst, _), st in zip_fs]
-        tr_lr = tf.sqrt(2.0 * self.trust_radius / tf.reduce_sum(fnorm))
-        coeff = tf.minimum(tr_lr, self._learning_rate) / self._learning_rate
-
         # Modify variables in train_vars instead of grads_and_vars
-        steps_and_vars = [(st * coeff, tv) for st, tv in zip(steps, train_vars)]
+        zip_st = zip(steps_and_vars, train_vars)
+        steps_and_vars = [(step, t_var) for (step, _), t_var in zip_st]
 
         # Update trainable variables with this step.
         return super(KfacOptimizer, self).apply_gradients(steps_and_vars, *args,
