@@ -1,6 +1,7 @@
 
 import numpy as np
-from tensorflow.contrib.keras import layers, backend as K
+from tensorflow.python.keras import layers, backend as K
+from .preact_layers import Conv2DPreact
 
 '''
 When a state is represented as a list of frames, this interface converts it
@@ -27,9 +28,9 @@ def feature(observation_space, net_name='fc', net_size=512):
     state = layers.Input(shape=input_shape)
 
     # convolutional layers
-    conv1_32 = layers.Conv2D(32, (8, 8), strides=(4, 4), activation='relu')
-    conv2_64 = layers.Conv2D(64, (4, 4), strides=(2, 2), activation='relu')
-    conv3_64 = layers.Conv2D(64, (3, 3), strides=(1, 1), activation='relu')
+    conv1_32 = Conv2DPreact(32, (8, 8), strides=(4, 4), activation='relu')
+    conv2_64 = Conv2DPreact(64, (4, 4), strides=(2, 2), activation='relu')
+    conv3_64 = Conv2DPreact(64, (3, 3), strides=(1, 1), activation='relu')
 
     # if recurrent net then change input shape
     if 'lstm' in net_name or 'gru' in net_name:
