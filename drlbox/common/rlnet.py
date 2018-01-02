@@ -18,14 +18,13 @@ class RLNet:
         raise NotImplementedError
 
     def set_optimizer(self, optimizer, clip_norm=None, train_weights=None):
-        weights = self.weights
-        grads = tf.gradients(self.tf_loss, weights)
+        grads_and_vars = optimizer.compute_gradients(self.tf_loss, self.weights)
+        grads = [g for g, v in grads_and_vars]
         if clip_norm is not None:
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
-            train_weights = weights
-        grads_and_vars = list(zip(grads, train_weights))
-        self.op_train = optimizer.apply_gradients(grads_and_vars)
+            train_weights = self.weights
+        self.op_train = optimizer.apply_gradients(zip(grads, train_weights))
 
     def action_values(self, state):
         raise NotImplementedError
