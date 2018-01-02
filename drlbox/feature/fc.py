@@ -1,5 +1,5 @@
 
-from tensorflow.contrib.keras import layers
+from tensorflow.python.keras import layers
 from .preact_layers import DensePreact
 
 

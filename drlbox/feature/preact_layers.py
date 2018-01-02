@@ -1,12 +1,13 @@
 
-from tensorflow.contrib.keras import layers, backend as K
+import tensorflow as tf
 
-class DensePreact(layers.Dense):
+
+class DensePreact(tf.keras.layers.Dense):
 
     def call(self, inputs):
-        output = K.dot(inputs, self.kernel)
+        output = tf.matmul(inputs, self.kernel)
         if self.use_bias:
-            output = K.bias_add(output, self.bias)
+            output = tf.nn.bias_add(output, self.bias)
         self.preactivation = output
         if self.activation is not None:
             output = self.activation(output)
