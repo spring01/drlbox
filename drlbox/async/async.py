@@ -5,7 +5,7 @@ import numpy as np
 
 DUMMY_LOSS = 9999.0
 
-class A3C:
+class AsyncRL:
 
     '''
     `local_net` needs to have its weight-sync operation set to the global net

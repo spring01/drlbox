@@ -1,7 +1,5 @@
 """
-Asynchronous advantage actor-critic (A3C) trainer
-Currently supports only discrete actions
-Built with distributed tensorflow
+Asynchronous trainer built with distributed tensorflow
 """
 
 ''' main function selects running mode '''
@@ -10,10 +8,10 @@ from drlbox.common.manager import Manager
 DEFAULT_CONFIG = 'drlbox.config.async_default'
 
 def main():
-    manager = Manager(description='A3C Trainer', default_config=DEFAULT_CONFIG)
+    manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
 
-    # a3c specific parser args
-    manager.parser.add_argument('--a3c_running_mode', default='trainer',
+    # async specific parser args
+    manager.parser.add_argument('--async_running_mode', default='trainer',
         type=str, choices=['trainer', 'worker'],
         help='Running mode of this process')
     manager.parser.add_argument('--worker_index', default=0, type=int,
@@ -21,19 +19,19 @@ def main():
 
     manager.parse_import()
 
-    if manager.args.a3c_running_mode == 'trainer':
+    if manager.args.async_running_mode == 'trainer':
         trainer(manager)
-    elif manager.args.a3c_running_mode == 'worker':
+    elif manager.args.async_running_mode == 'worker':
         worker(manager)
 
 
 ''' trainer block '''
 import subprocess
-from drlbox.a3c.blocker import Blocker
+from drlbox.async.blocker import Blocker
 
 def trainer(manager):
     args_dict = vars(manager.args)
-    args_dict['a3c_running_mode'] = 'worker'
+    args_dict['async_running_mode'] = 'worker'
     worker_list = []
     for worker_index in range(manager.config.NUM_WORKERS):
         args_dict['worker_index'] = worker_index
@@ -51,17 +49,17 @@ def trainer(manager):
     Blocker().block()
     for worker in worker_list:
         worker.terminate()
-    print('A3C training ends')
+    print('AsyncRL training ends')
 
 
 ''' worker block '''
 import os
 import signal
 import tensorflow as tf
-from drlbox.a3c.a3c import A3C
-from drlbox.a3c.acnet import ACNet
-from drlbox.a3c.rollout import Rollout
-from drlbox.a3c.step_counter import StepCounter
+from drlbox.async.async import AsyncRL
+from drlbox.async.acnet import ACNet
+from drlbox.async.rollout import Rollout
+from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.model.actor_critic import actor_critic_model
 
@@ -113,19 +111,19 @@ def worker(manager):
         raise ValueError('action_mode not recognized')
     rollout = Rollout(config.ROLLOUT_MAXLEN, config.DISCOUNT)
 
-    # begin tensorflow session, build a3c agent and train
+    # begin tensorflow session, build async RL agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
         sess.run(tf.global_variables_initializer())
         for obj in acnet_global, acnet_local, step_counter_global:
             obj.set_session(sess)
-        agent = A3C(is_master=is_master, local_net=acnet_local,
-                    state_to_input=manager.state_to_input,
-                    policy=policy, rollout=rollout,
-                    batch_size=config.BATCH_SIZE,
-                    train_steps=config.TRAIN_STEPS,
-                    step_counter=step_counter_global,
-                    interval_save=config.INTERVAL_SAVE,
-                    output=manager.get_output_folder())
+        agent = AsyncRL(is_master=is_master, local_net=acnet_local,
+                        state_to_input=manager.state_to_input,
+                        policy=policy, rollout=rollout,
+                        batch_size=config.BATCH_SIZE,
+                        train_steps=config.TRAIN_STEPS,
+                        step_counter=step_counter_global,
+                        interval_save=config.INTERVAL_SAVE,
+                        output=manager.get_output_folder())
         if args.load_weights is not None:
             acnet_global.load_weights(args.load_weights)
 
