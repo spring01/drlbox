@@ -55,13 +55,6 @@ class ACNet(RLNet):
     def state_value(self, state):
         return self.sess.run(self.tf_value, feed_dict={self.ph_state: state})
 
-    def state_loss(self, state, action, advantage, target):
-        feed_dict = {self.ph_state:     state,
-                     self.ph_action:    action,
-                     self.ph_advantage: advantage,
-                     self.ph_target:    target}
-        return self.sess.run(self.tf_loss, feed_dict=feed_dict)
-
     def train_on_batch(self, state, action, advantage, target):
         feed_dict = {self.ph_state:     state,
                      self.ph_action:    action,
