@@ -4,6 +4,11 @@ import numpy as np
 
 class Rollout:
 
+    '''
+    Usage: rollout = Rollout(maxlen, discount, (optional)batch_size)
+        maxlen:     maximum length of a short rollout;
+        discount:   discount factor gamma (for long term discounted reward).
+    '''
     def __init__(self, maxlen, discount):
         self.maxlen = maxlen
         self.discount = discount
@@ -20,17 +25,21 @@ class Rollout:
         self.reward_list.append(reward)
         self.done = done
 
-    def get_batch_state(self):
+    def get_rollout_state(self):
         return np.stack(self.state_list)
 
-    def get_batch_target(self, batch_value):
-        batch_action = np.stack(self.action_list)
-        reward_long = 0.0 if self.done else batch_value[-1]
-        reward_long_list = []
-        for reward in reversed(self.reward_list):
-            reward_long = reward + self.discount * reward_long
-            reward_long_list.append(reward_long)
-        batch_target = np.stack(reversed(reward_long_list))
-        batch_adv = batch_target - batch_value[:-1]
-        return batch_action, batch_adv, batch_target
+    '''
+    Return a tuple of bootstrapped targets
+    '''
+    def get_rollout_target(self, rollout_value):
+        rollout_action = np.stack(self.action_list)
+        reward_long = 0.0 if self.done else rollout_value[-1]
+        len_batch = len(self.reward_list)
+        rollout_target = np.zeros(len_batch)
+        for idx in reversed(range(len_batch)):
+            reward_long *= self.discount
+            reward_long += self.reward_list[idx]
+            rollout_target[idx] = reward_long
+        rollout_adv = rollout_target - rollout_value[:-1]
+        return rollout_action, rollout_adv, rollout_target
 

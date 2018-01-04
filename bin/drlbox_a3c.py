@@ -7,7 +7,7 @@ Built with distributed tensorflow
 ''' main function selects running mode '''
 from drlbox.common.manager import Manager
 
-DEFAULT_CONFIG = 'drlbox.config.a3c_default'
+DEFAULT_CONFIG = 'drlbox.config.async_default'
 
 def main():
     manager = Manager(description='A3C Trainer', default_config=DEFAULT_CONFIG)
@@ -118,10 +118,10 @@ def worker(manager):
         sess.run(tf.global_variables_initializer())
         for obj in acnet_global, acnet_local, step_counter_global:
             obj.set_session(sess)
-        agent = A3C(is_master=is_master,
-                    acnet_global=acnet_global, acnet_local=acnet_local,
+        agent = A3C(is_master=is_master, local_net=acnet_local,
                     state_to_input=manager.state_to_input,
                     policy=policy, rollout=rollout,
+                    batch_size=config.BATCH_SIZE,
                     train_steps=config.TRAIN_STEPS,
                     step_counter=step_counter_global,
                     interval_save=config.INTERVAL_SAVE,
