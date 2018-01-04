@@ -67,5 +67,6 @@ class ACNet(RLNet):
                      self.ph_action:    action,
                      self.ph_advantage: advantage,
                      self.ph_target:    target}
-        self.sess.run(self.op_train, feed_dict=feed_dict)
+        loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
+        return loss
 

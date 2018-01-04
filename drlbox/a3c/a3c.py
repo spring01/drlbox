@@ -51,15 +51,13 @@ class A3C:
             b_value = acnet_local.state_value(b_state_1more)
             b_action, b_adv, b_target = rollout.get_batch_target(b_value)
             b_state = b_state_1more[:-1]
-            acnet_local.train_on_batch(b_state, b_action, b_adv, b_target)
+            b_loss = acnet_local.train_on_batch(b_state, b_action, b_adv, b_target)
             step_counter.increment(t)
             step = step_counter.step_count()
             if self.is_master:
                 if step - last_step > self.interval_save:
                     self.save_weights(step)
                     last_step = step
-                loss_args = b_state, b_action, b_adv, b_target
-                b_loss = acnet_local.state_loss(*loss_args)
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
                 print(str_step + ', loss {:3.3f}'.format(b_loss))
 

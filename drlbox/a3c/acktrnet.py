@@ -36,13 +36,14 @@ class ACKTRNet(ACNet):
         if train_weights is None:
             train_weights = self.weights
         grad_op = kfac.apply_gradients(grads_and_vars, train_weights)
-        self.op_train = [grad_op, kfac.cov_update_op]
+        self.op_train = [self.tf_loss, grad_op, kfac.cov_update_op]
         self.op_inv_update = kfac.inv_update_op
 
     def train_on_batch(self, state, action, advantage, target):
-        super().train_on_batch(state, action, advantage, target)
+        loss = super().train_on_batch(state, action, advantage, target)
         self.train_step_counter += 1
         if self.train_step_counter >= self.inv_update_interval:
             self.sess.run(self.op_inv_update)
             self.train_step_counter = 0
+        return loss
 

@@ -24,7 +24,8 @@ class RLNet:
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
             train_weights = self.weights
-        self.op_train = optimizer.apply_gradients(zip(grads, train_weights))
+        op_grad = optimizer.apply_gradients(zip(grads, train_weights))
+        self.op_train = [self.tf_loss, op_grad]
 
     def action_values(self, state):
         raise NotImplementedError
