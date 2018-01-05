@@ -78,9 +78,9 @@ class StochasticContinuous(Policy):
     '''
     def select_action(self, action_values):
         dim_action = len(action_values) - 1
-        mean, var_bsp = action_values[:-1], action_values[-1]
-        var = np.logaddexp(var_bsp, 0.0)
-        cov = var * np.eye(dim_action)
+        mean, var_param = action_values[:-1], action_values[-1]
+        var = np.logaddexp(var_param, 0.0) # softplus
+        cov = var * np.eye(dim_action) # cov = sigma^2 * I
         action = np.random.multivariate_normal(mean, cov)
         return np.clip(action, a_min=self.low, a_max=self.high)
 
