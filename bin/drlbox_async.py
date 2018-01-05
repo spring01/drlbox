@@ -11,6 +11,9 @@ def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
 
     # async specific parser args
+    manager.parser.add_argument('--algorithm', default='a3c',
+        type=str, choices=['a3c', 'acktr', 'dqn'],
+        help='Training algorithm')
     manager.parser.add_argument('--async_running_mode', default='trainer',
         type=str, choices=['trainer', 'worker'],
         help='Running mode of this process')
@@ -58,7 +61,9 @@ import signal
 import tensorflow as tf
 from drlbox.async.async import AsyncRL
 from drlbox.async.acnet import ACNet
-from drlbox.async.rollout import Rollout
+from drlbox.async.acktrnet import ACKTRNet
+from drlbox.async.kfac import KfacOptimizerTV
+from drlbox.async.rollout import RolloutAC, RolloutQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.model.actor_critic import actor_critic_model
@@ -81,51 +86,78 @@ def worker(manager):
     rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                              cluster=cluster)
 
+    # determine training algorithm
+    algorithm = args.algorithm.lower()
+    if algorithm == 'a3c':
+        net_builder = ACNet
+        rollout_builder = RolloutAC
+    elif algorithm == 'acktr':
+        net_builder = lambda mod: ACKTRNet(mod, config.KFAC_INV_UPD_INTERVAL)
+        rollout_builder = RolloutAC
+    elif algorithm == 'dqn':
+        net_builder = QNet
+        rollout_builder = RolloutQ
+
     # global net
     with tf.device(rep_dev):
         model = manager.build_model(actor_critic_model)
         if is_master:
             model.summary()
-        acnet_global = ACNet(model)
-        step_counter_global = StepCounter()
+        global_net = net_builder(model)
+        step_counter = StepCounter()
 
     # local net
     with tf.device(worker_dev):
         model = manager.build_model(actor_critic_model)
-        acnet_local = ACNet(model)
-        acnet_local.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
-        adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
-                                      epsilon=config.ADAM_EPSILON)
-        acnet_local.set_optimizer(adam, clip_norm=config.GRAD_CLIP_NORM,
-                                  train_weights=acnet_global.weights)
-        acnet_local.set_sync_weights(acnet_global.weights)
-        step_counter_global.set_increment()
+        local_net = net_builder(model)
+        local_net.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
+        lr = config.LEARNING_RATE
+
+        if algorithm == 'acktr':
+            layer_collection = local_net.build_layer_collection(model)
+            opt = KfacOptimizerTV(lr, config.KFAC_COV_EMA_DECAY,
+                config.KFAC_DAMPING, norm_constraint=config.KFAC_TRUST_RADIUS,
+                layer_collection=layer_collection, var_list=local_net.weights)
+            local_net.set_optimizer(opt, train_weights=global_net.weights)
+        else:
+            opt = tf.train.AdamOptimizer(lr, epsilon=config.ADAM_EPSILON)
+            local_net.set_optimizer(opt, train_weights=global_net.weights,
+                                    clip_norm=config.GRAD_CLIP_NORM)
+        local_net.set_sync_weights(global_net.weights)
+        step_counter.set_increment()
 
     # policy and rollout
-    if model.action_mode == 'discrete':
-        policy = StochasticDiscrete()
-    elif model.action_mode == 'continuous':
-        act_space = manager.env.action_space
-        policy = StochasticContinuous(low=act_space.low, high=act_space.high)
-    else:
-        raise ValueError('action_mode not recognized')
-    rollout = Rollout(config.ROLLOUT_MAXLEN, config.DISCOUNT)
+    if algorithm == 'a3c' or algorithm == 'acktr':
+        if model.action_mode == 'discrete':
+            policy = StochasticDiscrete()
+        elif model.action_mode == 'continuous':
+            act_space = manager.env.action_space
+            policy = StochasticContinuous(act_space.low, act_space.high)
+        else:
+            raise ValueError('action_mode not recognized')
+    elif algorthm == 'dqn':
+        # todo: change decay method to explicit step dependent
+        eps_start = config.POLICY_EPS_START
+        eps_end = config.POLICY_EPS_END
+        eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
+        policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
+    rollout = rollout_builder(config.ROLLOUT_MAXLEN, config.DISCOUNT)
 
     # begin tensorflow session, build async RL agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
         sess.run(tf.global_variables_initializer())
-        for obj in acnet_global, acnet_local, step_counter_global:
+        for obj in global_net, local_net, step_counter:
             obj.set_session(sess)
-        agent = AsyncRL(is_master=is_master, local_net=acnet_local,
+        agent = AsyncRL(is_master=is_master, local_net=local_net,
                         state_to_input=manager.state_to_input,
                         policy=policy, rollout=rollout,
                         batch_size=config.BATCH_SIZE,
                         train_steps=config.TRAIN_STEPS,
-                        step_counter=step_counter_global,
+                        step_counter=step_counter,
                         interval_save=config.INTERVAL_SAVE,
                         output=manager.get_output_folder())
         if args.load_weights is not None:
-            acnet_global.load_weights(args.load_weights)
+            global_net.load_weights(args.load_weights)
 
         # train the agent
         agent.train(manager.env)
