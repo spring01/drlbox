@@ -33,11 +33,11 @@ class ACNet(RLNet):
             mean = tf_logits[:, :-1]
             var = tf.nn.softplus(tf_logits[:, -1:])
             log_norm = tf.reduce_sum((ph_act - mean)**2 / (2.0 * var), axis=1)
-            log_2pi_log_var = LOG2PI + tf.log(var)
-            factor = tf.reduce_sum(log_2pi_log_var, axis=1)
+            log_2pi_plus_log_var = LOG2PI + tf.log(var)
+            factor = tf.reduce_sum(log_2pi_plus_log_var, axis=1)
             factor *= 0.5 * int(dim_action)
             log_probs_act = -(log_norm + factor)
-            neg_entropy = tf.reduce_sum(log_2pi_log_var + 1.0)
+            neg_entropy = tf.reduce_sum(log_2pi_plus_log_var + 1.0)
             neg_entropy *= entropy_weight * 0.5
         else:
             raise ValueError('action_mode not recognized')
