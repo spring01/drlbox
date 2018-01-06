@@ -1,6 +1,8 @@
 
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.contrib import kfac
+from .lc_var import LayerCollectionWithVariance
 from .acnet import ACNet
 from ..feature.preact_layers import DensePreact, Conv2DPreact
 
@@ -13,7 +15,7 @@ class ACKTRNet(ACNet):
         self.inv_update_interval = inv_update_interval
 
     def build_layer_collection(self, model):
-        lc = kfac.layer_collection.LayerCollection()
+        lc = LayerCollectionWithVariance()
         for layer in model.layers:
             weights = tuple(layer.weights)
             if isinstance(layer, DensePreact):
@@ -26,9 +28,15 @@ class ACKTRNet(ACNet):
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
                                    layer.input, layer.preact)
-        value, logits = model.outputs
-        lc.register_categorical_predictive_distribution(logits)
-        lc.register_normal_predictive_distribution(value)
+        tf_value, tf_logits = model.outputs
+        lc.register_normal_predictive_distribution(tf_value)
+        if model.action_mode == 'discrete':
+            lc.register_categorical_predictive_distribution(tf_logits)
+        elif model.action_mode == 'continuous':
+            mean, var = tf_logits[:, :-1], tf.nn.softplus(tf_logits[:, -1:])
+            lc.register_normal_predictive_distribution_with_variance(mean, var)
+        else:
+            raise ValueError('model.action_mode not recognized')
         return lc
 
     def set_optimizer(self, kfac, train_weights=None):
