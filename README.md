@@ -1,8 +1,8 @@
-# DRLBOX: Deep Reinforcement Learning as a (black) BOX
+# DRLBox: Deep Reinforcement Learning as a (black) Box
 Supports *only Python3* (oops).
 
 ## Requirements:
-- tensorflow>=1.3
+- tensorflow==1.4.1
 - gym>=0.9.3
 
 
