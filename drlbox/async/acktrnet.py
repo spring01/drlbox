@@ -43,7 +43,7 @@ class ACKTRNet(ACNet):
             raise ValueError('model.action_mode not recognized')
         return lc
 
-    def set_optimizer(self, kfac, train_weights=None):
+    def set_optimizer(self, kfac, train_weights=None, *args, **kwargs):
         grads_and_vars = kfac.compute_gradients(self.tf_loss, self.weights)
         if train_weights is None:
             train_weights = self.weights

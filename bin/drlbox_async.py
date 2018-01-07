@@ -90,13 +90,10 @@ def worker(manager):
     algorithm = args.algorithm.lower()
     if algorithm == 'a3c':
         net_builder = ACNet
-        rollout_builder = RolloutAC
     elif algorithm == 'acktr':
         net_builder = lambda mod: ACKTRNet(mod, config.KFAC_INV_UPD_INTERVAL)
-        rollout_builder = RolloutAC
     elif algorithm == 'dqn':
         net_builder = QNet
-        rollout_builder = RolloutQ
 
     # global net
     with tf.device(rep_dev):
@@ -112,23 +109,23 @@ def worker(manager):
         local_net = net_builder(model)
         local_net.set_loss(entropy_weight=config.ENTROPY_WEIGHT,
                            min_var=config.CONT_POLICY_MIN_VAR)
-        lr = config.LEARNING_RATE
-
         if algorithm == 'acktr':
             layer_collection = local_net.build_layer_collection(model)
-            opt = KfacOptimizerTV(lr, config.KFAC_COV_EMA_DECAY,
-                config.KFAC_DAMPING, norm_constraint=config.KFAC_TRUST_RADIUS,
+            opt = KfacOptimizerTV(config.LEARNING_RATE,
+                config.KFAC_COV_EMA_DECAY, config.KFAC_DAMPING,
+                norm_constraint=config.KFAC_TRUST_RADIUS,
                 layer_collection=layer_collection, var_list=local_net.weights)
-            local_net.set_optimizer(opt, train_weights=global_net.weights)
         else:
-            opt = tf.train.AdamOptimizer(lr, epsilon=config.ADAM_EPSILON)
-            local_net.set_optimizer(opt, train_weights=global_net.weights,
-                                    clip_norm=config.GRAD_CLIP_NORM)
+            opt = tf.train.AdamOptimizer(config.LEARNING_RATE,
+                                         epsilon=config.ADAM_EPSILON)
+        local_net.set_optimizer(opt, train_weights=global_net.weights,
+                                clip_norm=config.GRAD_CLIP_NORM)
         local_net.set_sync_weights(global_net.weights)
         step_counter.set_increment()
 
     # policy and rollout
     if algorithm == 'a3c' or algorithm == 'acktr':
+        rollout_builder = RolloutAC
         if model.action_mode == 'discrete':
             policy = StochasticDiscrete()
         elif model.action_mode == 'continuous':
@@ -138,7 +135,7 @@ def worker(manager):
         else:
             raise ValueError('action_mode not recognized')
     elif algorthm == 'dqn':
-        # todo: change decay method to explicit step dependent
+        rollout_builder = RolloutQ
         eps_start = config.POLICY_EPS_START
         eps_end = config.POLICY_EPS_END
         eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
