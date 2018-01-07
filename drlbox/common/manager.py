@@ -21,13 +21,13 @@ class Manager:
         # user-definable imports
         parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
             help='path where the user-defined scripts are located')
-        parser.add_argument('--import_env', nargs='+',
+        parser.add_argument('--env', nargs='+',
             default=['drlbox.env.default', 'CartPole-v0'],
             help='openai gym environment.')
-        parser.add_argument('--import_feature', nargs='+',
+        parser.add_argument('--feature', nargs='+',
             default=['drlbox.feature.fc', '200 100'],
             help='neural network feature builder')
-        parser.add_argument('--import_config', default=default_config,
+        parser.add_argument('--config', default=default_config,
             help='algorithm configurations')
 
         self.default_config = default_config
@@ -43,7 +43,7 @@ class Manager:
         for path in args.import_path:
             sys.path.append(path)
         config_def = importlib.import_module(self.default_config)
-        config = importlib.import_module(args.import_config)
+        config = importlib.import_module(args.config)
 
         # set default configurations in config
         for key, value in config_def.__dict__.items():
@@ -51,15 +51,15 @@ class Manager:
                 config.__dict__[key] = value
         self.config = config
 
-        env_spec = importlib.import_module(args.import_env[0])
-        self.env, self.env_name = env_spec.make_env(*args.import_env[1:])
+        env_spec = importlib.import_module(args.env[0])
+        self.env, self.env_name = env_spec.make_env(*args.env[1:])
 
-        feature_spec = importlib.import_module(args.import_feature[0])
+        feature_spec = importlib.import_module(args.feature[0])
         self.feature_builder = feature_spec.feature
         self.state_to_input = feature_spec.state_to_input
 
     def build_model(self, model_builder):
-        feature_args = self.env.observation_space, *self.args.import_feature[1:]
+        feature_args = self.env.observation_space, *self.args.feature[1:]
         state, feature = self.feature_builder(*feature_args)
         return model_builder(state, feature, self.env.action_space)
 
