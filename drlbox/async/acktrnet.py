@@ -14,6 +14,9 @@ class ACKTRNet(ACNet):
         self.train_step_counter = 0
         self.inv_update_interval = inv_update_interval
 
+    '''
+    Called after calling set_loss
+    '''
     def build_layer_collection(self, model):
         lc = LayerCollectionWithVariance()
         for layer in model.layers:
@@ -33,7 +36,8 @@ class ACKTRNet(ACNet):
         if model.action_mode == 'discrete':
             lc.register_categorical_predictive_distribution(tf_logits)
         elif model.action_mode == 'continuous':
-            mean, var = tf_logits[:, :-1], tf.nn.softplus(tf_logits[:, -1:])
+            mean = self.tf_mean
+            var = tf.expand_dims(self.tf_var, -1)
             lc.register_normal_predictive_distribution_with_variance(mean, var)
         else:
             raise ValueError('model.action_mode not recognized')

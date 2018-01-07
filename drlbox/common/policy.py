@@ -68,9 +68,10 @@ class StochasticDiscrete(Policy):
 
 class StochasticContinuous(Policy):
 
-    def __init__(self, low, high):
+    def __init__(self, low, high, min_var=1e-6):
         self.low = low
         self.high = high
+        self.min_var = min_var
 
     '''
     `action_values` are supposed to be 'logits', and in the continuous case
@@ -79,9 +80,8 @@ class StochasticContinuous(Policy):
     def select_action(self, action_values):
         dim_action = len(action_values) - 1
         mean, var_param = action_values[:-1], action_values[-1]
-        var = np.logaddexp(var_param, 0.0) # softplus
-        cov = var * np.eye(dim_action) # cov = sigma^2 * I
-        action = np.random.multivariate_normal(mean, cov)
+        var = max(np.logaddexp(var_param, 0.0), self.min_var) # softplus
+        action = np.random.multivariate_normal(mean, var * np.eye(dim_action))
         return np.clip(action, a_min=self.low, a_max=self.high)
 
 

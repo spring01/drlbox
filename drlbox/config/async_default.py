@@ -14,6 +14,11 @@ TRAIN_STEPS     = 1000000
 INTERVAL_SAVE   = 10000
 
 '''
+Continuous action policy
+'''
+CONT_POLICY_MIN_VAR = 1E-8
+
+'''
 K-fac
 '''
 KFAC_COV_EMA_DECAY      = 0.95

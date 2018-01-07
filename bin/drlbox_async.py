@@ -110,7 +110,8 @@ def worker(manager):
     with tf.device(worker_dev):
         model = manager.build_model(actor_critic_model)
         local_net = net_builder(model)
-        local_net.set_loss(entropy_weight=config.ENTROPY_WEIGHT)
+        local_net.set_loss(entropy_weight=config.ENTROPY_WEIGHT,
+                           min_var=config.CONT_POLICY_MIN_VAR)
         lr = config.LEARNING_RATE
 
         if algorithm == 'acktr':
@@ -131,8 +132,9 @@ def worker(manager):
         if model.action_mode == 'discrete':
             policy = StochasticDiscrete()
         elif model.action_mode == 'continuous':
-            act_space = manager.env.action_space
-            policy = StochasticContinuous(act_space.low, act_space.high)
+            action_space = manager.env.action_space
+            policy = StochasticContinuous(action_space.low, action_space.high,
+                                          min_var=config.CONT_POLICY_MIN_VAR)
         else:
             raise ValueError('action_mode not recognized')
     elif algorthm == 'dqn':
