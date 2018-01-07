@@ -56,7 +56,7 @@ class DecayEpsGreedy(EpsGreedy):
 class StochasticDiscrete(Policy):
 
     '''
-    `action_values` are supposed to be 'logits', i.e., before softmax
+    `action_values` is supposed to be 'logits', i.e., before softmax
     '''
     def select_action(self, action_values):
         max_value = action_values.max()
@@ -74,8 +74,9 @@ class StochasticContinuous(Policy):
         self.min_var = min_var
 
     '''
-    `action_values` are supposed to be 'logits', and in the continuous case
-    its first half is the Gaussian mean, second half is the Gaussian variance
+    `action_values` is supposed to be 'logits'. In continuous control,
+    `action_values` is interpreted as a spherical Gaussian signal where
+    action_values[:-1] is the mean, and action_values[-1] is the variance.
     '''
     def select_action(self, action_values):
         dim_action = len(action_values) - 1
