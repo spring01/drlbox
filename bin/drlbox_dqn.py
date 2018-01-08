@@ -13,7 +13,7 @@ from drlbox.common.loss import mean_huber_loss
 from drlbox.model.q_network import q_network_model
 
 
-DEFAULT_CONFIG = 'drlbox.config.dqn_default'
+DEFAULT_CONFIG = 'drlbox/config/dqn_default.py'
 
 def main():
     manager = Manager(description='DQN Trainer', default_config=DEFAULT_CONFIG)
@@ -22,7 +22,7 @@ def main():
     manager.parser.add_argument('--load_replay', default=None, type=str,
         help='If specified, load replay memory and start training from there')
 
-    manager.parse_import()
+    manager.import_files()
     args, config = manager.args, manager.config
 
     # online/target q-nets

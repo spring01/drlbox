@@ -5,7 +5,7 @@ Asynchronous trainer built with distributed tensorflow
 ''' main function selects running mode '''
 from drlbox.common.manager import Manager
 
-DEFAULT_CONFIG = 'drlbox.config.async_default'
+DEFAULT_CONFIG = 'drlbox/config/async_default.py'
 
 def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
@@ -14,17 +14,17 @@ def main():
     manager.parser.add_argument('--algorithm', default='a3c',
         type=str, choices=['a3c', 'acktr', 'dqn'],
         help='Training algorithm')
-    manager.parser.add_argument('--async_running_mode', default='trainer',
+    manager.parser.add_argument('--running_mode', default='trainer',
         type=str, choices=['trainer', 'worker'],
         help='Running mode of this process')
     manager.parser.add_argument('--worker_index', default=0, type=int,
         help='Index of the current worker')
 
-    manager.parse_import()
+    manager.import_files()
 
-    if manager.args.async_running_mode == 'trainer':
+    if manager.args.running_mode == 'trainer':
         trainer(manager)
-    elif manager.args.async_running_mode == 'worker':
+    elif manager.args.running_mode == 'worker':
         worker(manager)
 
 
@@ -34,7 +34,7 @@ from drlbox.async.blocker import Blocker
 
 def trainer(manager):
     args_dict = vars(manager.args)
-    args_dict['async_running_mode'] = 'worker'
+    args_dict['running_mode'] = 'worker'
     worker_list = []
     for worker_index in range(manager.config.NUM_WORKERS):
         args_dict['worker_index'] = worker_index

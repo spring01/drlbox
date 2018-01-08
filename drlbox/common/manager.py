@@ -22,10 +22,10 @@ class Manager:
         parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
             help='path where the user-defined scripts are located')
         parser.add_argument('--env', nargs='+',
-            default=['drlbox.env.default', 'CartPole-v0'],
+            default=['drlbox/env/default.py', 'CartPole-v0'],
             help='openai gym environment.')
         parser.add_argument('--feature', nargs='+',
-            default=['drlbox.feature.fc', '200 100'],
+            default=['drlbox/feature/fc.py', '200 100'],
             help='neural network feature builder')
         parser.add_argument('--config', default=default_config,
             help='algorithm configurations')
@@ -33,7 +33,7 @@ class Manager:
         self.default_config = default_config
         self.parser = parser
 
-    def parse_import(self):
+    def import_files(self):
         # parse arguments
         args = self.parser.parse_args()
         print('########## All arguments:', args)
@@ -42,8 +42,8 @@ class Manager:
         # dynamically import net and interface
         for path in args.import_path:
             sys.path.append(path)
-        config_def = importlib.import_module(self.default_config)
-        config = importlib.import_module(args.config)
+        config_def = importlib.import_module(parse_import(self.default_config))
+        config = importlib.import_module(parse_import(args.config))
 
         # set default configurations in config
         for key, value in config_def.__dict__.items():
@@ -51,10 +51,10 @@ class Manager:
                 config.__dict__[key] = value
         self.config = config
 
-        env_spec = importlib.import_module(args.env[0])
+        env_spec = importlib.import_module(parse_import(args.env[0]))
         self.env, self.env_name = env_spec.make_env(*args.env[1:])
 
-        feature_spec = importlib.import_module(args.feature[0])
+        feature_spec = importlib.import_module(parse_import(args.feature[0]))
         self.feature_builder = feature_spec.feature
         self.state_to_input = feature_spec.state_to_input
 
@@ -84,4 +84,10 @@ class Manager:
         parent_dir += '-run{}'.format(experiment_id)
         subprocess.call(['mkdir', '-p', parent_dir])
         return parent_dir
+
+
+def parse_import(filename):
+    import_name, _ = os.path.splitext(filename)
+    return import_name.replace('/', '.')
+
 
