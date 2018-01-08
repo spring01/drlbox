@@ -82,7 +82,7 @@ class DQN:
     def train_online(self):
         batch, b_idx, b_weights = self.replay.sample(self.batch_size)
         b_state, b_q_target, abs_td_error, online = self.process_batch(batch)
-        if isinstance(self.replay, PriorityReplay):
+        if type(self.replay) is PriorityReplay:
             self.replay.update_priority(b_idx, abs_td_error)
         online.train_on_batch(b_state, b_q_target, sample_weight=b_weights)
 

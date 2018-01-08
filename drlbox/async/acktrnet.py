@@ -7,6 +7,8 @@ from .acnet import ACNet
 from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 
 
+NOISY_NOT_REG = 'layer_collection register is not implemented for noisy dense'
+
 class ACKTRNet(ACNet):
 
     def __init__(self, model, inv_update_interval=100):
@@ -21,12 +23,13 @@ class ACKTRNet(ACNet):
         lc = LayerCollectionWithVariance()
         for layer in model.layers:
             weights = tuple(layer.weights)
-            if isinstance(layer, DensePreact):
+            type_layer = type(layer)
+            if type_layer is DensePreact:
                 lc.register_fully_connected(weights, layer.input, layer.preact)
-            elif isinstance(layer, keras.layers.Dense):
+            elif type_layer is keras.layers.Dense:
                 # There must not be activation if layer is keras.layers.Dense
                 lc.register_fully_connected(weights, layer.input, layer.output)
-            elif isinstance(layer, Conv2DPreact):
+            elif type_layer is Conv2DPreact:
                 strides = 1, *layer.strides, 1
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
