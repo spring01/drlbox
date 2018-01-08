@@ -116,20 +116,20 @@ def worker(manager):
     # local net
     with tf.device(worker_dev):
         model = manager.build_model(model_builder)
-        local_net = net_builder(model)
-        local_net.set_loss(**loss_args)
+        online_net = net_builder(model)
+        online_net.set_loss(**loss_args)
         if algorithm == 'acktr':
-            layer_collection = local_net.build_layer_collection(model)
+            layer_collection = online_net.build_layer_collection(model)
             opt = KfacOptimizerTV(config.LEARNING_RATE,
                 config.KFAC_COV_EMA_DECAY, config.KFAC_DAMPING,
                 norm_constraint=config.KFAC_TRUST_RADIUS,
-                layer_collection=layer_collection, var_list=local_net.weights)
+                layer_collection=layer_collection, var_list=online_net.weights)
         else:
             opt = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                          epsilon=config.ADAM_EPSILON)
-        local_net.set_optimizer(opt, train_weights=global_net.weights,
+        online_net.set_optimizer(opt, train_weights=global_net.weights,
                                 clip_norm=config.GRAD_CLIP_NORM)
-        local_net.set_sync_weights(global_net.weights)
+        online_net.set_sync_weights(global_net.weights)
         step_counter.set_increment()
 
     # build a separate global target net for dqn
@@ -139,9 +139,10 @@ def worker(manager):
             target_net = net_builder(target_model)
             target_net.set_sync_weights(global_net.weights)
     else: # make target net a reference to the local net
-        target_net = local_net
+        target_net = online_net
 
     # policy and rollout
+    rollout_args = config.ROLLOUT_MAXLEN, config.DISCOUNT, target_net
     if algorithm == 'a3c' or algorithm == 'acktr':
         rollout_builder = RolloutAC
         if model.action_mode == 'discrete':
@@ -158,17 +159,18 @@ def worker(manager):
         eps_end = config.POLICY_EPS_END
         eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
         policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
-    rollout = rollout_builder(config.ROLLOUT_MAXLEN, config.DISCOUNT)
+        rollout_args = *rollout_args, online_net
+    rollout = rollout_builder(*rollout_args)
 
     # begin tensorflow session, build async RL agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
         sess.run(tf.global_variables_initializer())
-        for obj in global_net, local_net, step_counter:
+        for obj in global_net, online_net, step_counter:
             obj.set_session(sess)
-        if target_net is not local_net:
+        if target_net is not online_net:
             target_net.set_session(sess)
         agent = AsyncRL(is_master=is_master,
-                        online_net=local_net, target_net=target_net,
+                        online_net=online_net, target_net=target_net,
                         state_to_input=manager.state_to_input,
                         policy=policy, rollout=rollout,
                         batch_size=config.BATCH_SIZE,

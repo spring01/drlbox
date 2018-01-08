@@ -66,34 +66,25 @@ class AsyncRL:
                     break
 
             '''
-            The idea is to cache rollouts until cache size exceeds batch_size
-            and then the net is trained with a batch of size exactly batch_size.
-            The remaining leftover part is then put back into batch_cache
+            The idea is to cache rollouts until cache size exceeds batch size
+            and then the net is trained with a batch of size exactly batch size.
+            The remaining leftover part is then put back into `batch_cache`.
             '''
-            rollout_state = self.rollout.get_rollout_state()
-            rollout_value = self.target_net.state_value(rollout_state)
+            rollout_feed = self.rollout.get_feed()
 
             '''
-            In double Q learning, we need to determine the optimal action from
-            the online net. Otherwise we don't need the online net for target.
+            For DQN:
+                `rollout_feed` is a tuple `(inputs, targets)` where
+                    both `inputs` and `targets` are of length `len(rollout)`.
+                `train_args` is `(batch_inputs, batch_targets)`;
+                `leftovers` is `(leftover_inputs, leftover_targets)`.
+            For actor-critic:
+                `rollout_feed` is `(inputs, actions, advantages, targets)` where
+                    anyone is of length `len(rollout)`.
+                `train_args` and `leftovers` are the corresponding batch version
             '''
-            if self.target_net is self.online_net: # actor-critic
-                target_args = rollout_value,
-            else: # double Q learning
-                last_state = rollout_state[-1:]
-                online_last_value = self.online_net.state_value(last_state)[-1]
-                target_args = rollout_value, np.argmax(online_last_value)
-
-            '''
-            `rollout_target` is a tuple of variable length
-            Examples:
-                (action, advantage, target) for actor-critic
-                (q_target,) for Q learning
-            '''
-            rollout_target = self.rollout.get_rollout_target(*target_args)
-            rollout_input = rollout_state[:-1]
-            self.batch_cache.append((rollout_input, *rollout_target))
-            self.batch_cache_size += len(rollout_input)
+            self.batch_cache.append(rollout_feed)
+            self.batch_cache_size += len(rollout)
             if self.batch_cache_size >= self.batch_size:
                 train_left = map(self.train_leftover, zip(*self.batch_cache))
                 train_args, leftovers = zip(*train_left)
@@ -114,12 +105,6 @@ class AsyncRL:
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
                 print(str_step + ', loss {:3.3f}'.format(self.batch_loss))
 
-    def train_leftover(self, bc_quantity):
-        bc_quantity = np.concatenate(bc_quantity)
-        train = bc_quantity[:self.batch_size]
-        leftover = bc_quantity[self.batch_size:]
-        return train, leftover
-
     '''
     bc_quantity is of size >= self.batch_size; this function
     Splits bc_quantity into a training batch of size exactly self.batch_size
@@ -127,6 +112,12 @@ class AsyncRL:
     Argument:
         bc_quantity: a list of size >= self.batch_size;
     '''
+    def train_leftover(self, bc_quantity):
+        bc_quantity = np.concatenate(bc_quantity)
+        train = bc_quantity[:self.batch_size]
+        leftover = bc_quantity[self.batch_size:]
+        return train, leftover
+
     def save_weights(self, step):
         weights_save = os.path.join(self.output, 'weights_{}.p'.format(step))
         self.online_net.save_weights(weights_save)

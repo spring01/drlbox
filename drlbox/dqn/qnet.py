@@ -25,9 +25,6 @@ class QNet(RLNet):
     def action_values(self, state):
         return self.sess.run(self.tf_values, feed_dict={self.ph_state: state})
 
-    def state_value(self, state):
-        return self.action_values(state)
-
     def train_on_batch(self, state, target, sample_weight=None):
         if sample_weight is None:
             sample_weight = [1.0] * len(state)
