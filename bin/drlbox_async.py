@@ -14,6 +14,9 @@ def main():
     manager.parser.add_argument('--algorithm', default='a3c',
         type=str, choices=['a3c', 'acktr', 'dqn'],
         help='Training algorithm')
+    manager.parser.add_argument('--noisynet', default='false',
+        type=str, choices=['true', 'false'],
+        help='Invoke NoisyNet when specified')
     manager.parser.add_argument('--running_mode', default='trainer',
         type=str, choices=['trainer', 'worker'],
         help='Running mode of this process')
@@ -89,21 +92,30 @@ def worker(manager):
     rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                              cluster=cluster)
 
-    # determine training algorithm
+    # determine type of model
     algorithm = args.algorithm.lower()
     if algorithm == 'a3c' or algorithm == 'acktr':
-        model_builder = actor_critic_model
-        if algorithm == 'a3c':
-            net_builder = ACNet
-        elif algorithm == 'acktr':
-            net_builder = lambda m: ACKTRNet(m, config.KFAC_INV_UPD_INTERVAL)
-        loss_args = dict(entropy_weight=config.ENTROPY_WEIGHT,
-                         min_var=config.CONT_POLICY_MIN_VAR)
+        model_func = actor_critic_model
+        loss_kwargs = dict(entropy_weight=config.ENTROPY_WEIGHT,
+                           min_var=config.CONT_POLICY_MIN_VAR)
     elif algorithm == 'dqn':
-        model_builder = q_network_model
-        net_builder = QNet
+        model_func = q_network_model
         from drlbox.common.loss import mean_huber_loss
-        loss_args = dict(loss_function=mean_huber_loss)
+        loss_kwargs = dict(loss_function=mean_huber_loss)
+
+    # determine type of net
+    if algorithm == 'a3c':
+        net_builder = ACNet
+    elif algorithm == 'acktr':
+        net_builder = lambda mod: ACKTRNet(mod, config.KFAC_INV_UPD_INTERVAL)
+    elif algorithm == 'dqn':
+        net_builder = QNet
+
+    # invoke NoisyNet if specified
+    if args.noisynet == 'true':
+        model_builder = lambda *ar: model_func(*ar, noisy=True)
+    else:
+        model_builder = model_func
 
     # global net
     with tf.device(rep_dev):
@@ -117,7 +129,7 @@ def worker(manager):
     with tf.device(worker_dev):
         model = manager.build_model(model_builder)
         online_net = net_builder(model)
-        online_net.set_loss(**loss_args)
+        online_net.set_loss(**loss_kwargs)
         if algorithm == 'acktr':
             layer_collection = online_net.build_layer_collection(model)
             opt = KfacOptimizerTV(config.LEARNING_RATE,
@@ -143,7 +155,7 @@ def worker(manager):
 
     # policy and rollout
     rollout_args = config.ROLLOUT_MAXLEN, config.DISCOUNT, target_net
-    if algorithm == 'a3c' or algorithm == 'acktr':
+    if algorithm =='a3c' or algorithm == 'acktr':
         rollout_builder = RolloutAC
         if model.action_mode == 'discrete':
             policy = StochasticDiscrete()

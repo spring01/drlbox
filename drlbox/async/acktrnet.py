@@ -5,6 +5,7 @@ from tensorflow.contrib import kfac
 from .lc_var import LayerCollectionWithVariance
 from .acnet import ACNet
 from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
+from drlbox.layers.noisy_dense import NoisyDenseIG
 
 
 NOISY_NOT_REG = 'layer_collection register is not implemented for noisy dense'
@@ -29,6 +30,8 @@ class ACKTRNet(ACNet):
             elif type_layer is keras.layers.Dense:
                 # There must not be activation if layer is keras.layers.Dense
                 lc.register_fully_connected(weights, layer.input, layer.output)
+            elif type_layer is NoisyDenseIG:
+                raise NotImplementedError(NOISY_NOT_REG)
             elif type_layer is Conv2DPreact:
                 strides = 1, *layer.strides, 1
                 padding = layer.padding.upper()

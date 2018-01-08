@@ -22,10 +22,11 @@ class ACNet(RLNet):
         if self.action_mode == 'discrete':
             ph_act = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
-            probs = tf.nn.softmax(tf_logits)
             action_1h = tf.one_hot(ph_act, depth=tf_logits.shape[1])
             log_probs_act = tf.reduce_sum(log_probs * action_1h, axis=1)
-            neg_entropy = tf.reduce_sum(probs * log_probs)
+            if entropy_weight:
+                probs = tf.nn.softmax(tf_logits)
+                neg_entropy = tf.reduce_sum(probs * log_probs)
         elif self.action_mode == 'continuous':
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
@@ -37,13 +38,17 @@ class ACNet(RLNet):
             log_norm = tf.reduce_sum(act_minus_mean**2, axis=1) / two_var
             log_2pi_var = self.LOGPI + tf.log(two_var)
             log_probs_act = -(log_norm + 0.5 * int(dim_action) * log_2pi_var)
-            neg_entropy = 0.5 * tf.reduce_sum(log_2pi_var + 1.0)
+            if entropy_weight:
+                neg_entropy = 0.5 * tf.reduce_sum(log_2pi_var + 1.0)
         else:
             raise ValueError('action_mode not recognized')
 
         policy_loss = -tf.reduce_sum(log_probs_act * ph_advantage)
         value_loss = tf.nn.l2_loss(self.tf_value - ph_target)
-        self.tf_loss = value_loss + policy_loss + neg_entropy * entropy_weight
+        self.tf_loss = value_loss + policy_loss
+        if entropy_weight:
+            self.tf_loss += neg_entropy * entropy_weight
+
         self.ph_advantage = ph_advantage
         self.ph_target = ph_target
         self.ph_action = ph_act
