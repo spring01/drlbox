@@ -1,7 +1,7 @@
 
 import numpy as np
 from tensorflow.python.keras import layers, backend as K
-from .preact_layers import Conv2DPreact
+from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 
 '''
 When a state is represented as a list of frames, this interface converts it
@@ -45,25 +45,25 @@ def feature(observation_space, net_name='fc', net_size=512):
         dist_convf = layers.TimeDistributed(conv3_64)(dist_conv2)
         feature = layers.TimeDistributed(Flatten())(dist_convf)
 
-        # specify net type for the following layer
+        # specify final hidden layer type
         if 'lstm' in net_name:
-            net = layers.LSTM
+            hidden_layer = layers.LSTM
         elif 'gru' in net_name:
-            net = layers.GRU
+            hidden_layer = layers.GRU
     elif 'fc' in net_name:
-        # fully connected net
+        # fully connected final hidden layer
         # extract features with convolutional layers
         conv1 = conv1_32(state)
         conv2 = conv2_64(conv1)
         convf = conv3_64(conv2)
         feature = layers.Flatten()(convf)
 
-        # specify net type for the following layer
-        net = layers.Dense
+        # specify final hidden layer type
+        hidden_layer = DensePreact
     else:
         raise ValueError('`net_name` is not recognized')
 
     # actor (policy) and critic (value) stream
-    feature = net(net_size, activation='relu')(feature)
+    feature = hidden_layer(net_size, activation='relu')(feature)
     return state, feature
 

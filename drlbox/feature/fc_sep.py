@@ -1,6 +1,6 @@
 
 from tensorflow.python.keras import layers
-from .preact_layers import DensePreact
+from drlbox.layers.preact_layers import DensePreact
 
 
 def state_to_input(state):

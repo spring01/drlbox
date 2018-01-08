@@ -4,7 +4,7 @@ from tensorflow import keras
 from tensorflow.contrib import kfac
 from .lc_var import LayerCollectionWithVariance
 from .acnet import ACNet
-from ..feature.preact_layers import DensePreact, Conv2DPreact
+from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 
 
 class ACKTRNet(ACNet):
