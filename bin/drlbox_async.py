@@ -60,13 +60,16 @@ import os
 import signal
 import tensorflow as tf
 from drlbox.async.async import AsyncRL
+from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
 from drlbox.async.acktrnet import ACKTRNet
 from drlbox.async.kfac import KfacOptimizerTV
-from drlbox.async.rollout import RolloutAC, RolloutQ
+from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
+from drlbox.common.policy import DecayEpsGreedy
 from drlbox.model.actor_critic import actor_critic_model
+from drlbox.model.q_network import q_network_model
 
 
 def worker(manager):
@@ -88,27 +91,33 @@ def worker(manager):
 
     # determine training algorithm
     algorithm = args.algorithm.lower()
-    if algorithm == 'a3c':
-        net_builder = ACNet
-    elif algorithm == 'acktr':
-        net_builder = lambda mod: ACKTRNet(mod, config.KFAC_INV_UPD_INTERVAL)
+    if algorithm == 'a3c' or algorithm == 'acktr':
+        model_builder = actor_critic_model
+        if algorithm == 'a3c':
+            net_builder = ACNet
+        elif algorithm == 'acktr':
+            net_builder = lambda m: ACKTRNet(m, config.KFAC_INV_UPD_INTERVAL)
+        loss_args = dict(entropy_weight=config.ENTROPY_WEIGHT,
+                         min_var=config.CONT_POLICY_MIN_VAR)
     elif algorithm == 'dqn':
+        model_builder = q_network_model
         net_builder = QNet
+        from drlbox.common.loss import mean_huber_loss
+        loss_args = dict(loss_function=mean_huber_loss)
 
     # global net
     with tf.device(rep_dev):
-        model = manager.build_model(actor_critic_model)
+        global_model = manager.build_model(model_builder)
         if is_master:
-            model.summary()
-        global_net = net_builder(model)
+            global_model.summary()
+        global_net = net_builder(global_model)
         step_counter = StepCounter()
 
     # local net
     with tf.device(worker_dev):
-        model = manager.build_model(actor_critic_model)
+        model = manager.build_model(model_builder)
         local_net = net_builder(model)
-        local_net.set_loss(entropy_weight=config.ENTROPY_WEIGHT,
-                           min_var=config.CONT_POLICY_MIN_VAR)
+        local_net.set_loss(**loss_args)
         if algorithm == 'acktr':
             layer_collection = local_net.build_layer_collection(model)
             opt = KfacOptimizerTV(config.LEARNING_RATE,
@@ -134,8 +143,8 @@ def worker(manager):
                                           min_var=config.CONT_POLICY_MIN_VAR)
         else:
             raise ValueError('action_mode not recognized')
-    elif algorthm == 'dqn':
-        rollout_builder = RolloutQ
+    elif algorithm == 'dqn':
+        rollout_builder = RolloutMultiStepQ
         eps_start = config.POLICY_EPS_START
         eps_end = config.POLICY_EPS_END
         eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS

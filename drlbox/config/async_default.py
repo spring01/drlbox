@@ -14,6 +14,13 @@ TRAIN_STEPS     = 1000000
 INTERVAL_SAVE   = 10000
 
 '''
+Policy
+'''
+POLICY_EPS_START    = 1.0
+POLICY_EPS_END      = 0.1
+POLICY_DECAY_STEPS  = 1000000
+
+'''
 Continuous action policy
 '''
 CONT_POLICY_MIN_VAR = 1E-8

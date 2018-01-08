@@ -50,8 +50,14 @@ class RolloutAC(Rollout):
         return rollout_action, rollout_adv, rollout_target
 
 
-class RolloutQ(Rollout):
+class RolloutMultiStepQ(Rollout):
 
     def get_rollout_target(self, rollout_value):
-        return rollout_value[1:]
+        reward_long = 0.0 if self.done else np.max(rollout_value[-1])
+        rollout_target = rollout_value[1:].copy()
+        for idx in reversed(range(len(self.reward_list))):
+            reward_long *= self.discount
+            reward_long += self.reward_list[idx]
+            rollout_target[idx, self.action_list[idx]] = reward_long
+        return rollout_target,
 
