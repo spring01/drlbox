@@ -132,6 +132,15 @@ def worker(manager):
         local_net.set_sync_weights(global_net.weights)
         step_counter.set_increment()
 
+    # build a separate global target net for dqn
+    if algorithm == 'dqn':
+        with tf.device(rep_dev):
+            target_model = manager.build_model(model_builder)
+            target_net = net_builder(target_model)
+            target_net.set_sync_weights(global_net.weights)
+    else: # make target net a reference to the local net
+        target_net = local_net
+
     # policy and rollout
     if algorithm == 'a3c' or algorithm == 'acktr':
         rollout_builder = RolloutAC
@@ -156,12 +165,16 @@ def worker(manager):
         sess.run(tf.global_variables_initializer())
         for obj in global_net, local_net, step_counter:
             obj.set_session(sess)
-        agent = AsyncRL(is_master=is_master, local_net=local_net,
+        if target_net is not local_net:
+            target_net.set_session(sess)
+        agent = AsyncRL(is_master=is_master,
+                        online_net=local_net, target_net=target_net,
                         state_to_input=manager.state_to_input,
                         policy=policy, rollout=rollout,
                         batch_size=config.BATCH_SIZE,
                         train_steps=config.TRAIN_STEPS,
                         step_counter=step_counter,
+                        interval_sync_target=config.INTERVAL_SYNC_TARGET,
                         interval_save=config.INTERVAL_SAVE,
                         output=manager.get_output_folder())
         if args.load_weights is not None:

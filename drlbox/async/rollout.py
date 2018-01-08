@@ -52,8 +52,10 @@ class RolloutAC(Rollout):
 
 class RolloutMultiStepQ(Rollout):
 
-    def get_rollout_target(self, rollout_value):
-        reward_long = 0.0 if self.done else np.max(rollout_value[-1])
+    def get_rollout_target(self, rollout_value, optimal_last_act=None):
+        if optimal_last_act is None:
+            optimal_last_act = np.argmax(rollout_value[-1])
+        reward_long = 0.0 if self.done else rollout_value[-1, optimal_last_act]
         rollout_target = rollout_value[1:].copy()
         for idx in reversed(range(len(self.reward_list))):
             reward_long *= self.discount
