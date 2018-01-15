@@ -8,6 +8,7 @@ import subprocess
 
 DEF_ENV     = 'drlbox/env/default.py'
 DEF_FEATURE = 'drlbox/feature/fc.py'
+DEF_OUTPUT  = './output'
 
 '''
 Manager class of argparse, config, env, model
@@ -18,7 +19,7 @@ class Manager:
         parser = argparse.ArgumentParser(description=description)
         parser.add_argument('--load_weights', default=None,
             help='If specified, load weights and start training from there')
-        parser.add_argument('--save', default='./output',
+        parser.add_argument('--save', default=DEF_OUTPUT,
             help='Directory to save data to')
 
         # user-definable imports
@@ -27,8 +28,7 @@ class Manager:
         parser.add_argument('--env', nargs='+',
             default=['CartPole-v0'],
             help='openai gym environment.')
-        parser.add_argument('--feature', nargs='+',
-            default=['200 100'],
+        parser.add_argument('--feature', nargs='+', default=['200 100'],
             help='neural network feature builder')
         parser.add_argument('--config', default=default_config,
             help='algorithm configurations')
@@ -36,11 +36,12 @@ class Manager:
         self.default_config = default_config
         self.parser = parser
 
+    def build_args(self):
+        self.args = self.parser.parse_args()
+        print('########## All arguments:', self.args)
+
     def import_files(self):
-        # parse arguments
-        args = self.parser.parse_args()
-        print('########## All arguments:', args)
-        self.args = args
+        args = self.args
 
         # dynamically import net and interface
         for path in args.import_path:

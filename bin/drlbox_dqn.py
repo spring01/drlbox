@@ -22,6 +22,7 @@ def main():
     manager.parser.add_argument('--load_replay', default=None, type=str,
         help='If specified, load replay memory and start training from there')
 
+    manager.build_args()
     manager.import_files()
     args, config = manager.args, manager.config
 

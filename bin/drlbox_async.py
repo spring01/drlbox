@@ -23,6 +23,7 @@ def main():
     manager.parser.add_argument('--worker_index', default=0, type=int,
         help='Index of the current worker')
 
+    manager.build_args()
     manager.import_files()
 
     if manager.args.running_mode == 'trainer':
