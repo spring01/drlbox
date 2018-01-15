@@ -11,20 +11,16 @@ def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
 
     # async specific parser args
-    manager.parser.add_argument('--algorithm', default='a3c',
-        type=str, choices=['a3c', 'acktr', 'dqn'],
-        help='Training algorithm')
-    manager.parser.add_argument('--noisynet', default='false',
-        type=str, choices=['true', 'false'],
-        help='Invoke NoisyNet when specified')
-    manager.parser.add_argument('--running_mode', default='trainer',
-        type=str, choices=['trainer', 'worker'],
-        help='Running mode of this process')
-    manager.parser.add_argument('--worker_index', default=0, type=int,
+    manager.add_argument('--algorithm', default='a3c',
+        choices=['a3c', 'acktr', 'dqn'], help='Training algorithm')
+    manager.add_argument('--noisynet', default='false',
+        choices=['true', 'false'], help='Invoke NoisyNet when specified')
+    manager.add_argument('--running_mode', default='trainer',
+        choices=['trainer', 'worker'], help='Running mode of this process')
+    manager.add_argument('--worker_index', default=0, type=int,
         help='Index of the current worker')
 
-    manager.build_args()
-    manager.import_files()
+    manager.build_config_env_feature()
 
     if manager.args.running_mode == 'trainer':
         trainer(manager)

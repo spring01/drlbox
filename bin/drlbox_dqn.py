@@ -19,11 +19,10 @@ def main():
     manager = Manager(description='DQN Trainer', default_config=DEFAULT_CONFIG)
 
     # dqn specific parser args
-    manager.parser.add_argument('--load_replay', default=None, type=str,
+    manager.add_argument('--load_replay', default=None,
         help='If specified, load replay memory and start training from there')
 
-    manager.build_args()
-    manager.import_files()
+    manager.build_config_env_feature()
     args, config = manager.args, manager.config
 
     # online/target q-nets

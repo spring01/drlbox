@@ -18,7 +18,7 @@ class Manager:
     def __init__(self, description, default_config):
         parser = argparse.ArgumentParser(description=description)
         parser.add_argument('--load_weights', default=None,
-            help='If specified, load weights and start training from there')
+            help='If specified, load weights and start from there')
         parser.add_argument('--save', default=DEF_OUTPUT,
             help='Directory to save data to')
 
@@ -35,25 +35,29 @@ class Manager:
         self.default_config = default_config
         self.parser = parser
 
-    def build_args(self):
-        self.args = self.parser.parse_args()
-        print('########## All arguments:', self.args)
+    def add_argument(self, *args, **kwargs):
+        self.parser.add_argument(*args, **kwargs)
 
-    def import_files(self):
-        args = self.args
+    def build_config_env_feature(self):
+        args = self.parser.parse_args()
+        print('########## All arguments:', args)
+        self.args = args
 
         # dynamically import net and interface
         for path in args.import_path:
             sys.path.append(path)
-        config_def = importlib.import_module(parse_import(self.default_config))
-        config = importlib.import_module(parse_import(args.config))
 
-        # set default configurations in config
-        keys_config = dir(config)
-        for key_def, value_def in vars(config_def).items():
-            if key_def not in keys_config:
-                setattr(config, key_def, value_def)
-        self.config = config
+        # import config
+        if self.default_config is not None:
+            default = importlib.import_module(parse_import(self.default_config))
+            config = importlib.import_module(parse_import(args.config))
+
+            # set default configurations in config
+            keys_config = dir(config)
+            for key_def, value_def in vars(default).items():
+                if key_def not in keys_config:
+                    setattr(config, key_def, value_def)
+            self.config = config
 
         # import and setup env
         if len(args.env) > 1:
