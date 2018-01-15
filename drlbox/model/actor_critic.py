@@ -11,17 +11,17 @@ Input arguments:
     action_space:   Action space of the environment;
 '''
 def actor_critic_model(state, feature, action_space, noisy=False):
-    if isinstance(feature, tuple):
+    if type(feature) is tuple:
         # totally splitted logits/value streams when feature is a length 2 tuple
         feature_logits, feature_value = feature
     else:
         # feature is a single stream otherwise
         feature_logits = feature_value = feature
-    if isinstance(action_space, gym.spaces.discrete.Discrete): # discrete action
+    if type(action_space) is gym.spaces.discrete.Discrete: # discrete action
         size_logits = action_space.n
         action_mode = 'discrete'
         init = initializers.RandomNormal(stddev=1e-3)
-    elif isinstance(action_space, gym.spaces.box.Box): # continuous action
+    elif type(action_space) is gym.spaces.box.Box: # continuous action
         size_logits = len(action_space.shape) + 1
         action_mode = 'continuous'
         init = 'glorot_uniform'
