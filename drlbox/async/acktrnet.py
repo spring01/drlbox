@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from tensorflow import keras
-from .lc_var import LayerCollectionWithVariance
+from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
 from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 from drlbox.layers.noisy_dense import NoisyDenseIG
@@ -20,18 +20,17 @@ class ACKTRNet(ACNet):
     Called after calling set_loss
     '''
     def build_layer_collection(self, model):
-        lc = LayerCollectionWithVariance()
+        lc = LayerCollection()
         for layer in model.layers:
             weights = tuple(layer.weights)
-            type_layer = type(layer)
-            if type_layer is DensePreact:
+            if type(layer) is DensePreact:
                 lc.register_fully_connected(weights, layer.input, layer.preact)
-            elif type_layer is keras.layers.Dense:
+            elif type(layer) is keras.layers.Dense:
                 # There must not be activation if layer is keras.layers.Dense
                 lc.register_fully_connected(weights, layer.input, layer.output)
-            elif type_layer is NoisyDenseIG:
+            elif type(layer) is NoisyDenseIG:
                 raise NotImplementedError(NOISY_NOT_REG)
-            elif type_layer is Conv2DPreact:
+            elif type(layer) is Conv2DPreact:
                 strides = 1, *layer.strides, 1
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
@@ -43,7 +42,7 @@ class ACKTRNet(ACNet):
         elif model.action_mode == 'continuous':
             mean = self.tf_mean
             var = tf.expand_dims(self.tf_var, -1)
-            lc.register_normal_predictive_distribution_with_variance(mean, var)
+            lc.register_normal_predictive_distribution(mean, var)
         else:
             raise ValueError('model.action_mode not recognized')
         return lc
