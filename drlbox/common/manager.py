@@ -25,8 +25,7 @@ class Manager:
         # user-definable imports
         parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
             help='path where the user-defined scripts are located')
-        parser.add_argument('--env', nargs='+',
-            default=['CartPole-v0'],
+        parser.add_argument('--env', nargs='+', default=['CartPole-v0'],
             help='openai gym environment.')
         parser.add_argument('--feature', nargs='+', default=['200 100'],
             help='neural network feature builder')
