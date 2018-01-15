@@ -72,6 +72,7 @@ from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import DecayEpsGreedy
+from drlbox.common.loss import mean_huber_loss
 from drlbox.model.actor_critic import actor_critic_model
 from drlbox.model.q_network import q_network_model
 
@@ -101,7 +102,6 @@ def worker(manager):
                            min_var=config.CONT_POLICY_MIN_VAR)
     elif algorithm == 'dqn':
         model_func = q_network_model
-        from drlbox.common.loss import mean_huber_loss
         loss_kwargs = dict(loss_function=mean_huber_loss)
 
     # determine type of net
