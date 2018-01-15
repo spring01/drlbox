@@ -6,6 +6,9 @@ import importlib
 import subprocess
 
 
+DEF_ENV = 'drlbox/env/default.py'
+DEF_FEATURE = 'drlbox/feature/fc.py'
+
 '''
 Manager class of argparse, config, env, model
 '''
@@ -22,10 +25,10 @@ class Manager:
         parser.add_argument('--import_path', nargs='+', default=[os.getcwd()],
             help='path where the user-defined scripts are located')
         parser.add_argument('--env', nargs='+',
-            default=['drlbox/env/default.py', 'CartPole-v0'],
+            default=['CartPole-v0'],
             help='openai gym environment.')
         parser.add_argument('--feature', nargs='+',
-            default=['drlbox/feature/fc.py', '200 100'],
+            default=['200 100'],
             help='neural network feature builder')
         parser.add_argument('--config', default=default_config,
             help='algorithm configurations')
@@ -46,20 +49,32 @@ class Manager:
         config = importlib.import_module(parse_import(args.config))
 
         # set default configurations in config
-        for key, value in config_def.__dict__.items():
-            if key not in config.__dict__:
-                config.__dict__[key] = value
+        keys_config = dir(config)
+        for key_def, value_def in vars(config_def).items():
+            if key_def not in keys_config:
+                setattr(config, key_def, value_def)
         self.config = config
 
-        env_spec = importlib.import_module(parse_import(args.env[0]))
-        self.env, self.env_name = env_spec.make_env(*args.env[1:])
+        # import and setup env
+        if len(args.env) > 1:
+            env_import, env_args = args.env[-1], args.env[:-1]
+        else:
+            env_import, env_args = DEF_ENV, args.env
+        env_spec = importlib.import_module(parse_import(env_import))
+        self.env, self.env_name = env_spec.make_env(*env_args)
 
-        feature_spec = importlib.import_module(parse_import(args.feature[0]))
+        # import and setup feature network
+        if len(args.feature) > 1:
+            feature_import, feature_args = args.feature[-1], args.feature[:-1]
+        else:
+            feature_import, feature_args = DEF_FEATURE, args.feature
+        self.feature_args = feature_args
+        feature_spec = importlib.import_module(parse_import(feature_import))
         self.feature_builder = feature_spec.feature
         self.state_to_input = feature_spec.state_to_input
 
     def build_model(self, model_builder):
-        feature_args = self.env.observation_space, *self.args.feature[1:]
+        feature_args = self.env.observation_space, *self.feature_args
         state, feature = self.feature_builder(*feature_args)
         return model_builder(state, feature, self.env.action_space)
 
