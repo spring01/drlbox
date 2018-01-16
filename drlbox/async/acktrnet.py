@@ -5,6 +5,7 @@ from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
 from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 from drlbox.layers.noisy_dense import NoisyDenseIG
+from drlbox.model.actor_critic import DISCRETE, CONTINUOUS
 
 
 NOISY_NOT_REG = 'layer_collection register is not implemented for noisy dense'
@@ -37,9 +38,9 @@ class ACKTRNet(ACNet):
                                    layer.input, layer.preact)
         tf_value, tf_logits = model.outputs
         lc.register_normal_predictive_distribution(tf_value)
-        if model.action_mode == 'discrete':
+        if model.action_mode == DISCRETE:
             lc.register_categorical_predictive_distribution(tf_logits)
-        elif model.action_mode == 'continuous':
+        elif model.action_mode == CONTINUOUS:
             mean = self.tf_mean
             var = tf.expand_dims(self.tf_var, -1)
             lc.register_normal_predictive_distribution(mean, var)

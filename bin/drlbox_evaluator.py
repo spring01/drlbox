@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 from drlbox.common.manager import Manager
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.policy import EpsGreedy
+from drlbox.common.policy import EpsGreedy, STOCHASTIC, EPSGREEDY
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
 from drlbox.model.actor_critic import actor_critic_model, CONTINUOUS, DISCRETE
@@ -17,7 +17,6 @@ from drlbox.model.q_network import q_network_model
 
 ''' macros '''
 DEFAULT_CONFIG = None
-STOCHASTIC, EPSGREEDY = 'stochastic', 'eps greedy' # policy type
 
 def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
@@ -53,7 +52,7 @@ def main():
 
     # invoke NoisyNet if specified
     if args.noisynet == 'true':
-        model_builder = lambda *ar: model_func(*ar, noisy=True)
+        model_builder = lambda *x: model_func(*x, noisy=True)
     else:
         model_builder = model_func
 

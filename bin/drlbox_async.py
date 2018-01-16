@@ -7,6 +7,7 @@ from drlbox.common.manager import Manager
 ''' macros '''
 DEFAULT_CONFIG = 'drlbox/config/async_default.py' # Config
 TRAINER, WORKER = 'trainer', 'worker' # Running mode keywords
+KFAC, ADAM = 'kfac', 'adam' # Optimizer type
 
 
 ''' main function selects running mode '''
@@ -73,7 +74,7 @@ from drlbox.async.kfac import KfacOptimizerTV
 from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.policy import DecayEpsGreedy
+from drlbox.common.policy import DecayEpsGreedy, STOCHASTIC, EPSGREEDY
 from drlbox.common.loss import mean_huber_loss
 from drlbox.model.actor_critic import actor_critic_model, DISCRETE, CONTINUOUS
 from drlbox.model.q_network import q_network_model
@@ -96,27 +97,42 @@ def call_worker(manager):
     rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                              cluster=cluster)
 
-    # determine type of model
-    algorithm = args.algorithm.lower()
-    if algorithm == 'a3c' or algorithm == 'acktr':
+    # algorithms differ in terms of network structure, rollout, and policy
+    if args.algorithm == 'a3c' or args.algorithm == 'acktr':
+        # neural network
         model_func = actor_critic_model
         loss_kwargs = dict(entropy_weight=config.ENTROPY_WEIGHT,
                            min_var=config.CONT_POLICY_MIN_VAR)
-    elif algorithm == 'dqn':
+        if args.algorithm == 'a3c':
+            net_builder = ACNet
+            opt_type = ADAM
+        elif args.algorithm == 'acktr':
+            net_builder = lambda x: ACKTRNet(x, config.KFAC_INV_UPD_INTERVAL)
+            opt_type = KFAC
+        build_target = False
+
+        # rollout
+        rollout_builder = RolloutAC
+
+        # policy
+        policy_type = STOCHASTIC
+    elif args.algorithm == 'dqn':
+        # neural network
         model_func = q_network_model
         loss_kwargs = dict(loss_function=mean_huber_loss)
-
-    # determine type of net
-    if algorithm == 'a3c':
-        net_builder = ACNet
-    elif algorithm == 'acktr':
-        net_builder = lambda mod: ACKTRNet(mod, config.KFAC_INV_UPD_INTERVAL)
-    elif algorithm == 'dqn':
         net_builder = QNet
+        opt_type = ADAM
+        build_target = True
+
+        # rollout
+        rollout_builder = RolloutMultiStepQ
+
+        # policy
+        policy_type = EPSGREEDY
 
     # invoke NoisyNet if specified
     if args.noisynet == 'true':
-        model_builder = lambda *ar: model_func(*ar, noisy=True)
+        model_builder = lambda *x: model_func(*x, noisy=True)
     else:
         model_builder = model_func
 
@@ -133,13 +149,13 @@ def call_worker(manager):
         model = manager.build_model(model_builder)
         online_net = net_builder(model)
         online_net.set_loss(**loss_kwargs)
-        if algorithm == 'acktr':
+        if opt_type == KFAC:
             layer_collection = online_net.build_layer_collection(model)
             opt = KfacOptimizerTV(config.LEARNING_RATE,
                 config.KFAC_COV_EMA_DECAY, config.KFAC_DAMPING,
                 norm_constraint=config.KFAC_TRUST_RADIUS,
                 layer_collection=layer_collection, var_list=online_net.weights)
-        else:
+        elif opt_type == ADAM:
             opt = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                          epsilon=config.ADAM_EPSILON)
         online_net.set_optimizer(opt, train_weights=global_net.weights,
@@ -148,7 +164,7 @@ def call_worker(manager):
         step_counter.set_increment()
 
     # build a separate global target net for dqn
-    if algorithm == 'dqn':
+    if build_target:
         with tf.device(rep_dev):
             target_model = manager.build_model(model_builder)
             target_net = net_builder(target_model)
@@ -156,10 +172,11 @@ def call_worker(manager):
     else: # make target net a reference to the local net
         target_net = online_net
 
-    # policy and rollout
-    rollout_args = config.ROLLOUT_MAXLEN, config.DISCOUNT, target_net
-    if algorithm == 'a3c' or algorithm == 'acktr':
-        rollout_builder = RolloutAC
+    # rollout
+    rollout = rollout_builder(config.ROLLOUT_MAXLEN, config.DISCOUNT)
+
+    # policy
+    if policy_type == STOCHASTIC:
         if model.action_mode == DISCRETE:
             policy = StochasticDiscrete()
         elif model.action_mode == CONTINUOUS:
@@ -168,14 +185,11 @@ def call_worker(manager):
                                           min_var=config.CONT_POLICY_MIN_VAR)
         else:
             raise ValueError('action_mode not recognized')
-    elif algorithm == 'dqn':
-        rollout_builder = RolloutMultiStepQ
+    elif policy_type == EPSGREEDY:
         eps_start = config.POLICY_EPS_START
         eps_end = config.POLICY_EPS_END
         eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
         policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
-        rollout_args = *rollout_args, online_net
-    rollout = rollout_builder(*rollout_args)
 
     # begin tensorflow session, build async RL agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:

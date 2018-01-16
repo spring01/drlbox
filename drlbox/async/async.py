@@ -70,7 +70,7 @@ class AsyncRL:
             and then the net is trained with a batch of size exactly batch size.
             The remaining leftover part is then put back into `batch_cache`.
             '''
-            rollout_feed = self.rollout.get_feed()
+            rollout_feed = rollout.get_feed(self.target_net, self.online_net)
 
             '''
             For DQN:

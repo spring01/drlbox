@@ -8,12 +8,10 @@ class Rollout:
     Usage: rollout = Rollout(maxlen, discount, (optional)batch_size)
         maxlen:     maximum length of a short rollout;
         discount:   discount factor gamma (for long term discounted reward);
-        target_net: target network for calculating the update target.
     '''
-    def __init__(self, maxlen, discount, target_net):
+    def __init__(self, maxlen, discount):
         self.maxlen = maxlen
         self.discount = discount
-        self.target_net = target_net
 
     def reset(self, state):
         self.state_list = [state]
@@ -33,15 +31,20 @@ class Rollout:
     def __len__(self):
         return len(self.reward_list)
 
-    def get_feed(self):
+    '''
+    target_net: target network for calculating the update target;
+    online_net: in double Q learning, the online network is used to find out
+                the optimal action for the bootstrapped Q.
+    '''
+    def get_feed(self, target_net, online_net):
         raise NotImplementedError
 
 
 class RolloutAC(Rollout):
 
-    def get_feed(self):
+    def get_feed(self, target_net, online_net):
         rollout_state = np.stack(self.state_list)
-        rollout_value = self.target_net.state_value(rollout_state)
+        rollout_value = target_net.state_value(rollout_state)
         rollout_action = np.stack(self.action_list)
         reward_long = 0.0 if self.done else rollout_value[-1]
         rollout_length = len(self)
@@ -57,24 +60,16 @@ class RolloutAC(Rollout):
 
 class RolloutMultiStepQ(Rollout):
 
-    '''
-    online_net: in double Q learning, the online network is used to find out
-                the optimal action for the bootstrapped Q.
-    '''
-    def __init__(self, maxlen, discount, target_net, online_net):
-        super().__init__(maxlen, discount, target_net)
-        self.online_net = online_net
-
-    def get_feed(self):
+    def get_feed(self, target_net, online_net):
         rollout_state = np.stack(self.state_list)
         rollout_input = rollout_state[:-1]
         last_state = rollout_state[-1:]
-        online_last_value = self.online_net.action_values(last_state)[-1]
-        target_last_value = self.target_net.action_values(last_state)[-1]
+        online_last_value = online_net.action_values(last_state)[-1]
+        target_last_value = target_net.action_values(last_state)[-1]
         target_last_q = target_last_value[np.argmax(online_last_value)]
 
         # initialize `rollout_target` to dummy values equal to online output
-        rollout_target = self.online_net.action_values(rollout_input)
+        rollout_target = online_net.action_values(rollout_input)
         reward_long = 0.0 if self.done else target_last_q
         for idx in reversed(range(len(self))):
             reward_long *= self.discount

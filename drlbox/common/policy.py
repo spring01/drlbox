@@ -2,6 +2,8 @@
 import numpy as np
 
 
+STOCHASTIC, EPSGREEDY = 'stochastic', 'eps greedy' # policy type
+
 class Policy:
 
     def select_action(self, *args, **kwargs):
