@@ -4,6 +4,7 @@ from tensorflow.python.keras import layers, models, initializers
 from drlbox.layers.noisy_dense import NoisyDenseIG
 
 
+DISCRETE, CONTINUOUS = 'discrete', 'continuous'
 '''
 Input arguments:
     state:          Model input;
@@ -19,11 +20,11 @@ def actor_critic_model(state, feature, action_space, noisy=False):
         feature_logits = feature_value = feature
     if type(action_space) is gym.spaces.discrete.Discrete: # discrete action
         size_logits = action_space.n
-        action_mode = 'discrete'
+        action_mode = DISCRETE
         init = initializers.RandomNormal(stddev=1e-3)
     elif type(action_space) is gym.spaces.box.Box: # continuous action
         size_logits = len(action_space.shape) + 1
-        action_mode = 'continuous'
+        action_mode = CONTINUOUS
         init = 'glorot_uniform'
     else:
         raise ValueError('type of action_space is illegal')

@@ -12,11 +12,12 @@ from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import EpsGreedy
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
-from drlbox.model.actor_critic import actor_critic_model
+from drlbox.model.actor_critic import actor_critic_model, CONTINUOUS, DISCRETE
 from drlbox.model.q_network import q_network_model
 
-
+''' macros '''
 DEFAULT_CONFIG = None
+STOCHASTIC, EPSGREEDY = 'stochastic', 'eps greedy' # policy type
 
 def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
@@ -44,11 +45,11 @@ def main():
     if args.net_type == 'ac':
         net_builder = ACNet
         model_func = actor_critic_model
-        policy_type = 'stochastic'
+        policy_type = STOCHASTIC
     elif args.net_type == 'dqn':
         net_builder = QNet
         model_func = q_network_model
-        policy_type = 'eps greedy'
+        policy_type = EPSGREEDY
 
     # invoke NoisyNet if specified
     if args.noisynet == 'true':
@@ -66,12 +67,12 @@ def main():
         net.load_weights(args.load_weights)
 
     # policy
-    if policy_type == 'eps greedy':
+    if policy_type == EPSGREEDY:
         policy = EpsGreedy(epsilon=args.policy_eps)
-    elif policy_type == 'stochastic':
-        if not hasattr(model, 'action_mode') or model.action_mode == 'discrete':
+    elif policy_type == STOCHASTIC:
+        if not hasattr(model, 'action_mode') or model.action_mode == DISCRETE:
             policy = StochasticDiscrete()
-        elif model.action_mode == 'continuous':
+        elif model.action_mode == CONTINUOUS:
             action_space = manager.env.action_space
             policy = StochasticContinuous(action_space.low, action_space.high)
         else:

@@ -1,12 +1,16 @@
 """
 Asynchronous trainer built with distributed tensorflow
 """
-
-''' main function selects running mode '''
 from drlbox.common.manager import Manager
 
-DEFAULT_CONFIG = 'drlbox/config/async_default.py'
 
+''' macros '''
+DEFAULT_CONFIG = 'drlbox/config/async_default.py' # Config
+TRAINER, WORKER = 'trainer', 'worker' # Running mode keywords
+
+
+''' main function selects running mode '''
+import argparse
 def main():
     manager = Manager('Async RL Trainer', default_config=DEFAULT_CONFIG)
 
@@ -15,34 +19,36 @@ def main():
         choices=['a3c', 'acktr', 'dqn'], help='Training algorithm')
     manager.add_argument('--noisynet', default='false',
         choices=['true', 'false'], help='Invoke NoisyNet when specified')
-    manager.add_argument('--running_mode', default='trainer',
-        choices=['trainer', 'worker'], help='Running mode of this process')
+
+    # these arguments are handled internally
+    manager.add_argument('--running_mode', default=TRAINER,
+        choices=[TRAINER, WORKER], help=argparse.SUPPRESS)
     manager.add_argument('--worker_index', default=0, type=int,
-        help='Index of the current worker')
+        help=argparse.SUPPRESS)
 
     manager.build_config_env_feature()
 
-    if manager.args.running_mode == 'trainer':
-        trainer(manager)
-    elif manager.args.running_mode == 'worker':
-        worker(manager)
+    if manager.args.running_mode == TRAINER:
+        call_trainer(manager)
+    elif manager.args.running_mode == WORKER:
+        call_worker(manager)
 
 
 ''' trainer block '''
+import sys
 import subprocess
 from drlbox.async.blocker import Blocker
 
-def trainer(manager):
-    args_dict = vars(manager.args)
-    args_dict['running_mode'] = 'worker'
+def call_trainer(manager):
+    manager.args.running_mode = WORKER
     worker_list = []
     for worker_index in range(manager.config.NUM_WORKERS):
-        args_dict['worker_index'] = worker_index
-        run_list = ['python', __file__]
-        for key, value in args_dict.items():
+        manager.args.worker_index = worker_index
+        run_list = [sys.executable, __file__]
+        for key, value in vars(manager.args).items():
             if value is not None:
                 run_list.append('--{}'.format(key))
-                if type(value) == list:
+                if type(value) is list:
                     for val in map(str, value):
                         run_list.append(val)
                 else:
@@ -69,11 +75,11 @@ from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import DecayEpsGreedy
 from drlbox.common.loss import mean_huber_loss
-from drlbox.model.actor_critic import actor_critic_model
+from drlbox.model.actor_critic import actor_critic_model, DISCRETE, CONTINUOUS
 from drlbox.model.q_network import q_network_model
 
 
-def worker(manager):
+def call_worker(manager):
     args, config = manager.args, manager.config
     # ports, cluster, and server
     port_list = [config.PORT_BEGIN + i for i in range(config.NUM_WORKERS)]
@@ -152,11 +158,11 @@ def worker(manager):
 
     # policy and rollout
     rollout_args = config.ROLLOUT_MAXLEN, config.DISCOUNT, target_net
-    if algorithm =='a3c' or algorithm == 'acktr':
+    if algorithm == 'a3c' or algorithm == 'acktr':
         rollout_builder = RolloutAC
-        if model.action_mode == 'discrete':
+        if model.action_mode == DISCRETE:
             policy = StochasticDiscrete()
-        elif model.action_mode == 'continuous':
+        elif model.action_mode == CONTINUOUS:
             action_space = manager.env.action_space
             policy = StochasticContinuous(action_space.low, action_space.high,
                                           min_var=config.CONT_POLICY_MIN_VAR)
