@@ -1,5 +1,5 @@
 
-from tensorflow.python.keras import layers
+from tensorflow import keras
 from drlbox.layers.preact_layers import DensePreact
 
 
@@ -14,7 +14,7 @@ Input arguments:
 def feature(observation_space, arch_str):
     net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    state = layers.Input(shape=observation_space.shape)
+    state = keras.layers.Input(shape=observation_space.shape)
     feature = state
     for num_hid in net_arch:
         feature = DensePreact(num_hid, activation='relu')(feature)

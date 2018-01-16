@@ -1,6 +1,6 @@
 
 import gym.spaces
-from tensorflow.contrib.keras import layers, models
+from tensorflow import keras
 from drlbox.layers.noisy_dense import NoisyDenseIG
 
 
@@ -16,7 +16,7 @@ def q_network_model(state, feature, action_space, noisy=False):
     if noisy:
         dense = NoisyDenseIG
     else:
-        dense = layers.Dense
+        dense = keras.layers.Dense
     q_value = dense(action_space.n)(feature)
-    return models.Model(inputs=state, outputs=q_value)
+    return keras.models.Model(inputs=state, outputs=q_value)
 

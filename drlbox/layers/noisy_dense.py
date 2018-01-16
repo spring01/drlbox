@@ -1,6 +1,5 @@
 
 import tensorflow as tf
-from tensorflow.python.keras.layers import Dense
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base
 from tensorflow.python.ops.init_ops import Constant
@@ -12,7 +11,7 @@ IG_SCALE_INIT = 0.017
 '''
 Noisy dense layer with independent Gaussian noise
 '''
-class NoisyDenseIG(Dense):
+class NoisyDenseIG(tf.keras.layers.Dense):
 
     def build(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape)
