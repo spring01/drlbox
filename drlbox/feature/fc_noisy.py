@@ -14,10 +14,10 @@ Input arguments:
 def feature(observation_space, arch_str):
     net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    state = keras.layers.Input(shape=observation_space.shape)
-    feature = state
+    ph_state = keras.layers.Input(shape=observation_space.shape)
+    feature = ph_state
     for num_hid in net_arch:
         feature = NoisyDenseIG(num_hid, activation='relu')(feature)
-    return state, feature
+    return ph_state, feature
 
 
