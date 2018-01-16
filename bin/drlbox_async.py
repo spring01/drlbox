@@ -19,7 +19,7 @@ def main():
     manager.add_argument('--algorithm', default='a3c',
         choices=['a3c', 'acktr', 'dqn'], help='Training algorithm')
     manager.add_argument('--noisynet', default='false',
-        choices=['true', 'false'], help='Invoke NoisyNet when specified')
+        choices=['true', 'false'], help='Invoke NoisyNet when set to true')
 
     # these arguments are handled internally
     manager.add_argument('--running_mode', default=TRAINER,
