@@ -14,7 +14,7 @@ def state_to_input(state):
 '''
 Input arguments:
     observation_space: Observation space of the environment; Tuple of Boxes;
-    net_name:          Name of the actor-critic net, e.g., 'fc';
+    net_name:          Name of the neural net, e.g., 'fc';
     net_size:          Number of neurons in the first non-convolutional layer.
 '''
 def feature(observation_space, net_name='fc', net_size=512):
