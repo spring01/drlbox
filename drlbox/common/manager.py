@@ -86,7 +86,7 @@ class Manager:
             feature_import, feature_args = DEF_FEATURE, args.feature
         self.feature_args = feature_args
         feature_spec = importlib.import_module(parse_import(feature_import))
-        self.feature_builder = feature_spec.feature
+        self.feature_builder = feature_spec.make_feature
         self.state_to_input = feature_spec.state_to_input
 
     def build_model(self, model_builder):
