@@ -7,12 +7,12 @@ import sys
 import gym
 import numpy as np
 import tensorflow as tf
-from drlbox.common.manager import Manager
+from drlbox.common.manager import Manager, DISCRETE, CONTINUOUS
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.policy import EpsGreedy, STOCHASTIC, EPSGREEDY
+from drlbox.common.policy import EpsGreedy
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
-from drlbox.model.actor_critic import actor_critic_model, CONTINUOUS, DISCRETE
+from drlbox.model.actor_critic import actor_critic_model
 from drlbox.model.q_network import q_network_model
 
 ''' macros '''
@@ -40,15 +40,21 @@ def main():
     manager.build_config_env_feature()
     args = manager.args
 
-    # network type
+    # network and policy
     if args.net_type == 'ac':
         net_builder = ACNet
         model_func = actor_critic_model
-        policy_type = STOCHASTIC
+        if manager.action_mode == DISCRETE:
+            policy = StochasticDiscrete()
+        elif manager.action_mode == CONTINUOUS:
+            action_space = manager.env.action_space
+            policy = StochasticContinuous(action_space.low, action_space.high)
+        else:
+            raise ValueError('action_mode not recognized')
     elif args.net_type == 'dqn':
         net_builder = QNet
         model_func = q_network_model
-        policy_type = EPSGREEDY
+        policy = EpsGreedy(epsilon=args.policy_eps)
 
     # invoke NoisyNet if specified
     if args.noisynet == 'true':
@@ -64,18 +70,6 @@ def main():
 
     if args.load_weights is not None:
         net.load_weights(args.load_weights)
-
-    # policy
-    if policy_type == EPSGREEDY:
-        policy = EpsGreedy(epsilon=args.policy_eps)
-    elif policy_type == STOCHASTIC:
-        if not hasattr(model, 'action_mode') or model.action_mode == DISCRETE:
-            policy = StochasticDiscrete()
-        elif model.action_mode == CONTINUOUS:
-            action_space = manager.env.action_space
-            policy = StochasticContinuous(action_space.low, action_space.high)
-        else:
-            raise ValueError('action_mode not recognized')
 
     env = manager.env
     all_total_rewards = []

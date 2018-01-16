@@ -8,7 +8,7 @@ DUMMY_LOSS = 9999.0
 class AsyncRL:
 
     '''
-    `online_net` needs to have its weight-sync operation set to the global online net
+    `online_net` needs to have its weight-sync operation set to the global net
     by calling `set_sync_weights`;
     `target_net` is either a reference to `online_net` (in actor-critic)
     or has its weight-sync operation set to the global online net;

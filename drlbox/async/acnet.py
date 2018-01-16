@@ -1,6 +1,7 @@
 
 import tensorflow as tf
-from ..common.rlnet import RLNet
+from drlbox.common.rlnet import RLNet
+from drlbox.model.actor_critic import DISCRETE, CONTINUOUS
 
 
 class ACNet(RLNet):
@@ -19,7 +20,7 @@ class ACNet(RLNet):
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == 'discrete':
+        if self.action_mode == DISCRETE:
             ph_act = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
             action_1h = tf.one_hot(ph_act, depth=tf_logits.shape[1])
@@ -27,7 +28,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
                 neg_entropy = tf.reduce_sum(probs * log_probs)
-        elif self.action_mode == 'continuous':
+        elif self.action_mode == CONTINUOUS:
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
             ph_act = tf.placeholder(tf.float32, [None, dim_action])

@@ -1,7 +1,7 @@
 """
 Asynchronous trainer built with distributed tensorflow
 """
-from drlbox.common.manager import Manager
+from drlbox.common.manager import Manager, DISCRETE, CONTINUOUS
 
 
 ''' macros '''
@@ -74,9 +74,9 @@ from drlbox.async.kfac import KfacOptimizerTV
 from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.policy import DecayEpsGreedy, STOCHASTIC, EPSGREEDY
+from drlbox.common.policy import DecayEpsGreedy
 from drlbox.common.loss import mean_huber_loss
-from drlbox.model.actor_critic import actor_critic_model, DISCRETE, CONTINUOUS
+from drlbox.model.actor_critic import actor_critic_model
 from drlbox.model.q_network import q_network_model
 
 
@@ -112,10 +112,15 @@ def call_worker(manager):
         build_target = False
 
         # rollout
-        rollout_builder = RolloutAC
+        rollout = RolloutAC(config.ROLLOUT_MAXLEN, config.DISCOUNT)
 
         # policy
-        policy_type = STOCHASTIC
+        if manager.action_mode == DISCRETE:
+            policy = StochasticDiscrete()
+        elif manager.action_mode == CONTINUOUS:
+            action_space = manager.env.action_space
+            policy = StochasticContinuous(action_space.low, action_space.high,
+                                          min_var=config.CONT_POLICY_MIN_VAR)
     elif args.algorithm == 'dqn':
         # neural network
         model_func = q_network_model
@@ -125,10 +130,13 @@ def call_worker(manager):
         build_target = True
 
         # rollout
-        rollout_builder = RolloutMultiStepQ
+        rollout = RolloutMultiStepQ(config.ROLLOUT_MAXLEN, config.DISCOUNT)
 
         # policy
-        policy_type = EPSGREEDY
+        eps_start = config.POLICY_EPS_START
+        eps_end = config.POLICY_EPS_END
+        eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
+        policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
 
     # invoke NoisyNet if specified
     if args.noisynet == 'true':
@@ -171,25 +179,6 @@ def call_worker(manager):
             target_net.set_sync_weights(global_net.weights)
     else: # make target net a reference to the local net
         target_net = online_net
-
-    # rollout
-    rollout = rollout_builder(config.ROLLOUT_MAXLEN, config.DISCOUNT)
-
-    # policy
-    if policy_type == STOCHASTIC:
-        if model.action_mode == DISCRETE:
-            policy = StochasticDiscrete()
-        elif model.action_mode == CONTINUOUS:
-            action_space = manager.env.action_space
-            policy = StochasticContinuous(action_space.low, action_space.high,
-                                          min_var=config.CONT_POLICY_MIN_VAR)
-        else:
-            raise ValueError('action_mode not recognized')
-    elif policy_type == EPSGREEDY:
-        eps_start = config.POLICY_EPS_START
-        eps_end = config.POLICY_EPS_END
-        eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
-        policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
 
     # begin tensorflow session, build async RL agent and train
     with tf.Session('grpc://localhost:{}'.format(port)) as sess:
