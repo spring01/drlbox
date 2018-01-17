@@ -25,7 +25,7 @@ def make_feature(observation_space, net_name='fc', net_size=512):
     input_shape = height, width, num_frames
 
     # input state
-    ph_state = layers.Input(shape=input_shape)
+    inp_state = layers.Input(shape=input_shape)
 
     # convolutional layers
     conv1_32 = Conv2DPreact(32, (8, 8), strides=(4, 4), activation='relu')
@@ -36,7 +36,7 @@ def make_feature(observation_space, net_name='fc', net_size=512):
     if 'lstm' in net_name or 'gru' in net_name:
         # recurrent net
         lambda_perm_state = lambda x: K.permute_dimensions(x, [0, 3, 1, 2])
-        perm_state = layers.Lambda(lambda_perm_state)(ph_state)
+        perm_state = layers.Lambda(lambda_perm_state)(inp_state)
         dist_state = layers.Lambda(lambda x: K.stack([x], axis=4))(perm_state)
 
         # extract features with `TimeDistributed` wrapped convolutional layers
@@ -53,7 +53,7 @@ def make_feature(observation_space, net_name='fc', net_size=512):
     elif 'fc' in net_name:
         # fully connected final hidden layer
         # extract features with convolutional layers
-        conv1 = conv1_32(ph_state)
+        conv1 = conv1_32(inp_state)
         conv2 = conv2_64(conv1)
         convf = conv3_64(conv2)
         feature = layers.Flatten()(convf)
@@ -65,5 +65,5 @@ def make_feature(observation_space, net_name='fc', net_size=512):
 
     # actor (policy) and critic (value) stream
     feature = hidden_layer(net_size, activation='relu')(feature)
-    return ph_state, feature
+    return inp_state, feature
 

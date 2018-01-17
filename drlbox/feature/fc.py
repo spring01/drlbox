@@ -14,10 +14,10 @@ Input arguments:
 def make_feature(observation_space, arch_str):
     net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    ph_state = keras.layers.Input(shape=observation_space.shape)
-    feature = ph_state
+    inp_state = keras.layers.Input(shape=observation_space.shape)
+    feature = inp_state
     for num_hid in net_arch:
         feature = DensePreact(num_hid, activation='relu')(feature)
-    return ph_state, feature
+    return inp_state, feature
 
 
