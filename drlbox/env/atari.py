@@ -4,6 +4,7 @@ from .envwrapper import HistoryStacker, RewardClipper
 
 
 def make_env(name, num_frames=4, act_steps=2):
+    num_frames, act_steps = int(num_frames), int(act_steps)
     env = gym.make(name)
     env = Preprocessor(env)
     env = HistoryStacker(env, num_frames, act_steps)
