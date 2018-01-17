@@ -1,3 +1,4 @@
+#!python
 """
 Asynchronous trainer built with distributed tensorflow
 """
@@ -187,6 +188,7 @@ def call_worker(manager):
             obj.set_session(sess)
         if target_net is not online_net:
             target_net.set_session(sess)
+        output = manager.get_output_folder() if is_master else None
         agent = AsyncRL(is_master=is_master,
                         online_net=online_net, target_net=target_net,
                         state_to_input=manager.state_to_input,
@@ -196,7 +198,7 @@ def call_worker(manager):
                         step_counter=step_counter,
                         interval_sync_target=config.INTERVAL_SYNC_TARGET,
                         interval_save=config.INTERVAL_SAVE,
-                        output=manager.get_output_folder())
+                        output=output)
         if args.load_weights is not None:
             global_net.load_weights(args.load_weights)
 
