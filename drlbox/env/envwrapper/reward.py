@@ -14,7 +14,7 @@ class RewardClipper(gym.Wrapper):
         upper: upper bound of reward; float.
     '''
     def __init__(self, env, lower=-1.0, upper=1.0):
-        super(RewardClipper, self).__init__(env)
+        super().__init__(env)
         self.lower = lower
         self.upper = upper
 

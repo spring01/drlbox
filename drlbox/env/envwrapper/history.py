@@ -15,7 +15,7 @@ class HistoryStacker(gym.Wrapper):
         act_steps: Number of actions performed between states; integer.
     '''
     def __init__(self, env, num_frames=4, act_steps=2):
-        super(HistoryStacker, self).__init__(env)
+        super().__init__(env)
         obs_space = tuple([env.observation_space] * num_frames)
         self.observation_space = gym.spaces.Tuple(obs_space)
         self.num_frames = num_frames

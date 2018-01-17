@@ -31,6 +31,7 @@ class KfacOptimizerTV(KfacOptimizer):
         steps_and_vars = [(step, t_var) for (step, _), t_var in zip_st]
 
         # Update trainable variables with this step.
+        # Note: this super is getting the grandparent class of this class.
         return super(KfacOptimizer, self).apply_gradients(steps_and_vars, *args,
                                                           **kwargs)
 
