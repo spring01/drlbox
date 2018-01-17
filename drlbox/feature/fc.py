@@ -1,5 +1,6 @@
 
 import numpy as np
+import gym.spaces
 from tensorflow import keras
 from drlbox.layers.preact_layers import DensePreact
 
@@ -15,10 +16,20 @@ Input arguments:
 def make_feature(observation_space, arch_str):
     net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    inp_state = keras.layers.Input(shape=observation_space.shape)
+    inp_state = keras.layers.Input(shape=input_shape(observation_space))
     feature = inp_state
     for num_hid in net_arch:
         feature = DensePreact(num_hid, activation='relu')(feature)
     return inp_state, feature
+
+
+def input_shape(observation_space):
+    if type(observation_space) is gym.spaces.Box:
+        input_dim = np.prod(observation_space.shape)
+    elif type(observation_space) is gym.spaces.Tuple:
+        input_dim = sum(np.prod(sp.shape) for sp in observation_space.spaces)
+    else:
+        raise TypeError('Type of observation_space is not recognized')
+    return input_dim,
 
 

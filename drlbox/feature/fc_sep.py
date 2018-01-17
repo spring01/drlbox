@@ -3,7 +3,7 @@ from tensorflow import keras
 from drlbox.layers.preact_layers import DensePreact
 
 
-from .fc import state_to_input
+from .fc import state_to_input, input_shape
 
 '''
 Input arguments:
@@ -13,7 +13,7 @@ Input arguments:
 def make_feature(observation_space, arch_str):
     net_arch = arch_str.split(' ')
     net_arch = [int(num) for num in net_arch]
-    inp_state = keras.layers.Input(shape=observation_space.shape)
+    inp_state = keras.layers.Input(shape=input_shape(observation_space))
     feature1 = inp_state
     for num_hid in net_arch:
         feature1 = DensePreact(num_hid, activation='relu')(feature1)
