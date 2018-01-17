@@ -1,3 +1,4 @@
+#!python3
 """
 Deep RL evaluator
 Support both actor-critic and Q-network

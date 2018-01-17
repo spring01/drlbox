@@ -30,6 +30,6 @@ setup(
     ],
     keywords='deep reinforcement learning',
     packages=find_packages(),
-    install_requires=['tensorflow==1.5.0rc0', 'gym'],
+    install_requires=['tensorflow>=1.5.0rc0', 'gym'],
     scripts=['bin/drlbox_async.py',],
 )

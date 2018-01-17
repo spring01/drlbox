@@ -1,4 +1,4 @@
-#!python
+#!python3
 """
 Asynchronous trainer built with distributed tensorflow
 """

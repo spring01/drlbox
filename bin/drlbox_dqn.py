@@ -1,3 +1,4 @@
+#!python3
 """
 Deep Q-network (DQN)
 Supports deep recurrent Q-network (DRQN) and dueling architecture
