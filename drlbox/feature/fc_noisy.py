@@ -3,8 +3,7 @@ from tensorflow import keras
 from drlbox.layers.noisy_dense import NoisyDenseIG
 
 
-def state_to_input(state):
-    return state.ravel()
+from .fc import state_to_input
 
 '''
 Input arguments:

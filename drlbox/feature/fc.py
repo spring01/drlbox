@@ -1,10 +1,11 @@
 
+import numpy as np
 from tensorflow import keras
 from drlbox.layers.preact_layers import DensePreact
 
 
 def state_to_input(state):
-    return state.ravel()
+    return np.array(state).ravel()
 
 '''
 Input arguments:
