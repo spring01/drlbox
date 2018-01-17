@@ -104,6 +104,9 @@ class AsyncRL:
                         last_sync_target = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
                 print(str_step + ', loss {:3.3f}'.format(self.batch_loss))
+        # save at the end of training
+        if self.is_master:
+            self.save_weights(step)
 
     '''
     bc_quantity is of size >= self.batch_size; this function
