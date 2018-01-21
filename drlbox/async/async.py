@@ -61,7 +61,8 @@ class AsyncRL:
                 if done:
                     state = env.reset()
                     state = self.state_to_input(state)
-                    print('episode reward {:5.2f}'.format(episode_reward))
+                    print('episode reward {:5.2f}'.format(episode_reward),
+                          flush=True)
                     episode_reward = 0.0
                     break
 
