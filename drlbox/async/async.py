@@ -4,6 +4,7 @@ import numpy as np
 
 
 DUMMY_LOSS = 9999.0
+print_flush = lambda *args: print(*args, flush=True)
 
 class AsyncRL:
 
@@ -61,8 +62,7 @@ class AsyncRL:
                 if done:
                     state = env.reset()
                     state = self.state_to_input(state)
-                    print('episode reward {:5.2f}'.format(episode_reward),
-                          flush=True)
+                    print_flush('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
                     break
 
@@ -104,7 +104,7 @@ class AsyncRL:
                         self.target_net.sync()
                         last_sync_target = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
-                print(str_step + ', loss {:3.3f}'.format(self.batch_loss))
+                print_flush(str_step + ', loss {:3.3f}'.format(self.batch_loss))
         # save at the end of training
         if self.is_master:
             self.save_weights(step)
@@ -125,6 +125,6 @@ class AsyncRL:
     def save_weights(self, step):
         weights_save = os.path.join(self.output, 'weights_{}.p'.format(step))
         self.online_net.save_weights(weights_save)
-        print('global net weights written to {}'.format(weights_save))
+        print_flush('global net weights written to {}'.format(weights_save))
 
 
