@@ -44,8 +44,9 @@ class ACNet(RLNet):
         else:
             raise ValueError('action_mode not recognized')
 
-        policy_loss = -tf.reduce_sum(log_probs_act * ph_advantage)
-        value_loss = tf.nn.l2_loss(self.tf_value - ph_target)
+        policy_loss = -tf.reduce_mean(log_probs_act * ph_advantage)
+        value_loss = tf.losses.mean_squared_error(ph_target, self.tf_value)
+
         self.tf_loss = value_loss + policy_loss
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
