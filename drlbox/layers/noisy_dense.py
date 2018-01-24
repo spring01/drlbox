@@ -28,13 +28,17 @@ class NoisyDenseIG(tf.keras.layers.Dense):
                                          constraint=self.kernel_constraint,
                                          dtype=self.dtype,
                                          trainable=True)
+        scale_init = Constant(value=IG_SCALE_INIT)
         kernel_noise_scale = self.add_variable('kernel_noise_scale',
                                                shape=kernel_shape,
-                                               initializer=Constant(value=IG_SCALE_INIT),
+                                               initializer=scale_init,
                                                dtype=self.dtype,
                                                trainable=True)
-        kernel_noise = tf.random_normal(kernel_shape, mean=0.0, stddev=1.0, dtype=self.dtype)
-        self.kernel = kernel_quiet + kernel_noise_scale * kernel_noise
+        kernel_noise = tf.random_normal(kernel_shape, dtype=self.dtype)
+        self.kernel_noise = tf.Variable(kernel_noise,
+                                        trainable=False,
+                                        dtype=self.dtype)
+        self.kernel = kernel_quiet + kernel_noise_scale * self.kernel_noise
         if self.use_bias:
             bias_shape = [self.units,]
             bias_quiet = self.add_variable('bias_quiet',
@@ -46,11 +50,14 @@ class NoisyDenseIG(tf.keras.layers.Dense):
                                            trainable=True)
             bias_noise_scale = self.add_variable(name='bias_noise_scale',
                                                  shape=bias_shape,
-                                                 initializer=Constant(value=IG_SCALE_INIT),
+                                                 initializer=scale_init,
                                                  dtype=self.dtype,
                                                  trainable=True)
-            bias_noise = tf.random_normal(bias_shape, mean=0.0, stddev=1.0, dtype=self.dtype)
-            self.bias = bias_quiet + bias_noise_scale * bias_noise
+            bias_noise = tf.random_normal(bias_shape, dtype=self.dtype)
+            self.bias_noise = tf.Variable(bias_noise,
+                                          trainable=False,
+                                          dtype=self.dtype)
+            self.bias = bias_quiet + bias_noise_scale * self.bias_noise
         else:
             self.bias = None
         self.built = True

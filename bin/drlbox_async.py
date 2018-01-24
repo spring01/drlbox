@@ -70,6 +70,7 @@ import tensorflow as tf
 from drlbox.async.async import AsyncRL
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
+from drlbox.async.noisynet import NoisyQNet, NoisyACNet
 from drlbox.async.acktrnet import ACKTRNet
 from drlbox.async.kfac import KfacOptimizerTV
 from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
@@ -99,13 +100,13 @@ def call_worker(manager):
                                              cluster=cluster)
 
     # algorithms differ in terms of network structure, rollout, and policy
-    if args.algorithm == 'a3c' or args.algorithm == 'acktr':
+    if args.algorithm in {'a3c', 'acktr'}:
         # neural network
         model_func = actor_critic_model
         loss_kwargs = dict(entropy_weight=config.ENTROPY_WEIGHT,
                            min_var=config.CONT_POLICY_MIN_VAR)
         if args.algorithm == 'a3c':
-            net_builder = ACNet
+            net_builder = NoisyACNet if args.noisynet == 'true' else ACNet
             opt_type = ADAM
         elif args.algorithm == 'acktr':
             net_builder = lambda x: ACKTRNet(x, config.KFAC_INV_UPD_INTERVAL)
@@ -125,8 +126,8 @@ def call_worker(manager):
     elif args.algorithm == 'dqn':
         # neural network
         model_func = q_network_model
-        loss_kwargs = dict(loss_function=mean_huber_loss)
-        net_builder = QNet
+        loss_kwargs = {}
+        net_builder = NoisyQNet if args.noisynet == 'true' else QNet
         opt_type = ADAM
         build_target = True
 
