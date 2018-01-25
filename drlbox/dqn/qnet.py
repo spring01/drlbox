@@ -15,8 +15,8 @@ class QNet(RLNet):
         action_onehot = tf.one_hot(ph_action, depth=self.tf_values.shape[1])
         ph_target = tf.placeholder(tf.float32, [None])
         ph_weight = tf.placeholder(tf.float32, [None])
-        opt_values = tf.reduce_sum(self.tf_values * action_onehot, axis=1)
-        self.tf_loss = tf.losses.huber_loss(ph_target, opt_values, ph_weight,
+        act_values = tf.reduce_sum(self.tf_values * action_onehot, axis=1)
+        self.tf_loss = tf.losses.huber_loss(ph_target, act_values, ph_weight,
             reduction=tf.losses.Reduction.MEAN)
         self.ph_action = ph_action
         self.ph_target = ph_target
