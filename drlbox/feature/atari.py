@@ -1,6 +1,8 @@
 
 import numpy as np
-from tensorflow.python.keras import layers, backend as K
+import tensorflow as tf
+from tensorflow.python.keras.layers import (Input, Conv2D, Activation, Lambda,
+    TimeDistributed, LSTM, GRU, Flatten, Dense)
 
 
 '''
@@ -25,35 +27,34 @@ def make_feature(observation_space, net_name='fc', net_size=512):
     input_shape = height, width, num_frames
 
     # input state
-    inp_state = layers.Input(shape=input_shape)
+    inp_state = Input(shape=input_shape)
 
     # convolutional layers
-    conv1_32 = layers.Conv2D(32, (8, 8), strides=(4, 4))
-    conv2_64 = layers.Conv2D(64, (4, 4), strides=(2, 2))
-    conv3_64 = layers.Conv2D(64, (3, 3), strides=(1, 1))
-    relu = layers.Activation('relu')
+    conv1_32 = Conv2D(32, (8, 8), strides=(4, 4))
+    conv2_64 = Conv2D(64, (4, 4), strides=(2, 2))
+    conv3_64 = Conv2D(64, (3, 3), strides=(1, 1))
+    relu = Activation('relu')
 
     # if recurrent net then change input shape
     if 'lstm' in net_name or 'gru' in net_name:
         # recurrent net
-        lambda_perm_state = lambda x: K.permute_dimensions(x, [0, 3, 1, 2])
-        perm_state = layers.Lambda(lambda_perm_state)(inp_state)
-        dist_state = layers.Lambda(lambda x: K.stack([x], axis=4))(perm_state)
+        trans_state = Lambda(lambda x: tf.transpose(x, [0, 3, 1, 2]))(inp_state)
+        dist_state = Lambda(lambda x: tf.stack([x], axis=4))(trans_state)
 
         # extract features with `TimeDistributed` wrapped convolutional layers
-        dist_conv1 = layers.TimeDistributed(conv1_32)(dist_state)
-        dist_conv1 = layers.TimeDistributed(relu)(dist_conv1)
-        dist_conv2 = layers.TimeDistributed(conv2_64)(dist_conv1)
-        dist_conv2 = layers.TimeDistributed(relu)(dist_conv2)
-        dist_convf = layers.TimeDistributed(conv3_64)(dist_conv2)
-        dist_convf = layers.TimeDistributed(relu)(dist_convf)
-        feature = layers.TimeDistributed(layers.Flatten())(dist_convf)
+        dist_conv1 = TimeDistributed(conv1_32)(dist_state)
+        dist_conv1 = TimeDistributed(relu)(dist_conv1)
+        dist_conv2 = TimeDistributed(conv2_64)(dist_conv1)
+        dist_conv2 = TimeDistributed(relu)(dist_conv2)
+        dist_convf = TimeDistributed(conv3_64)(dist_conv2)
+        dist_convf = TimeDistributed(relu)(dist_convf)
+        feature = TimeDistributed(Flatten())(dist_convf)
 
         # specify final hidden layer type
         if 'lstm' in net_name:
-            hidden_layer = layers.LSTM
+            hidden_layer = LSTM
         elif 'gru' in net_name:
-            hidden_layer = layers.GRU
+            hidden_layer = GRU
     elif 'fc' in net_name:
         # fully connected final hidden layer
         # extract features with convolutional layers
@@ -63,10 +64,10 @@ def make_feature(observation_space, net_name='fc', net_size=512):
         conv2 = relu(conv2)
         convf = conv3_64(conv2)
         convf = relu(convf)
-        feature = layers.Flatten()(convf)
+        feature = Flatten()(convf)
 
         # specify final hidden layer type
-        hidden_layer = layers.Dense
+        hidden_layer = Dense
     else:
         raise ValueError('`net_name` is not recognized')
 
