@@ -35,42 +35,40 @@ class Rollout:
     def get_feed(self, target_net, online_net):
         raise NotImplementedError
 
+    def state_input_action(self):
+        rollout_state = np.stack(self.state_list)
+        rollout_input = rollout_state[:-1]
+        rollout_action = np.stack(self.action_list)
+        return rollout_state, rollout_input, rollout_action
+
+    def target(self, value_last):
+        reward_long = 0.0 if self.done else value_last
+        rollout_target = np.zeros(len(self))
+        for idx in reversed(range(len(self))):
+            reward_long *= self.discount
+            reward_long += self.reward_list[idx]
+            rollout_target[idx] = reward_long
+        return rollout_target
+
 
 class RolloutAC(Rollout):
 
     def get_feed(self, target_net, online_net):
-        rollout_state = np.stack(self.state_list)
+        rollout_state, rollout_input, rollout_action = self.state_input_action()
         rollout_value = target_net.state_value(rollout_state)
-        rollout_action = np.stack(self.action_list)
-        reward_long = 0.0 if self.done else rollout_value[-1]
-        rollout_length = len(self)
-        rollout_target = np.zeros(rollout_length)
-        for idx in reversed(range(rollout_length)):
-            reward_long *= self.discount
-            reward_long += self.reward_list[idx]
-            rollout_target[idx] = reward_long
+        rollout_target = self.target(rollout_value[-1])
         rollout_adv = rollout_target - rollout_value[:-1]
-        rollout_input = rollout_state[:-1]
         return rollout_input, rollout_action, rollout_adv, rollout_target
 
 
 class RolloutMultiStepQ(Rollout):
 
     def get_feed(self, target_net, online_net):
-        rollout_state = np.stack(self.state_list)
-        rollout_input = rollout_state[:-1]
+        rollout_state, rollout_input, rollout_action = self.state_input_action()
         last_state = rollout_state[-1:]
         online_last_value = online_net.action_values(last_state)[-1]
         target_last_value = target_net.action_values(last_state)[-1]
         target_last_q = target_last_value[np.argmax(online_last_value)]
-
-        # initialize `rollout_target` to dummy values equal to online output
-        #~ rollout_target = online_net.action_values(rollout_input)
-        rollout_target = np.zeros(rollout_input.shape)
-        reward_long = 0.0 if self.done else target_last_q
-        for idx in reversed(range(len(self))):
-            reward_long *= self.discount
-            reward_long += self.reward_list[idx]
-            rollout_target[idx, self.action_list[idx]] = reward_long
-        return rollout_input, rollout_target
+        rollout_target = self.target(target_last_q)
+        return rollout_input, rollout_action, rollout_target
 

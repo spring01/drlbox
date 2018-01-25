@@ -21,21 +21,21 @@ class ACNet(RLNet):
         ph_target = tf.placeholder(tf.float32, [None])
 
         if self.action_mode == DISCRETE:
-            ph_act = tf.placeholder(tf.int32, [None])
+            ph_action = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
-            action_1h = tf.one_hot(ph_act, depth=tf_logits.shape[1])
-            log_probs_act = tf.reduce_sum(log_probs * action_1h, axis=1)
+            action_onehot = tf.one_hot(ph_action, depth=tf_logits.shape[1])
+            log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
                 neg_entropy = tf.reduce_sum(probs * log_probs)
         elif self.action_mode == CONTINUOUS:
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
-            ph_act = tf.placeholder(tf.float32, [None, dim_action])
+            ph_action = tf.placeholder(tf.float32, [None, dim_action])
             self.tf_mean = tf_logits[:, :-1]
             self.tf_var = tf.maximum(tf.nn.softplus(tf_logits[:, -1]), min_var)
             two_var = 2.0 * self.tf_var
-            act_minus_mean = ph_act - self.tf_mean
+            act_minus_mean = ph_action - self.tf_mean
             log_norm = tf.reduce_sum(act_minus_mean**2, axis=1) / two_var
             log_2pi_var = self.LOGPI + tf.log(two_var)
             log_probs_act = -(log_norm + 0.5 * int(dim_action) * log_2pi_var)
@@ -53,7 +53,7 @@ class ACNet(RLNet):
 
         self.ph_advantage = ph_advantage
         self.ph_target = ph_target
-        self.ph_action = ph_act
+        self.ph_action = ph_action
 
     def action_values(self, state):
         return self.sess.run(self.tf_logits, feed_dict={self.ph_state: state})
