@@ -113,7 +113,7 @@ def call_worker(manager):
         build_target = False
 
         # rollout
-        rollout = RolloutAC(config.ROLLOUT_MAXLEN, config.DISCOUNT)
+        rollout_builder = lambda s: RolloutAC(s, config.DISCOUNT)
 
         # policy
         if manager.action_mode == DISCRETE:
@@ -131,7 +131,7 @@ def call_worker(manager):
         build_target = True
 
         # rollout
-        rollout = RolloutMultiStepQ(config.ROLLOUT_MAXLEN, config.DISCOUNT)
+        rollout_builder = lambda s: RolloutMultiStepQ(s, config.DISCOUNT)
 
         # policy
         eps_start = config.POLICY_EPS_START
@@ -192,7 +192,7 @@ def call_worker(manager):
         agent = AsyncRL(is_master=is_master,
                         online_net=online_net, target_net=target_net,
                         state_to_input=manager.state_to_input,
-                        policy=policy, rollout=rollout,
+                        policy=policy, rollout_builder=rollout_builder,
                         batch_size=config.BATCH_SIZE,
                         train_steps=config.TRAIN_STEPS,
                         step_counter=step_counter,

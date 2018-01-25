@@ -5,15 +5,11 @@ import numpy as np
 class Rollout:
 
     '''
-    Usage: rollout = Rollout(maxlen, discount, (optional)batch_size)
-        maxlen:     maximum length of a short rollout;
+    Usage: rollout = Rollout(state, discount)
         discount:   discount factor gamma (for long term discounted reward);
     '''
-    def __init__(self, maxlen, discount):
-        self.maxlen = maxlen
+    def __init__(self, state, discount):
         self.discount = discount
-
-    def reset(self, state):
         self.state_list = [state]
         self.action_list = []
         self.reward_list = []
@@ -69,7 +65,8 @@ class RolloutMultiStepQ(Rollout):
         target_last_q = target_last_value[np.argmax(online_last_value)]
 
         # initialize `rollout_target` to dummy values equal to online output
-        rollout_target = online_net.action_values(rollout_input)
+        #~ rollout_target = online_net.action_values(rollout_input)
+        rollout_target = np.zeros(rollout_input.shape)
         reward_long = 0.0 if self.done else target_last_q
         for idx in reversed(range(len(self))):
             reward_long *= self.discount
