@@ -44,7 +44,7 @@ class AsyncRL:
         while step <= self.train_steps:
             self.online_net.sync()
             rollout_list = [self.rollout_builder(state)]
-            for timestep in range(self.batch_size):
+            for batch_step in range(self.batch_size):
                 action_values = self.online_net.action_values([state])[0]
                 action = self.policy.select_action(action_values)
                 state, reward, done, info = env.step(action)
@@ -54,7 +54,7 @@ class AsyncRL:
                 if done:
                     state = env.reset()
                     state = self.state_to_input(state)
-                    if timestep < self.batch_size - 1:
+                    if batch_step < self.batch_size - 1:
                         rollout_list.append(self.rollout_builder(state))
                     print('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
