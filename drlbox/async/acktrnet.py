@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
-from drlbox.layers.preact_layers import DensePreact, Conv2DPreact
 from drlbox.layers.noisy_dense import NoisyDenseIG
 from drlbox.model.actor_critic import DISCRETE, CONTINUOUS
 
@@ -24,18 +23,16 @@ class ACKTRNet(ACNet):
         lc = LayerCollection()
         for layer in model.layers:
             weights = tuple(layer.weights)
-            if type(layer) is DensePreact:
-                lc.register_fully_connected(weights, layer.input, layer.preact)
-            elif type(layer) is keras.layers.Dense:
+            if type(layer) is keras.layers.Dense:
                 # There must not be activation if layer is keras.layers.Dense
                 lc.register_fully_connected(weights, layer.input, layer.output)
             elif type(layer) is NoisyDenseIG:
                 raise NotImplementedError(NOISY_NOT_REG)
-            elif type(layer) is Conv2DPreact:
+            elif type(layer) is keras.layers.Conv2D:
                 strides = 1, *layer.strides, 1
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
-                                   layer.input, layer.preact)
+                                   layer.input, layer.output)
         tf_value, tf_logits = model.outputs
         lc.register_normal_predictive_distribution(tf_value)
         if model.action_mode == DISCRETE:

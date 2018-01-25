@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base
 from tensorflow.python.ops.init_ops import Constant
-from .preact_layers import embed_preact
 
 
 IG_SCALE_INIT = 0.017
@@ -61,8 +60,5 @@ class NoisyDenseIG(tf.keras.layers.Dense):
         else:
             self.bias = None
         self.built = True
-
-    def call(self, inputs):
-        return embed_preact(self, super(), inputs)
 
 
