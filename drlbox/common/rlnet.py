@@ -48,6 +48,6 @@ class RLNet:
             weights = pickle.load(save)
         old_op_sync = self.op_sync # restore current self.op_sync later
         self.set_sync_weights(weights)
-        self.sync()
+        self.sess.run(self.op_sync)
         self.op_sync = old_op_sync
 
