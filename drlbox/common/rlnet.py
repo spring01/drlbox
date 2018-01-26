@@ -6,6 +6,8 @@ import tensorflow as tf
 class RLNet:
 
     op_sync = None
+    DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
+    dense_layer = tf.keras.layers.Dense
 
     def set_session(self, sess):
         self.sess = sess

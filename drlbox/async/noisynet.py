@@ -7,10 +7,12 @@ from drlbox.dqn.qnet import QNet
 
 class NoisyNet(RLNet):
 
-    def __init__(self, model):
-        super().__init__(model)
+    dense_layer = NoisyDenseIG
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.noise_list = []
-        for layer in model.layers:
+        for layer in self.model.layers:
             if type(layer) is NoisyDenseIG:
                 self.noise_list.extend([layer.kernel_noise, layer.bias_noise])
 

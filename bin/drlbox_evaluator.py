@@ -8,13 +8,14 @@ import sys
 import gym
 import numpy as np
 import tensorflow as tf
-from drlbox.common.manager import Manager, DISCRETE, CONTINUOUS
+from drlbox.common.manager import Manager
+from drlbox.common.manager import is_discrete_action, is_continuous_action
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import EpsGreedy
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
-from drlbox.model.actor_critic import actor_critic_model
-from drlbox.model.q_network import q_network_model
+from drlbox.async.noisynet import NoisyQNet, NoisyACNet
+
 
 ''' macros '''
 DEFAULT_CONFIG = None
@@ -40,31 +41,23 @@ def main():
 
     manager.build_config_env_feature()
     args = manager.args
+    action_space = manager.env.action_space
 
     # network and policy
     if args.net_type == 'ac':
-        net_builder = ACNet
-        model_func = actor_critic_model
-        if manager.action_mode == DISCRETE:
+        net_builder = NoisyACNet if args.noisynet == 'true' else ACNet
+        if is_discrete_action(action_space):
             policy = StochasticDiscrete()
-        elif manager.action_mode == CONTINUOUS:
-            action_space = manager.env.action_space
+        elif is_continuous_action(action_space):
             policy = StochasticContinuous(action_space.low, action_space.high)
         else:
             raise ValueError('action_mode not recognized')
     elif args.net_type == 'dqn':
-        net_builder = QNet
-        model_func = q_network_model
+        net_builder = NoisyQNet if args.noisynet == 'true' else QNet
         policy = EpsGreedy(epsilon=args.policy_eps)
 
-    # invoke NoisyNet if specified
-    if args.noisynet == 'true':
-        model_builder = lambda *x: model_func(*x, noisy=True)
-    else:
-        model_builder = model_func
-
-    model = manager.build_model(model_builder)
-    net = net_builder(model)
+    state_feature = manager.build_state_feature()
+    net = net_builder(*state_feature, action_space)
     sess = tf.Session()
     net.set_session(sess)
     sess.run(tf.global_variables_initializer())

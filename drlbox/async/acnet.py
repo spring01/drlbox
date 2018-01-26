@@ -1,26 +1,48 @@
 
 import tensorflow as tf
 from drlbox.common.rlnet import RLNet
-from drlbox.model.actor_critic import DISCRETE, CONTINUOUS
+import gym.spaces
+from drlbox.layers.noisy_dense import NoisyDenseIG
+from drlbox.common.manager import is_discrete_action, is_continuous_action
 
 
 class ACNet(RLNet):
 
     LOGPI   = 1.1447298858494002
 
-    def __init__(self, model):
+    def __init__(self, state, feature, action_space):
+        if type(feature) is tuple:
+            # separated logits/value streams when feature is a length 2 tuple
+            feature_logits, feature_value = feature
+        else:
+            # feature is a single stream otherwise
+            feature_logits = feature_value = feature
+        if is_discrete_action(action_space):
+            self.action_mode = self.DISCRETE
+            size_logits = action_space.n
+            init = tf.keras.initializers.RandomNormal(stddev=1e-3)
+        elif is_continuous_action(action_space):
+            self.action_mode = self.CONTINUOUS
+            size_logits = len(action_space.shape) + 1
+            init = 'glorot_uniform'
+        else:
+            raise ValueError('type of action_space is illegal')
+        logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
+        logits = logits_layer(feature_logits)
+        value = tf.keras.layers.Dense(1)(feature_value)
+        model = tf.keras.models.Model(inputs=state, outputs=[value, logits])
+        self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
         tf_value, self.tf_logits = model.outputs
         self.tf_value = tf_value[:, 0]
-        self.action_mode = model.action_mode
 
     def set_loss(self, entropy_weight=0.01, min_var=None):
         tf_logits = self.tf_logits
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == DISCRETE:
+        if self.action_mode == self.DISCRETE:
             ph_action = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
             action_onehot = tf.one_hot(ph_action, depth=tf_logits.shape[1])
@@ -28,7 +50,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
                 neg_entropy = tf.reduce_sum(probs * log_probs)
-        elif self.action_mode == CONTINUOUS:
+        elif self.action_mode == self.CONTINUOUS:
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
             ph_action = tf.placeholder(tf.float32, [None, dim_action])

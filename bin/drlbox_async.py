@@ -2,7 +2,7 @@
 """
 Asynchronous trainer built with distributed tensorflow
 """
-from drlbox.common.manager import Manager, DISCRETE, CONTINUOUS
+from drlbox.common.manager import Manager
 
 
 ''' macros '''
@@ -68,6 +68,7 @@ import os
 import signal
 import tensorflow as tf
 from drlbox.async.async import AsyncRL
+from drlbox.common.manager import is_discrete_action, is_continuous_action
 from drlbox.dqn.qnet import QNet
 from drlbox.async.acnet import ACNet
 from drlbox.async.noisynet import NoisyQNet, NoisyACNet
@@ -77,12 +78,11 @@ from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import DecayEpsGreedy
-from drlbox.model.actor_critic import actor_critic_model
-from drlbox.model.q_network import q_network_model
 
 
 def call_worker(manager):
     args, config = manager.args, manager.config
+    action_space = manager.env.action_space
     # ports, cluster, and server
     port_list = [config.PORT_BEGIN + i for i in range(config.NUM_WORKERS)]
     worker_index = args.worker_index
@@ -100,15 +100,13 @@ def call_worker(manager):
 
     # algorithms differ in terms of network structure, rollout, and policy
     if args.algorithm in {'a3c', 'acktr'}:
-        # neural network
-        model_func = actor_critic_model
         loss_kwargs = dict(entropy_weight=config.ENTROPY_WEIGHT,
                            min_var=config.CONT_POLICY_MIN_VAR)
         if args.algorithm == 'a3c':
             net_builder = NoisyACNet if args.noisynet == 'true' else ACNet
             opt_type = ADAM
         elif args.algorithm == 'acktr':
-            net_builder = lambda x: ACKTRNet(x, config.KFAC_INV_UPD_INTERVAL)
+            net_builder = ACKTRNet
             opt_type = KFAC
         build_target = False
 
@@ -116,15 +114,12 @@ def call_worker(manager):
         rollout_builder = lambda s: RolloutAC(s, config.DISCOUNT)
 
         # policy
-        if manager.action_mode == DISCRETE:
+        if is_discrete_action(action_space):
             policy = StochasticDiscrete()
-        elif manager.action_mode == CONTINUOUS:
-            action_space = manager.env.action_space
+        elif is_continuous_action(action_space):
             policy = StochasticContinuous(action_space.low, action_space.high,
                                           min_var=config.CONT_POLICY_MIN_VAR)
     elif args.algorithm == 'dqn':
-        # neural network
-        model_func = q_network_model
         loss_kwargs = {}
         net_builder = NoisyQNet if args.noisynet == 'true' else QNet
         opt_type = ADAM
@@ -139,44 +134,40 @@ def call_worker(manager):
         eps_delta = (eps_start - eps_end) / config.POLICY_DECAY_STEPS
         policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
 
-    # invoke NoisyNet if specified
-    if args.noisynet == 'true':
-        model_builder = lambda *x: model_func(*x, noisy=True)
-    else:
-        model_builder = model_func
-
     # global net
     with tf.device(rep_dev):
-        global_model = manager.build_model(model_builder)
+        global_state_feature = manager.build_state_feature()
+        global_net = net_builder(*global_state_feature, action_space)
         if is_master:
-            global_model.summary()
-        global_net = net_builder(global_model)
+            global_net.model.summary()
         step_counter = StepCounter()
 
     # local net
     with tf.device(worker_dev):
-        model = manager.build_model(model_builder)
-        online_net = net_builder(model)
+        state_feature = manager.build_state_feature()
+        online_net = net_builder(*state_feature, action_space)
         online_net.set_loss(**loss_kwargs)
         if opt_type == KFAC:
-            layer_collection = online_net.build_layer_collection(model)
+            layer_collection = online_net.build_layer_collection()
             opt = KfacOptimizerTV(config.LEARNING_RATE,
                 config.KFAC_COV_EMA_DECAY, config.KFAC_DAMPING,
                 norm_constraint=config.KFAC_TRUST_RADIUS,
                 layer_collection=layer_collection, var_list=online_net.weights)
+            online_net.set_optimizer(opt, train_weights=global_net.weights,
+                inv_update_interval=config.KFAC_INV_UPD_INTERVAL)
         elif opt_type == ADAM:
             opt = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                          epsilon=config.ADAM_EPSILON)
-        online_net.set_optimizer(opt, train_weights=global_net.weights,
-                                clip_norm=config.GRAD_CLIP_NORM)
+            online_net.set_optimizer(opt, train_weights=global_net.weights,
+                clip_norm=config.GRAD_CLIP_NORM)
         online_net.set_sync_weights(global_net.weights)
         step_counter.set_increment()
 
     # build a separate global target net for dqn
     if build_target:
         with tf.device(rep_dev):
-            target_model = manager.build_model(model_builder)
-            target_net = net_builder(target_model)
+            target_state_feature = manager.build_state_feature()
+            target_net = net_builder(*target_state_feature, action_space)
             target_net.set_sync_weights(global_net.weights)
     else: # make target net a reference to the local net
         target_net = online_net

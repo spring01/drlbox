@@ -11,8 +11,6 @@ DEF_ENV     = 'drlbox/env/default.py'
 DEF_FEATURE = 'drlbox/feature/fc.py'
 DEF_OUTPUT  = './output'
 
-DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
-
 '''
 Manager class of argparse, config, env, model
 '''
@@ -70,15 +68,6 @@ class Manager:
         env_spec = importlib.import_module(parse_import(env_import))
         self.env, self.env_name = env_spec.make_env(*env_args)
 
-        # determine action mode for this env
-        action_space = self.env.action_space
-        if type(action_space) is gym.spaces.discrete.Discrete: # discrete action
-            self.action_mode = DISCRETE
-        elif type(action_space) is gym.spaces.box.Box: # continuous action
-            self.action_mode = CONTINUOUS
-        else:
-            raise ValueError('type of action_space is illegal')
-
         # import and setup feature network
         if len(args.feature) > 1:
             feature_import, feature_args = args.feature[-1], args.feature[:-1]
@@ -89,12 +78,10 @@ class Manager:
         self.feature_builder = feature_spec.make_feature
         self.state_to_input = feature_spec.state_to_input
 
-    def build_model(self, model_builder):
+    def build_state_feature(self):
         feature_args = self.env.observation_space, *self.feature_args
         state, feature = self.feature_builder(*feature_args)
-        model = model_builder(state, feature, self.env.action_space)
-        model.action_mode = self.action_mode
-        return model
+        return state, feature
 
     def get_output_folder(self):
         parent_dir = self.args.save
@@ -123,4 +110,9 @@ def parse_import(filename):
     import_name, _ = os.path.splitext(filename)
     return import_name.replace('/', '.')
 
+def is_discrete_action(action_space):
+    return type(action_space) is gym.spaces.discrete.Discrete
+
+def is_continuous_action(action_space):
+    return type(action_space) is gym.spaces.box.Box
 

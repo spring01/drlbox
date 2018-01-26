@@ -9,9 +9,8 @@ from drlbox.dqn.dqn import DQN
 from drlbox.dqn.qnet import QNet
 from drlbox.dqn.replay import Replay, PriorityReplay
 from drlbox.common.manager import Manager
+from drlbox.common.manager import is_discrete_action, is_continuous_action
 from drlbox.common.policy import DecayEpsGreedy
-from drlbox.common.loss import mean_huber_loss
-from drlbox.model.q_network import q_network_model
 
 
 DEFAULT_CONFIG = 'drlbox/config/dqn_default.py'
@@ -27,12 +26,14 @@ def main():
     args, config = manager.args, manager.config
 
     # online/target q-nets
-    model_o, model_t = (manager.build_model(q_network_model) for _ in range(2))
-    model_o.summary()
-    online, target = (QNet(model) for model in (model_o, model_t))
+    online_state_feature = manager.build_state_feature()
+    online = QNet(*online_state_feature, manager.env.action_space)
+    target_state_feature = manager.build_state_feature()
+    target = QNet(*target_state_feature, manager.env.action_space)
+    online.model.summary()
     sess = tf.Session()
     for net in online, target:
-        net.set_loss(mean_huber_loss)
+        net.set_loss()
         adam = tf.train.AdamOptimizer(config.LEARNING_RATE,
                                       epsilon=config.ADAM_EPSILON)
         net.set_optimizer(adam)

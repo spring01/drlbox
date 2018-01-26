@@ -81,10 +81,10 @@ class DQN:
 
     def train_online(self):
         batch, b_idx, b_weights = self.replay.sample(self.batch_size)
-        b_state, b_q_target, abs_td_error, online = self.process_batch(batch)
+        b_state, b_act, b_q_target, abs_td, online = self.process_batch(batch)
         if type(self.replay) is PriorityReplay:
-            self.replay.update_priority(b_idx, abs_td_error)
-        online.train_on_batch(b_state, b_q_target, sample_weight=b_weights)
+            self.replay.update_priority(b_idx, abs_td)
+        online.train_on_batch(b_state, b_act, b_q_target, b_weights)
 
     def process_batch(self, batch):
         # roll online/target nets for double q-learning
@@ -97,29 +97,33 @@ class DQN:
 
         # build stacked batch of states and batch of next states
         b_state = []
+        b_action = []
         b_state_next = []
         for st_m, act, _, st_m_n, _ in batch:
             st = self.state_to_input(st_m)
             b_state.append(st)
+            b_action.append(act)
             st_n = self.state_to_input(st_m_n)
             b_state_next.append(st_n)
-        b_state = np.stack(b_state)
-        b_state_next = np.stack(b_state_next)
+        b_state = np.array(b_state, dtype=np.float32)
+        b_action = np.array(b_action, dtype=np.int32)
+        b_state_next = np.array(b_state_next, dtype=np.float32)
 
         # compute target q-values and td-error
         b_q_online = online.action_values(b_state)
         b_q_online_n = online.action_values(b_state_next)
         b_q_target_n = target.action_values(b_state_next)
-        b_q_target = b_q_online.copy()
-        ziplist = zip(b_q_target, b_q_online_n, b_q_target_n, batch)
-        for qt, qon, qtn, trans in ziplist:
-            _, act, reward, _, done = trans
+        b_q_target = []
+        for qon, qtn, transition in zip(b_q_online_n, b_q_target_n, batch):
+            _, act, reward, _, done = transition
             full_reward = reward
             if not done:
                 full_reward += self.discount * qtn[qon.argmax()]
-            qt[act] = full_reward
-        abs_td_error = np.abs(np.sum(b_q_target - b_q_online, axis=1))
-        return b_state, b_q_target, abs_td_error, online
+            b_q_target.append(full_reward)
+        b_q_target = np.array(b_q_target, dtype=np.float32)
+        b_q_online_a = np.array([o[a] for o, a in zip(b_q_online, b_action)])
+        abs_td_error = np.abs(b_q_target - b_q_online_a)
+        return b_state, b_action, b_q_target, abs_td_error, online
 
 def _every(step, interval):
     return not (step % interval)

@@ -4,24 +4,18 @@ from tensorflow import keras
 from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
 from drlbox.layers.noisy_dense import NoisyDenseIG
-from drlbox.model.actor_critic import DISCRETE, CONTINUOUS
 
 
 NOISY_NOT_REG = 'layer_collection register is not implemented for noisy dense'
 
 class ACKTRNet(ACNet):
 
-    def __init__(self, model, inv_update_interval=100):
-        super().__init__(model)
-        self.train_step_counter = 0
-        self.inv_update_interval = inv_update_interval
-
     '''
     Called after calling set_loss
     '''
-    def build_layer_collection(self, model):
+    def build_layer_collection(self):
         lc = LayerCollection()
-        for layer in model.layers:
+        for layer in self.model.layers:
             weights = tuple(layer.weights)
             if type(layer) is keras.layers.Dense:
                 # There must not be activation if layer is keras.layers.Dense
@@ -33,11 +27,11 @@ class ACKTRNet(ACNet):
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
                                    layer.input, layer.output)
-        tf_value, tf_logits = model.outputs
+        tf_value, tf_logits = self.model.outputs
         lc.register_normal_predictive_distribution(tf_value)
-        if model.action_mode == DISCRETE:
+        if self.action_mode == self.DISCRETE:
             lc.register_categorical_predictive_distribution(tf_logits)
-        elif model.action_mode == CONTINUOUS:
+        elif self.action_mode == self.CONTINUOUS:
             mean = self.tf_mean
             var = tf.expand_dims(self.tf_var, -1)
             lc.register_normal_predictive_distribution(mean, var)
@@ -45,7 +39,9 @@ class ACKTRNet(ACNet):
             raise ValueError('model.action_mode not recognized')
         return lc
 
-    def set_optimizer(self, kfac, train_weights=None, *args, **kwargs):
+    def set_optimizer(self, kfac, train_weights=None, inv_update_interval=100):
+        self.inv_update_interval = inv_update_interval
+        self.train_step_counter = 0
         grads_and_vars = kfac.compute_gradients(self.tf_loss, self.weights)
         if train_weights is None:
             train_weights = self.weights
