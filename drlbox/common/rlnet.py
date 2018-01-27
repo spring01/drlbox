@@ -1,5 +1,5 @@
 
-import pickle
+import h5py
 import tensorflow as tf
 
 
@@ -42,14 +42,15 @@ class RLNet:
         self.sess.run(self.op_sync)
 
     def save_weights(self, filename):
-        with open(filename, 'wb') as save:
-            pickle.dump(self.sess.run(self.weights), save)
+        with h5py.File(filename, 'w') as save:
+            for idx, value in enumerate(self.sess.run(self.weights)):
+                save.create_dataset(name=str(idx), data=value)
 
     def load_weights(self, filename):
-        with open(filename, 'rb') as save:
-            weights = pickle.load(save)
-        old_op_sync = self.op_sync # restore current self.op_sync later
-        self.set_sync_weights(weights)
-        self.sess.run(self.op_sync)
-        self.op_sync = old_op_sync
+        saved_weights = []
+        with h5py.File(filename, 'r') as save:
+            for idx in range(len(self.weights)):
+                saved_weights.append(save[str(idx)][...])
+        zip_weights = zip(self.weights, saved_weights)
+        self.sess.run(tf.group(*[wt.assign(swt) for wt, swt in zip_weights]))
 

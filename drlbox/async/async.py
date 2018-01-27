@@ -88,7 +88,7 @@ class AsyncRL:
             self.save_weights(step)
 
     def save_weights(self, step):
-        weights_save = os.path.join(self.output, 'weights_{}.p'.format(step))
+        weights_save = os.path.join(self.output, 'weights_{}.h5'.format(step))
         self.online_net.save_weights(weights_save)
         print('global net weights written to {}'.format(weights_save))
 
