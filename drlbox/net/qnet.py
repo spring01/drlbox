@@ -1,13 +1,13 @@
 
 import tensorflow as tf
 from .rlnet import RLNet
-from drlbox.common.manager import is_discrete_action
+from drlbox.common.manager import discrete_action
 
 
 class QNet(RLNet):
 
     def __init__(self, state, feature, action_space):
-        if not is_discrete_action(action_space):
+        if not discrete_action(action_space):
             raise ValueError('action_space must be discrete in Q network')
         q_value = self.dense_layer(action_space.n)(feature)
         model = tf.keras.models.Model(inputs=state, outputs=q_value)

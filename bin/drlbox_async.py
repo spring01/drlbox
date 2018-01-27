@@ -68,16 +68,12 @@ import os
 import signal
 import tensorflow as tf
 from drlbox.async.async import AsyncRL
-from drlbox.common.manager import is_discrete_action, is_continuous_action
-from drlbox.net.qnet import QNet
-from drlbox.net.acnet import ACNet
-from drlbox.net.noisynet import NoisyQNet, NoisyACNet
-from drlbox.net.acktrnet import ACKTRNet
+from drlbox.common.manager import discrete_action, continuous_action
+from drlbox.net import QNet, ACNet, ACKTRNet, NoisyQNet, NoisyACNet
 from drlbox.net.kfac import KfacOptimizerTV
 from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
-from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
-from drlbox.common.policy import DecayEpsGreedy
+from drlbox.common.policy import StochasticDisc, StochasticCont, DecayEpsGreedy
 
 
 def call_worker(manager):
@@ -114,11 +110,11 @@ def call_worker(manager):
         rollout_builder = lambda s: RolloutAC(s, config.DISCOUNT)
 
         # policy
-        if is_discrete_action(action_space):
-            policy = StochasticDiscrete()
-        elif is_continuous_action(action_space):
-            policy = StochasticContinuous(action_space.low, action_space.high,
-                                          min_var=config.CONT_POLICY_MIN_VAR)
+        if discrete_action(action_space):
+            policy = StochasticDisc()
+        elif continuous_action(action_space):
+            policy = StochasticCont(action_space.low, action_space.high,
+                                    min_var=config.CONT_POLICY_MIN_VAR)
     elif args.algorithm == 'dqn':
         loss_kwargs = {}
         net_builder = NoisyQNet if args.noisynet == 'true' else QNet

@@ -105,14 +105,15 @@ class Manager:
         subprocess.call(['mkdir', '-p', parent_dir])
         return parent_dir
 
+def discrete_action(action_space):
+    return type(action_space) is gym.spaces.discrete.Discrete
+
+def continuous_action(action_space):
+    return type(action_space) is gym.spaces.box.Box
+
 
 def parse_import(filename):
     import_name, _ = os.path.splitext(filename)
     return import_name.replace('/', '.')
 
-def is_discrete_action(action_space):
-    return type(action_space) is gym.spaces.discrete.Discrete
-
-def is_continuous_action(action_space):
-    return type(action_space) is gym.spaces.box.Box
 

@@ -3,7 +3,7 @@ import tensorflow as tf
 from .rlnet import RLNet
 import gym.spaces
 from drlbox.layers.noisy_dense import NoisyDenseIG
-from drlbox.common.manager import is_discrete_action, is_continuous_action
+from drlbox.common.manager import discrete_action, continuous_action
 
 
 class ACNet(RLNet):
@@ -17,11 +17,11 @@ class ACNet(RLNet):
         else:
             # feature is a single stream otherwise
             feature_logits = feature_value = feature
-        if is_discrete_action(action_space):
+        if discrete_action(action_space):
             self.action_mode = self.DISCRETE
             size_logits = action_space.n
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
-        elif is_continuous_action(action_space):
+        elif continuous_action(action_space):
             self.action_mode = self.CONTINUOUS
             size_logits = len(action_space.shape) + 1
             init = 'glorot_uniform'

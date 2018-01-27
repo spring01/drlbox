@@ -53,7 +53,7 @@ class DecayEpsGreedy(EpsGreedy):
         return action
 
 
-class StochasticDiscrete(Policy):
+class StochasticDisc(Policy):
 
     '''
     `action_values` is supposed to be 'logits', i.e., before softmax
@@ -66,7 +66,7 @@ class StochasticDiscrete(Policy):
         probs /= np.sum(probs)
         return np.random.choice(len(probs), p=probs)
 
-class StochasticContinuous(Policy):
+class StochasticCont(Policy):
 
     def __init__(self, low, high, min_var=1e-6):
         self.low = low
