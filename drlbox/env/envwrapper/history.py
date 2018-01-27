@@ -1,5 +1,7 @@
 
 import gym
+from collections import deque
+
 
 class HistoryStacker(gym.Wrapper):
     """
@@ -29,7 +31,7 @@ class HistoryStacker(gym.Wrapper):
         current_step = 0
         while current_step < self.act_steps and not done:
             obs, reward, done, info = self.env.step(action)
-            self.obs_list.pop(0)
+            self.obs_list.popleft()
             self.obs_list.append(obs)
             total_reward += reward
             current_step += 1
@@ -37,7 +39,7 @@ class HistoryStacker(gym.Wrapper):
 
     def _reset(self):
         obs = self.env.reset()
-        self.obs_list = [obs] * self.num_frames
+        self.obs_list = deque([obs] * self.num_frames)
         return tuple(self.obs_list)
 
 
