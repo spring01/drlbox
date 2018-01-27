@@ -6,8 +6,8 @@ Supports deep recurrent Q-network (DRQN) and dueling architecture
 
 import tensorflow as tf
 from drlbox.dqn.dqn import DQN
-from drlbox.dqn.qnet import QNet
 from drlbox.dqn.replay import Replay, PriorityReplay
+from drlbox.net.qnet import QNet
 from drlbox.common.manager import Manager
 from drlbox.common.manager import is_discrete_action, is_continuous_action
 from drlbox.common.policy import DecayEpsGreedy

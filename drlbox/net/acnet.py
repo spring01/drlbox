@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from drlbox.common.rlnet import RLNet
+from .rlnet import RLNet
 import gym.spaces
 from drlbox.layers.noisy_dense import NoisyDenseIG
 from drlbox.common.manager import is_discrete_action, is_continuous_action

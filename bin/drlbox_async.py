@@ -69,11 +69,11 @@ import signal
 import tensorflow as tf
 from drlbox.async.async import AsyncRL
 from drlbox.common.manager import is_discrete_action, is_continuous_action
-from drlbox.dqn.qnet import QNet
-from drlbox.async.acnet import ACNet
-from drlbox.async.noisynet import NoisyQNet, NoisyACNet
-from drlbox.async.acktrnet import ACKTRNet
-from drlbox.async.kfac import KfacOptimizerTV
+from drlbox.net.qnet import QNet
+from drlbox.net.acnet import ACNet
+from drlbox.net.noisynet import NoisyQNet, NoisyACNet
+from drlbox.net.acktrnet import ACKTRNet
+from drlbox.net.kfac import KfacOptimizerTV
 from drlbox.async.rollout import RolloutAC, RolloutMultiStepQ
 from drlbox.async.step_counter import StepCounter
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous

@@ -1,8 +1,8 @@
 
 from drlbox.layers.noisy_dense import NoisyDenseIG
-from drlbox.common.rlnet import RLNet
-from drlbox.async.acnet import ACNet
-from drlbox.dqn.qnet import QNet
+from .rlnet import RLNet
+from .acnet import ACNet
+from .qnet import QNet
 
 
 class NoisyNet(RLNet):

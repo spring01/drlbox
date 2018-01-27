@@ -12,9 +12,9 @@ from drlbox.common.manager import Manager
 from drlbox.common.manager import is_discrete_action, is_continuous_action
 from drlbox.common.policy import StochasticDiscrete, StochasticContinuous
 from drlbox.common.policy import EpsGreedy
-from drlbox.dqn.qnet import QNet
-from drlbox.async.acnet import ACNet
-from drlbox.async.noisynet import NoisyQNet, NoisyACNet
+from drlbox.net.qnet import QNet
+from drlbox.net.acnet import ACNet
+from drlbox.net.noisynet import NoisyQNet, NoisyACNet
 
 
 ''' macros '''

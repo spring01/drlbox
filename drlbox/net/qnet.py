@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from drlbox.common.rlnet import RLNet
+from .rlnet import RLNet
 from drlbox.common.manager import is_discrete_action
 
 
