@@ -132,16 +132,22 @@ def call_worker(manager):
 
     # global net
     with tf.device(rep_dev):
-        global_state_feature = manager.build_state_feature()
-        global_net = net_builder(*global_state_feature, action_space)
+        if args.load_model is None:
+            state, feature = manager.build_state_feature()
+            global_net = net_builder.from_sfa(state, feature, action_space)
+        else:
+            saved_model = net_builder.load_model(args.load_model)
+            saved_weights = saved_model.get_weights()
+            global_net = net_builder.from_model(saved_model)
         if is_master:
             global_net.model.summary()
         step_counter = StepCounter()
 
+
     # local net
     with tf.device(worker_dev):
-        state_feature = manager.build_state_feature()
-        online_net = net_builder(*state_feature, action_space)
+        state, feature = manager.build_state_feature()
+        online_net = net_builder.from_sfa(state, feature, action_space)
         online_net.set_loss(**loss_kwargs)
         if opt_type == KFAC:
             layer_collection = online_net.build_layer_collection()
@@ -162,8 +168,8 @@ def call_worker(manager):
     # build a separate global target net for dqn
     if build_target:
         with tf.device(rep_dev):
-            target_state_feature = manager.build_state_feature()
-            target_net = net_builder(*target_state_feature, action_space)
+            state, feature = manager.build_state_feature()
+            target_net = net_builder.from_sfa(state, feature, action_space)
             target_net.set_sync_weights(global_net.weights)
     else: # make target net a reference to the local net
         target_net = online_net
@@ -186,8 +192,9 @@ def call_worker(manager):
                         interval_sync_target=config.INTERVAL_SYNC_TARGET,
                         interval_save=config.INTERVAL_SAVE,
                         output=output)
-        if args.load_weights is not None:
-            global_net.load_weights(args.load_weights)
+        if args.load_model is not None:
+            global_net.set_sync_weights(saved_weights)
+            global_net.sync()
 
         # train the agent
         agent.train(manager.env)

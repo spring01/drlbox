@@ -36,7 +36,7 @@ class AsyncRL:
         if self.is_master:
             last_save = step
             last_sync_target = step
-            self.save_weights(step)
+            self.save_model(step)
 
         state = env.reset()
         state = self.state_to_input(state)
@@ -75,7 +75,7 @@ class AsyncRL:
             step = step_counter.step_count()
             if self.is_master:
                 if step - last_save > self.interval_save:
-                    self.save_weights(step)
+                    self.save_model(step)
                     last_save = step
                 if self.target_net is not self.online_net:
                     if step - last_sync_target > self.interval_sync_target:
@@ -85,11 +85,11 @@ class AsyncRL:
                 print(str_step + ', loss {:3.3f}'.format(batch_loss))
         # save at the end of training
         if self.is_master:
-            self.save_weights(step)
+            self.save_model(step)
 
-    def save_weights(self, step):
-        weights_save = os.path.join(self.output, 'weights_{}.h5'.format(step))
-        self.online_net.save_weights(weights_save)
-        print('global net weights written to {}'.format(weights_save))
+    def save_model(self, step):
+        filename = os.path.join(self.output, 'model_{}.h5'.format(step))
+        self.online_net.save_model(filename)
+        print('keras model written to {}'.format(filename))
 
 

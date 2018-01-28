@@ -9,10 +9,10 @@ class NoisyNet(RLNet):
 
     dense_layer = NoisyDenseIG
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def set_model(self, model):
+        super().set_model(model)
         self.noise_list = []
-        for layer in self.model.layers:
+        for layer in model.layers:
             if type(layer) is NoisyDenseIG:
                 self.noise_list.extend([layer.kernel_noise, layer.bias_noise])
 
@@ -20,6 +20,10 @@ class NoisyNet(RLNet):
         super().sync()
         for noise in self.noise_list:
             self.sess.run(noise.initializer)
+
+    @staticmethod
+    def load_model(filename):
+        return RLNet.load_model(filename, {'NoisyDenseIG': NoisyDenseIG})
 
 
 class NoisyACNet(NoisyNet, ACNet):

@@ -9,6 +9,16 @@ class RLNet:
     DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
     dense_layer = tf.keras.layers.Dense
 
+    # net constructed by from_model can predict but cannot be trained
+    @classmethod
+    def from_model(cls, model):
+        self = cls()
+        self.set_model(model)
+        return self
+
+    def set_model(self, model):
+        raise NotImplementedError
+
     def set_session(self, sess):
         self.sess = sess
 
@@ -41,16 +51,10 @@ class RLNet:
     def sync(self):
         self.sess.run(self.op_sync)
 
-    def save_weights(self, filename):
-        with h5py.File(filename, 'w') as save:
-            for idx, value in enumerate(self.sess.run(self.weights)):
-                save.create_dataset(name=str(idx), data=value)
+    def save_model(self, filename):
+        self.model.save(filename)
 
-    def load_weights(self, filename):
-        saved_weights = []
-        with h5py.File(filename, 'r') as save:
-            for idx in range(len(self.weights)):
-                saved_weights.append(save[str(idx)][...])
-        zip_weights = zip(self.weights, saved_weights)
-        self.sess.run(tf.group(*[wt.assign(swt) for wt, swt in zip_weights]))
+    @staticmethod
+    def load_model(filename, custom_objects=None):
+        return tf.keras.models.load_model(filename, custom_objects)
 

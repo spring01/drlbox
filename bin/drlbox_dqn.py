@@ -25,10 +25,15 @@ def main():
     args, config = manager.args, manager.config
 
     # online/target q-nets
-    online_state_feature = manager.build_state_feature()
-    online = QNet(*online_state_feature, manager.env.action_space)
+    if args.load_model is None:
+        online_state_feature = manager.build_state_feature()
+        online = QNet.from_sfa(*online_state_feature, manager.env.action_space)
+    else:
+        saved_model = QNet.load_model(args.load_model)
+        saved_weights = saved_model.get_weights()
+        online = QNet.from_model(saved_model)
     target_state_feature = manager.build_state_feature()
-    target = QNet(*target_state_feature, manager.env.action_space)
+    target = QNet.from_sfa(*target_state_feature, manager.env.action_space)
     online.model.summary()
     sess = tf.Session()
     for net in online, target:
@@ -58,8 +63,9 @@ def main():
     policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
 
     # read weights/memory if requested
-    if args.load_weights is not None:
-        online.load_weights(args.load_weights)
+    if args.load_model is not None:
+        online.set_sync_weights(saved_weights)
+        online.sync()
     if args.load_replay is not None:
         replay = Replay.load(args.load_replay)
 

@@ -4,8 +4,6 @@ Deep RL evaluator
 Support both actor-critic and Q-network
 """
 
-import sys
-import gym
 import numpy as np
 import tensorflow as tf
 from drlbox.common.manager import Manager, discrete_action, continuous_action
@@ -52,14 +50,17 @@ def main():
         net_builder = NoisyQNet if args.noisynet == 'true' else QNet
         policy = EpsGreedy(epsilon=args.policy_eps)
 
-    state_feature = manager.build_state_feature()
-    net = net_builder(*state_feature, action_space)
+    saved_model = net_builder.load_model(args.load_model)
+    net = net_builder.from_model(saved_model)
+
+    # global_variables_initializer will re-initialize net.weights so we need to
+    # sync to saved_weights
+    saved_weights = saved_model.get_weights()
     sess = tf.Session()
     net.set_session(sess)
     sess.run(tf.global_variables_initializer())
-
-    if args.load_weights is not None:
-        net.load_weights(args.load_weights)
+    net.set_sync_weights(saved_weights)
+    net.sync()
 
     env = manager.env
     all_total_rewards = []

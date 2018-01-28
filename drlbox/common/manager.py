@@ -18,8 +18,8 @@ class Manager:
 
     def __init__(self, description, default_config):
         parser = argparse.ArgumentParser(description=description)
-        parser.add_argument('--load_weights', default=None,
-            help='If specified, load weights and start from there')
+        parser.add_argument('--load_model', default=None,
+            help='Load model if specified')
         parser.add_argument('--save', default=DEF_OUTPUT,
             help='Directory to save data to')
 

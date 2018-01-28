@@ -72,12 +72,12 @@ class DQN:
         # save model and replay
         if _every(step, self.interval_save):
             output = self.output
-            weights_save = os.path.join(output, 'weights_{}.p'.format(step))
-            self.online.save_weights(weights_save)
-            print('online net weights written to {}'.format(weights_save))
-            replay_save = os.path.join(output, 'replay.p')
-            self.replay.save(replay_save)
-            print('replay memory written to {}'.format(replay_save))
+            model_filename = os.path.join(output, 'weights_{}.h5'.format(step))
+            self.online.save_model(model_filename)
+            print('keras model written to {}'.format(model_filename))
+            replay_filename = os.path.join(output, 'replay.p')
+            self.replay.save(replay_filename)
+            print('replay memory written to {}'.format(replay_filename))
 
     def train_online(self):
         batch, b_idx, b_weights = self.replay.sample(self.batch_size)

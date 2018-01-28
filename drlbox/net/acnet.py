@@ -10,7 +10,9 @@ class ACNet(RLNet):
 
     LOGPI   = 1.1447298858494002
 
-    def __init__(self, state, feature, action_space):
+    @classmethod
+    def from_sfa(cls, state, feature, action_space):
+        self = cls()
         if type(feature) is tuple:
             # separated logits/value streams when feature is a length 2 tuple
             feature_logits, feature_value = feature
@@ -18,11 +20,11 @@ class ACNet(RLNet):
             # feature is a single stream otherwise
             feature_logits = feature_value = feature
         if discrete_action(action_space):
-            self.action_mode = self.DISCRETE
+            action_mode = cls.DISCRETE
             size_logits = action_space.n
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         elif continuous_action(action_space):
-            self.action_mode = self.CONTINUOUS
+            action_mode = cls.CONTINUOUS
             size_logits = len(action_space.shape) + 1
             init = 'glorot_uniform'
         else:
@@ -31,6 +33,11 @@ class ACNet(RLNet):
         logits = logits_layer(feature_logits)
         value = tf.keras.layers.Dense(1)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[value, logits])
+        self.action_mode = action_mode
+        self.set_model(model)
+        return self
+
+    def set_model(self, model):
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
