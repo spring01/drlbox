@@ -20,11 +20,11 @@ class ACNet(RLNet):
             # feature is a single stream otherwise
             feature_logits = feature_value = feature
         if discrete_action(action_space):
-            action_mode = cls.DISCRETE
+            action_mode = self.DISCRETE
             size_logits = action_space.n
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         elif continuous_action(action_space):
-            action_mode = cls.CONTINUOUS
+            action_mode = self.CONTINUOUS
             size_logits = len(action_space.shape) + 1
             init = 'glorot_uniform'
         else:
