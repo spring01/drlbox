@@ -68,7 +68,7 @@ class StochasticDisc(Policy):
 
 class StochasticCont(Policy):
 
-    def __init__(self, low, high, min_var=1e-6):
+    def __init__(self, low, high, min_var=1e-4):
         self.low = low
         self.high = high
         self.min_var = min_var
