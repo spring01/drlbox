@@ -1,5 +1,5 @@
 
-from drlbox.layers.noisy_dense import NoisyDenseIG
+from drlbox.layer.noisy_dense import NoisyDenseIG
 from .rlnet import RLNet
 from .acnet import ACNet
 from .qnet import QNet

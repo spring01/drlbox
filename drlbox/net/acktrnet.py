@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
-from drlbox.layers.noisy_dense import NoisyDenseIG
+from drlbox.layer.noisy_dense import NoisyDenseIG
 
 
 NOISY_NOT_REG = 'layer_collection register is not implemented for noisy dense'

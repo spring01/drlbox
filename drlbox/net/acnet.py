@@ -1,9 +1,8 @@
 
 import tensorflow as tf
-from .rlnet import RLNet
 import gym.spaces
-from drlbox.layers.noisy_dense import NoisyDenseIG
-from drlbox.common.manager import discrete_action, continuous_action
+from .rlnet import RLNet
+from drlbox.common.util import discrete_action, continuous_action
 
 
 class ACNet(RLNet):

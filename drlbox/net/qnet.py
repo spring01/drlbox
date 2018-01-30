@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from .rlnet import RLNet
-from drlbox.common.manager import discrete_action
+from drlbox.common.util import discrete_action
 
 
 class QNet(RLNet):
