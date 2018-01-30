@@ -88,8 +88,9 @@ class AsyncRL:
             self.save_model(step)
 
     def save_model(self, step):
-        filename = os.path.join(self.output, 'model_{}.h5'.format(step))
-        self.online_net.save_model(filename)
-        print('keras model written to {}'.format(filename))
+        if self.output is not None:
+            filename = os.path.join(self.output, 'model_{}.h5'.format(step))
+            self.online_net.save_model(filename)
+            print('keras model written to {}'.format(filename))
 
 

@@ -39,8 +39,13 @@ class ACKTRNet(ACNet):
             raise ValueError('model.action_mode not recognized')
         return lc
 
-    def set_optimizer(self, kfac, train_weights=None, inv_update_interval=100):
-        self.inv_update_interval = inv_update_interval
+    def set_optimizer(self, learning_rate, cov_ema_decay, damping,
+                      trust_radius, inv_upd_interval, train_weights=None):
+        layer_collection = self.build_layer_collection()
+        kfac = KfacOptimizerTV(learning_rate, cov_ema_decay, damping,
+            norm_constraint=trust_radius, layer_collection=layer_collection,
+            var_list=self.weights)
+        self.inv_upd_interval = inv_upd_interval
         self.train_step_counter = 0
         grads_and_vars = kfac.compute_gradients(self.tf_loss, self.weights)
         if train_weights is None:
@@ -52,7 +57,7 @@ class ACKTRNet(ACNet):
     def train_on_batch(self, state, action, advantage, target):
         loss = super().train_on_batch(state, action, advantage, target)
         self.train_step_counter += 1
-        if self.train_step_counter >= self.inv_update_interval:
+        if self.train_step_counter >= self.inv_upd_interval:
             self.sess.run(self.op_inv_update)
             self.train_step_counter = 0
         return loss
