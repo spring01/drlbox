@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.contrib.kfac.python.ops.layer_collection import LayerCollection
 from .acnet import ACNet
+from .kfac import KfacOptimizerTV
 from drlbox.layer.noisy_dense import NoisyDenseIG
 
 

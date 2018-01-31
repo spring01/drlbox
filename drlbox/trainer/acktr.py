@@ -15,7 +15,7 @@ class ACKTRTrainer(A3CTrainer):
                            kfac_inv_upd_interval=10,)}
 
     def setup_algorithm(self, action_space):
-        super.setup_algorithm(action_space)
+        super().setup_algorithm(action_space)
         self.net_cls = ACKTRNet
         self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
                                cov_ema_decay=self.kfac_cov_ema_decay,
