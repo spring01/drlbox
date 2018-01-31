@@ -55,7 +55,7 @@ class ACNet(RLNet):
             log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
-                neg_entropy = tf.reduce_sum(probs * log_probs)
+                neg_entropy = tf.reduce_mean(probs * log_probs)
         elif self.action_mode == self.CONTINUOUS:
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
@@ -68,7 +68,7 @@ class ACNet(RLNet):
             log_2pi_var = self.LOGPI + tf.log(two_var)
             log_probs_act = -(log_norm + 0.5 * int(dim_action) * log_2pi_var)
             if entropy_weight:
-                neg_entropy = 0.5 * tf.reduce_sum(log_2pi_var + 1.0)
+                neg_entropy = 0.5 * tf.reduce_mean(log_2pi_var + 1.0)
         else:
             raise ValueError('action_mode not recognized')
 
