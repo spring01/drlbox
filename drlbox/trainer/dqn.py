@@ -1,7 +1,7 @@
 
-from .base import Trainer
+from .trainer_base import Trainer
 from drlbox.net import QNet
-from drlbox.async.rollout import RolloutMultiStepQ
+from drlbox.rollout import RolloutMultiStepQ
 from drlbox.common.policy import DecayEpsGreedy
 
 

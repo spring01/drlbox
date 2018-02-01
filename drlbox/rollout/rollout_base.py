@@ -50,25 +50,3 @@ class Rollout:
             rollout_target[idx] = reward_long
         return rollout_target
 
-
-class RolloutAC(Rollout):
-
-    def get_feed(self, target_net, online_net):
-        rollout_state, rollout_input, rollout_action = self.state_input_action()
-        rollout_value = target_net.state_value(rollout_state)
-        rollout_target = self.target(rollout_value[-1])
-        rollout_adv = rollout_target - rollout_value[:-1]
-        return rollout_input, rollout_action, rollout_adv, rollout_target
-
-
-class RolloutMultiStepQ(Rollout):
-
-    def get_feed(self, target_net, online_net):
-        rollout_state, rollout_input, rollout_action = self.state_input_action()
-        last_state = rollout_state[-1:]
-        online_last_value = online_net.action_values(last_state)[-1]
-        target_last_value = target_net.action_values(last_state)[-1]
-        target_last_q = target_last_value[np.argmax(online_last_value)]
-        rollout_target = self.target(target_last_q)
-        return rollout_input, rollout_action, rollout_target
-

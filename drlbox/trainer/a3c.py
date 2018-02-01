@@ -1,7 +1,7 @@
 
-from .base import Trainer
+from .trainer_base import Trainer
 from drlbox.net import ACNet
-from drlbox.async.rollout import RolloutAC
+from drlbox.rollout import RolloutAC
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import StochasticDisc, StochasticCont
 

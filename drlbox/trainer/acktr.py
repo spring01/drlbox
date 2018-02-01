@@ -1,9 +1,6 @@
 
 from .a3c import A3CTrainer
 from drlbox.net import ACKTRNet
-from drlbox.async.rollout import RolloutAC
-from drlbox.common.util import discrete_action, continuous_action
-from drlbox.common.policy import StochasticDisc, StochasticCont
 
 
 class ACKTRTrainer(A3CTrainer):

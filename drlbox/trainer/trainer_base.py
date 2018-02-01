@@ -5,7 +5,7 @@ from .blocker import Blocker
 import os
 import signal
 import tensorflow as tf
-from drlbox.async.async import AsyncRL
+from drlbox.agent import AsyncRL
 from .step_counter import StepCounter
 
 
