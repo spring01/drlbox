@@ -1,5 +1,5 @@
 
-from .a3c import A3CTrainer
+from .a3c_trainer import A3CTrainer
 from drlbox.net import ACKTRNet
 
 

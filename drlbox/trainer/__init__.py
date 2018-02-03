@@ -1,6 +1,6 @@
 
-from .a3c import A3CTrainer
-from .acktr import ACKTRTrainer
-from .dqn import DQNTrainer
-from .noisynet_a3c import NoisyNetA3CTrainer
-from .noisynet_dqn import NoisyNetDQNTrainer
+from .a3c_trainer import A3CTrainer
+from .acktr_trainer import ACKTRTrainer
+from .dqn_trainer import DQNTrainer
+from .noisynet_a3c_trainer import NoisyNetA3CTrainer
+from .noisynet_dqn_trainer import NoisyNetDQNTrainer

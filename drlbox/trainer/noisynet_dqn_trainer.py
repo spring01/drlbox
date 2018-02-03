@@ -1,5 +1,5 @@
 
-from .dqn import DQNTrainer
+from .dqn_trainer import DQNTrainer
 from drlbox.net import NoisyQNet
 
 
