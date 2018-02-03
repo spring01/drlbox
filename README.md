@@ -2,43 +2,55 @@
 Supports *only Python3* (oops).
 
 ## Designing principle
-Most (deep) RL algorithms work by optimizing a neural network through interacting with a learning environment.  The goal of this package is to **minimize** the implementation effort of RL practitioners.  They only need to implement (or, more commonly, wrap) an **OpenAI-gym environment** and a neural network they want to use (as a **`tf.keras` model**) in order to run RL algorithms.
+Most (deep) RL algorithms work by optimizing a neural network through interacting with a learning environment.  The goal of this package is to **minimize** the implementation effort of RL practitioners.  They only need to implement (or, more commonly, wrap) an **OpenAI-gym environment** and a neural network they want to use as a **`tf.keras` model** (along with an interface function that turns the `observation` from the gym environment into a format that can be fed into the `tf.keras` model), in order to run RL algorithms.
 
 ## Install
 `pip install -e .` in your favorite virtual env.
 
 ## Requirements
-- tensorflow==1.5.0rc0
-- gym>=0.9.3
+- tensorflow>=1.5.0
+- gym<=0.9.4
 - gym[atari] (optional)
 
 # Usage
-## Asynchronous RL learner
-A Python3 "binary" script called `drlbox_async.py` will be found under your (virtual env) `$PATH` after installation.  Its `--env` flag sets the user-implemented OpenAI-gym environment part, and its `--feature` flag sets the user-implemented `tf.keras` model.  Optionally, the user may specify some algorithmic configurations/hyperparameters by using the `--config` flag.  For convenience, additional paths containing the user-implemented files can be added through the `--import_path` flag.
+A minimal demo could be as simple as the following code snippet.  (A3C algorithm, `CartPole-v0` environment, and a 1-layer fully-connected net with 100 hidden units)
+```
+from drlbox.env.default import make_env
+from drlbox.feature.fc import state_to_input, make_feature
+from drlbox.trainer import make_trainer
 
-### Use of `--env`: Implementing an OpenAI-gym environment maker
-The user is supposed to implement a `make_env(*args)` function which takes in some (arbitrary number of) arguments from the command line and returns **an OpenAI-gym environment** and **the environment's name**.  Things like history stacking/frame skipping/reward engineering are usually handled here as well.
+
+trainer = make_trainer(algorithm='a3c',
+                       env_maker=lambda: make_env('CartPole-v0'),
+                       feature_maker=lambda o: make_feature(o, [100]),
+                       state_to_input=state_to_input,
+                       num_parallel=1,
+                       train_steps=1000,)
+trainer.run()
+```
+
+## Gym Environment
+### Implementing an OpenAI-gym environment maker
+The user is supposed to implement a `env_maker` callable which returns **an OpenAI-gym environment**.  Things like history stacking/frame skipping/reward engineering are usually handled here as well.
 
 By default, the package provides a trivial example `drlbox/env/default.py`:
 ```python
 import gym
 
 def make_env(name):
-    return gym.make(name), name
+    return gym.make(name)
 ```
-which takes in a name of the environment, let `gym` make that environment, and returns that environment and its name.
-
-The `--env` flag accepts multiple arguments, and when the number of arguments is 1, it uses the default environment maker `drlbox/env/default.py` and treats the argument as the name of the environment.  When there are more than 1 arguments, the last argument will be interpreted as the filename containing the implementation of `make_env`, and all other arguments will be thrown into `make_env` (so better let them be strings).
+which takes in a name of the environment, let `gym` make the environment, and returns the environment.  To use the default env maker, simply let the callable be `env_maker = lambda: make_env(ENV_NAME)`.
 
 
-### Use of `--feature`: Implementing (part of) a `tf.keras` model
-The user is supposed to implement two functions here:
+## Neural network
+### Implementing (part of) a `tf.keras` model
+The user is supposed to implement a `feature_maker` callable which takes in an `observation_space` ([explanation](https://gym.openai.com/docs)) and returns `inp_state`, a `tf.keras.layers.Input` layer, and `feature`, a `tf.keras` layer or a tuple of 2 `tf.keras` layers.  For example, with actor-critic algorithms, when `feature` is a `tf.keras` layer, the actor and the critic streams share a common stack of layers. When `feature` is a tuple of 2 `tf.keras` layers, the actor and the critic will be completely separated).
 
-1. A `state_to_input(state)` function which takes in the `observation` from the output of the OpenAI-gym environment's `reset` or `step` function ([explanation](https://gym.openai.com/docs)) and returns something that a `tf.keras` model can directly take in.  Usually, this function does `numpy` stackings/reshapings/etc.
+### Implementing an interface function
+The user is also supposed to implement a `state_to_input` callable which takes in the `observation` from the output of the OpenAI-gym environment's `reset` or `step` function ([explanation](https://gym.openai.com/docs)) and returns something that a `tf.keras` model can directly take in.  Usually, this function does stuffs like `numpy` stackings/reshapings/etc.
 
-2. A `make_feature(observation_space, *args)` function which takes in an `observation_space` ([explanation](https://gym.openai.com/docs)) and other arguments from the command line.  It returns `inp_state`, a `tf.keras.layers.Input` layer, and `feature`, a `tf.keras` layer (when, say, actor and critic streams share a common stack of layers) or a tuple of 2 `tf.keras` layers (when actor and critic are two totally separate streams).
-
-
+### Example
 By default, the package provides a trivial example `drlbox/feature/fc.py`:
 ```python
 import numpy as np
@@ -52,11 +64,9 @@ def state_to_input(state):
 '''
 Input arguments:
     observation_space: Observation space of the environment;
-    arch_str:          Architecture of the neural net, e.g., '16 16 16'.
+    net_arch:          Architecture of the neural net, e.g., [16, 16, 16].
 '''
-def make_feature(observation_space, arch_str):
-    net_arch = arch_str.split(' ')
-    net_arch = [int(num) for num in net_arch]
+def make_feature(observation_space, net_arch):
     inp_state = Input(shape=input_shape(observation_space))
     feature = inp_state
     for num_hid in net_arch:
@@ -74,11 +84,5 @@ def input_shape(observation_space):
         raise TypeError('Type of observation_space is not recognized')
     return input_dim,
 ```
-which makes a fully-connected neural network.
-
-The `--feature` flag also accepts multiple arguments, and when the number of arguments is 1, it uses the default neural network feature maker `drlbox/feature/fc.py` and treats the argument as the `arch_str` argument for the default maker.  When there are more than 1 arguments, the last argument will be interpreted as the filename containing the implementation the 2 required funtions, and all other arguments will be thrown into the `make_feature` function as arguments after `observation_space` (so better let them be strings as well).
-
-### Use of `--config`:
-Please refer to `drlbox/config/async_default.py`.  Generally it's something like making a `foo.py` similar to it and setting `--config foo.py`
-
+which makes a fully-connected neural network until the last layer before the value/policy layer.  To use the default feature maker, simply let the feature-maker callable be `feature_maker = lambda o: make_feature(o, ARCHITECTURE)`.  The function `state_to_input` can be directly used as the default interface function.
 
