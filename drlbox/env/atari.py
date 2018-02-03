@@ -9,7 +9,7 @@ def make_env(name, num_frames=4, act_steps=2):
     env = Preprocessor(env)
     env = HistoryStacker(env, num_frames, act_steps)
     env = RewardClipper(env, -1.0, 1.0)
-    return env, name
+    return env
 
 
 

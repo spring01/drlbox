@@ -51,7 +51,7 @@ class Trainer:
         print('AsyncRL training ends')
 
     def worker(self, wid):
-        env, env_name = self.make_env()
+        env = self.make_env()
 
         # ports, cluster, and server
         port_list = [self.dtf_port_begin + i for i in range(self.num_parallel)]
@@ -105,7 +105,7 @@ class Trainer:
                 obj.set_session(sess)
             if target_net is not online_net:
                 target_net.set_session(sess)
-            output = self.get_output_folder(env_name) if is_master else None
+            output = self.get_output_folder(env.spec.id) if is_master else None
             agent = AsyncRL(is_master=is_master,
                             online_net=online_net, target_net=target_net,
                             state_to_input=self.state_to_input,
