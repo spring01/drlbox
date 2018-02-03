@@ -5,20 +5,18 @@ from .blocker import Blocker
 import os
 import signal
 import tensorflow as tf
-from drlbox.common.util import set_args
-from .step_counter import StepCounter
 import builtins
 from numpy import concatenate
-import logging
+from drlbox.common.util import set_args
+from .step_counter import StepCounter
 
 
 print = lambda *args, **kwargs: builtins.print(*args, **kwargs, flush=True)
 
-
 class Trainer:
 
-    KEYWORD_DICT = dict(make_env=None,
-                        make_feature=None,
+    KEYWORD_DICT = dict(env_maker=None,
+                        feature_maker=None,
                         state_to_input=None,
                         load_model=None,
                         save_dir=None,              # Directory to save data to
@@ -50,7 +48,7 @@ class Trainer:
         print('AsyncRL training ends')
 
     def worker(self, wid):
-        env = self.make_env()
+        env = self.env_maker()
         self.output = self.get_output_dir(env.spec.id)
 
         # ports, cluster, and server
@@ -177,7 +175,7 @@ class Trainer:
         raise NotImplementedError
 
     def build_net(self, env):
-        state, feature = self.make_feature(env.observation_space)
+        state, feature = self.feature_maker(env.observation_space)
         return self.net_cls.from_sfa(state, feature, env.action_space)
 
     def get_output_dir(self, env_name):
