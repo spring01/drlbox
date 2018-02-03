@@ -5,9 +5,14 @@ from .blocker import Blocker
 import os
 import signal
 import tensorflow as tf
-from drlbox.agent import AsyncRL
 from drlbox.common.util import set_args
 from .step_counter import StepCounter
+import builtins
+from numpy import concatenate
+import logging
+
+
+print = lambda *args, **kwargs: builtins.print(*args, **kwargs, flush=True)
 
 
 class Trainer:
@@ -46,17 +51,18 @@ class Trainer:
 
     def worker(self, wid):
         env = self.make_env()
+        self.output = self.get_output_dir(env.spec.id)
 
         # ports, cluster, and server
         port_list = [self.dtf_port_begin + i for i in range(self.num_parallel)]
-        is_master = wid == 0
+        self.is_master = wid == 0
         this_port = self.dtf_port_begin + wid
         cluster_list = ['localhost:{}'.format(port) for port in port_list]
         cluster = tf.train.ClusterSpec({'local': cluster_list})
         server = tf.train.Server(cluster, job_name='local', task_index=wid)
         print('Starting server #{}'.format(wid))
 
-        # global/local actor-critic nets
+        # global/local devices
         worker_dev = '/job:local/task:{}/cpu:0'.format(wid)
         rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                                  cluster=cluster)
@@ -71,57 +77,101 @@ class Trainer:
                 saved_model = self.net_cls.load_model(self.load_model)
                 saved_weights = saved_model.get_weights()
                 global_net = self.net_cls.from_model(saved_model)
-            if is_master:
+            if self.is_master:
                 global_net.model.summary()
-            step_counter = StepCounter()
+            self.step_counter = StepCounter()
 
         # local net
         with tf.device(worker_dev):
-            online_net = self.build_net(env)
-            online_net.set_loss(**self.loss_kwargs)
-            online_net.set_optimizer(**self.opt_kwargs,
+            self.online_net = self.build_net(env)
+            self.online_net.set_loss(**self.loss_kwargs)
+            self.online_net.set_optimizer(**self.opt_kwargs,
                                      train_weights=global_net.weights)
-            online_net.set_sync_weights(global_net.weights)
-            step_counter.set_increment()
+            self.online_net.set_sync_weights(global_net.weights)
+            self.step_counter.set_increment()
 
         # build a separate global target net for dqn
         if self.need_target_net:
             with tf.device(rep_dev):
-                target_net = self.build_net(env)
-                target_net.set_sync_weights(global_net.weights)
+                self.target_net = self.build_net(env)
+                self.target_net.set_sync_weights(global_net.weights)
         else: # make target net a reference to the local net
-            target_net = online_net
+            self.target_net = self.online_net
 
         # begin tensorflow session, build async RL agent and train
         with tf.Session('grpc://localhost:{}'.format(this_port)) as sess:
             sess.run(tf.global_variables_initializer())
-            for obj in global_net, online_net, step_counter:
+            for obj in global_net, self.online_net, self.step_counter:
                 obj.set_session(sess)
-            if target_net is not online_net:
-                target_net.set_session(sess)
-            output = self.get_output_folder(env.spec.id) if is_master else None
-            agent = AsyncRL(is_master=is_master,
-                            online_net=online_net, target_net=target_net,
-                            state_to_input=self.state_to_input,
-                            policy=self.policy,
-                            rollout_builder=self.rollout_builder,
-                            batch_size=self.opt_batch_size,
-                            train_steps=self.train_steps,
-                            step_counter=step_counter,
-                            interval_sync_target=self.interval_sync_target,
-                            interval_save=self.interval_save,
-                            output=output)
+            if self.target_net is not self.online_net:
+                self.target_net.set_session(sess)
             if self.load_model is not None:
                 global_net.set_sync_weights(saved_weights)
                 global_net.sync()
 
             # train the agent
-            agent.train(env)
+            self.train_on_env(env)
 
             # terminates the entire training when the master worker terminates
-            if is_master:
-                print('Master worker terminates')
+            if self.is_master:
+                print('Master worker terminates -- sending SIGTERM to parent')
                 os.kill(os.getppid(), signal.SIGTERM)
+
+    def train_on_env(self, env):
+        step = self.step_counter.step_count()
+        if self.is_master:
+            last_save = step
+            last_sync_target = step
+            self.save_model(step)
+
+        state = env.reset()
+        state = self.state_to_input(state)
+        episode_reward = 0.0
+        while step <= self.train_steps:
+            self.online_net.sync()
+            rollout_list = [self.rollout_builder(state)]
+            for batch_step in range(self.opt_batch_size):
+                action_values = self.online_net.action_values([state])[0]
+                action = self.policy.select_action(action_values)
+                state, reward, done, info = env.step(action)
+                episode_reward += reward
+                state = self.state_to_input(state)
+                rollout_list[-1].append(state, action, reward, done)
+                if done:
+                    state = env.reset()
+                    state = self.state_to_input(state)
+                    if batch_step < self.opt_batch_size - 1:
+                        rollout_list.append(self.rollout_builder(state))
+                    print('episode reward {:5.2f}'.format(episode_reward))
+                    episode_reward = 0.0
+
+            '''
+            feed_list is a list of tuples:
+            (inputs, actions, advantages, targets) for actor-critic;
+            (inputs, targets) for dqn.
+            '''
+            feed_list = [rollout.get_feed(self.target_net, self.online_net)
+                         for rollout in rollout_list]
+
+            # concatenate individual types of feeds from the list
+            train_args = map(concatenate, zip(*feed_list))
+            batch_loss = self.online_net.train_on_batch(*train_args)
+
+            self.step_counter.increment(self.opt_batch_size)
+            step = self.step_counter.step_count()
+            if self.is_master:
+                if step - last_save > self.interval_save:
+                    self.save_model(step)
+                    last_save = step
+                if self.target_net is not self.online_net:
+                    if step - last_sync_target > self.interval_sync_target:
+                        self.target_net.sync()
+                        last_sync_target = step
+                str_step = 'training step {}/{}'.format(step, self.train_steps)
+                print(str_step + ', loss {:3.3f}'.format(batch_loss))
+        # save at the end of training
+        if self.is_master:
+            self.save_model(step)
 
     def setup_algorithm(self, action_space):
         raise NotImplementedError
@@ -130,7 +180,7 @@ class Trainer:
         state, feature = self.make_feature(env.observation_space)
         return self.net_cls.from_sfa(state, feature, env.action_space)
 
-    def get_output_folder(self, env_name):
+    def get_output_dir(self, env_name):
         if self.save_dir is None:
             return None
         if not os.path.isdir(self.save_dir):
@@ -152,4 +202,10 @@ class Trainer:
         save_dir += '-run{}'.format(experiment_id)
         os.makedirs(save_dir, exist_ok=True)
         return save_dir
+
+    def save_model(self, step):
+        if self.output is not None:
+            filename = os.path.join(self.output, 'model_{}.h5'.format(step))
+            self.online_net.save_model(filename)
+            print('keras model written to {}'.format(filename))
 
