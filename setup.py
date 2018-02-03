@@ -24,12 +24,9 @@ setup(
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
     keywords='deep reinforcement learning',
     packages=find_packages(),
-    install_requires=['tensorflow>=1.5.0rc0', 'gym'],
-    scripts=['bin/drlbox_async.py',],
+    install_requires=['tensorflow>=1.5.0', 'gym<=0.9.4'],
 )

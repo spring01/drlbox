@@ -24,8 +24,8 @@ class Evaluator:
         saved_model = self.net_cls.load_model(self.load_model)
         net = self.net_cls.from_model(saved_model)
 
-        # global_variables_initializer will re-initialize net.weights so we need to
-        # sync to saved_weights
+        # global_variables_initializer will re-initialize net.weights
+        # and so we need to sync to saved_weights
         saved_weights = saved_model.get_weights()
         sess = tf.Session()
         net.set_session(sess)
