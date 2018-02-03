@@ -2,6 +2,7 @@
 from .eval_base import Evaluator
 from drlbox.net import QNet
 from drlbox.common.policy import EpsGreedy
+from drlbox.common.util import discrete_action
 
 
 class DQNEvaluator(Evaluator):
@@ -11,5 +12,7 @@ class DQNEvaluator(Evaluator):
     net_cls = QNet
 
     def setup_algorithm(self, action_space):
+        if not discrete_action(action_space):
+            raise TypeError('DQN supports only discrete action.')
         self.policy = EpsGreedy(self.policy_eps)
 

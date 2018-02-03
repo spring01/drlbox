@@ -3,6 +3,7 @@ from .trainer_base import Trainer
 from drlbox.net import QNet
 from drlbox.rollout import RolloutMultiStepQ
 from drlbox.common.policy import DecayEpsGreedy
+from drlbox.common.util import discrete_action
 
 
 class DQNTrainer(Trainer):
@@ -24,6 +25,8 @@ class DQNTrainer(Trainer):
         self.rollout_builder = lambda s: RolloutMultiStepQ(s, self.discount)
 
         # policy
+        if not discrete_action(action_space):
+            raise TypeError('DQN supports only discrete action.')
         eps_start = self.policy_eps_start
         eps_end = self.policy_eps_end
         eps_delta = (eps_start - eps_end) / self.policy_eps_decay_steps
