@@ -6,11 +6,9 @@ from .fc import state_to_input, input_shape
 '''
 Input arguments:
     observation_space: Observation space of the environment;
-    arch_str:          Architecture of the neural net, e.g., '16 16 16'.
+    net_arch:          Architecture of the neural net, e.g., [16, 16, 16].
 '''
-def make_feature(observation_space, arch_str):
-    net_arch = arch_str.split(' ')
-    net_arch = [int(num) for num in net_arch]
+def make_feature(observation_space, net_arch):
     inp_state = Input(shape=input_shape(observation_space))
     feature_list = []
     for feature in inp_state, inp_state:

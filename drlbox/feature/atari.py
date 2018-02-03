@@ -20,7 +20,6 @@ Input arguments:
     net_size:          Number of neurons in the first non-convolutional layer.
 '''
 def make_feature(observation_space, net_name='fc', net_size=512):
-    net_size = int(net_size)
     net_name = net_name.lower()
     num_frames = len(observation_space.spaces)
     height, width = observation_space.spaces[0].shape
