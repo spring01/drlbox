@@ -6,6 +6,7 @@ import os
 import signal
 import tensorflow as tf
 from drlbox.agent import AsyncRL
+from drlbox.common.util import set_args
 from .step_counter import StepCounter
 
 
@@ -30,14 +31,7 @@ class Trainer:
     need_target_net = False
 
     def __init__(self, **kwargs):
-        # set default arguments
-        for keyword, value in self.KEYWORD_DICT.items():
-            setattr(self, keyword, value)
-        # replace with user-specified arguments
-        for keyword, value in kwargs.items():
-            if keyword not in self.KEYWORD_DICT:
-                raise ValueError('Argument "{}" not valid'.format(keyword))
-            setattr(self, keyword, value)
+        set_args(self, self.KEYWORD_DICT, kwargs)
 
     def run(self):
         worker_list = []

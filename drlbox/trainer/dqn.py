@@ -11,11 +11,10 @@ class DQNTrainer(Trainer):
                     **dict(policy_eps_start=1.0,
                            policy_eps_end=0.01,
                            policy_eps_decay_steps=1000000,)}
-
+    net_cls = QNet
     need_target_net = True
 
     def setup_algorithm(self, action_space):
-        self.net_cls = QNet
         self.loss_kwargs = {}
         self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
                                clip_norm=self.opt_grad_clip_norm,
