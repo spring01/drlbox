@@ -1,5 +1,6 @@
 
 from multiprocessing import Process, cpu_count
+import socket
 from .blocker import Blocker
 
 import os
@@ -13,6 +14,9 @@ from .step_counter import StepCounter
 
 print = lambda *args, **kwargs: builtins.print(*args, **kwargs, flush=True)
 
+LOCALHOST = 'localhost'
+JOBNAME = 'local'
+
 class Trainer:
 
     KEYWORD_DICT = dict(env_maker=None,
@@ -21,7 +25,7 @@ class Trainer:
                         load_model=None,
                         save_dir=None,              # Directory to save data to
                         num_parallel=cpu_count(),
-                        dtf_port_begin=2220,
+                        port_begin=2220,
                         discount=0.99,
                         train_steps=1000000,
                         opt_learning_rate=1e-4,
@@ -37,6 +41,11 @@ class Trainer:
         set_args(self, self.KEYWORD_DICT, kwargs)
 
     def run(self):
+        self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
+        for port in self.port_list:
+            if not self.port_available(LOCALHOST, port):
+                raise NameError('port {} is not available'.format(port))
+        print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
         worker_list = []
         for wid in range(self.num_parallel):
             worker = Process(target=self.worker, args=(wid,))
@@ -45,23 +54,21 @@ class Trainer:
         Blocker().block()
         for worker in worker_list:
             worker.terminate()
-        print('AsyncRL training ends')
+        print('Asynchronous training has ended')
 
     def worker(self, wid):
         env = self.env_maker()
         self.output = self.get_output_dir(env.spec.id)
 
         # ports, cluster, and server
-        port_list = [self.dtf_port_begin + i for i in range(self.num_parallel)]
         self.is_master = wid == 0
-        this_port = self.dtf_port_begin + wid
-        cluster_list = ['localhost:{}'.format(port) for port in port_list]
-        cluster = tf.train.ClusterSpec({'local': cluster_list})
-        server = tf.train.Server(cluster, job_name='local', task_index=wid)
+        cluster_list = ['{}:{}'.format(LOCALHOST, p) for p in self.port_list]
+        cluster = tf.train.ClusterSpec({JOBNAME: cluster_list})
+        server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
         print('Starting server #{}'.format(wid))
 
         # global/local devices
-        worker_dev = '/job:local/task:{}/cpu:0'.format(wid)
+        worker_dev = '/job:{}/task:{}/cpu:0'.format(JOBNAME, wid)
         rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                                  cluster=cluster)
 
@@ -97,7 +104,8 @@ class Trainer:
             self.target_net = self.online_net
 
         # begin tensorflow session, build async RL agent and train
-        with tf.Session('grpc://localhost:{}'.format(this_port)) as sess:
+        port = self.port_list[wid]
+        with tf.Session('grpc://{}:{}'.format(LOCALHOST, port)) as sess:
             sess.run(tf.global_variables_initializer())
             for obj in global_net, self.online_net, self.step_counter:
                 obj.set_session(sess)
@@ -170,6 +178,10 @@ class Trainer:
         # save at the end of training
         if self.is_master:
             self.save_model(step)
+
+    def port_available(self, host, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        return sock.connect_ex((host, port)) != 0
 
     def setup_algorithm(self, action_space):
         raise NotImplementedError
