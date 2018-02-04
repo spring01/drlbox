@@ -28,5 +28,5 @@ setup(
     ],
     keywords='deep reinforcement learning',
     packages=find_packages(),
-    install_requires=['tensorflow>=1.5.0', 'gym<=0.9.4'],
+    install_requires=['tensorflow', 'gym', 'h5py'],
 )
