@@ -1,10 +1,11 @@
 
 from multiprocessing import Process, cpu_count
 import socket
-from .blocker import Blocker
 
 import os
-import signal
+import time
+from datetime import timedelta
+
 import tensorflow as tf
 import builtins
 from numpy import concatenate
@@ -49,7 +50,20 @@ class Trainer:
             worker = Process(target=self.worker, args=(wid,))
             worker.start()
             worker_list.append(worker)
-        Blocker().block()
+
+        # terminates the entire training when the master worker terminates
+        master_worker = worker_list[0]
+        wait_counter = 0
+        start_time = time.time()
+        while master_worker.is_alive():
+            wait_counter += 1
+            if wait_counter >= 3000:
+                wait_counter = 0
+                elapsed = int(time.time() - start_time)
+                time_str = str(timedelta(seconds=elapsed))
+                print('Elapsed time:', time_str)
+            time.sleep(0.1)
+        print('Master worker terminated -- training should end soon')
         for worker in worker_list:
             worker.terminate()
         print('Asynchronous training has ended')
@@ -82,11 +96,6 @@ class Trainer:
 
             # train the agent
             self.train_on_env(env)
-
-            # terminates the entire training when the master worker terminates
-            if self.is_master:
-                print('Master worker terminates -- sending SIGTERM to parent')
-                os.kill(os.getppid(), signal.SIGTERM)
 
     def train_on_env(self, env):
         step = self.step_counter.step_count()
