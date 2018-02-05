@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 import gym.spaces
-from .rlnet import RLNet
+from .net_base import RLNet
 from drlbox.common.util import discrete_action, continuous_action
 
 
