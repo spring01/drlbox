@@ -1,5 +1,4 @@
 
-import h5py
 import tensorflow as tf
 
 
