@@ -165,14 +165,14 @@ class Trainer:
 
             self.step_counter.increment(self.opt_batch_size)
             step = self.step_counter.step_count()
+            if self.target_net is not self.online_net:
+                if step - last_sync_target > self.interval_sync_target:
+                    self.target_net.sync()
+                    last_sync_target = step
             if self.is_master:
                 if step - last_save > self.interval_save:
                     self.save_model(step)
                     last_save = step
-                if self.target_net is not self.online_net:
-                    if step - last_sync_target > self.interval_sync_target:
-                        self.target_net.sync()
-                        last_sync_target = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
                 print(str_step + ', loss {:3.3f}'.format(batch_loss))
         # save at the end of training
