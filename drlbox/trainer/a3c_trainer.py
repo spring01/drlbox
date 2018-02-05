@@ -1,7 +1,6 @@
 
 from .trainer_base import Trainer
 from drlbox.net import ACNet
-from drlbox.rollout import RolloutAC
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import StochasticDisc, StochasticCont
 
@@ -19,7 +18,6 @@ class A3CTrainer(Trainer):
         self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
                                clip_norm=self.opt_grad_clip_norm,
                                epsilon=self.opt_adam_epsilon)
-        self.rollout_builder = lambda s: RolloutAC(s, self.discount)
         if discrete_action(action_space):
             self.policy = StochasticDisc()
         elif continuous_action(action_space):
@@ -28,4 +26,11 @@ class A3CTrainer(Trainer):
                                     min_var=self.policy_sto_cont_min_var)
         else:
             raise TypeError('Type of action_space not valid')
+
+    def rollout_feed(self, rollout):
+        r_state, r_input, r_action = rollout.state_input_action()
+        r_value = self.online_net.state_value(r_state)
+        r_target = rollout.target(r_value[-1], self.discount)
+        r_adv = r_target - r_value[:-1]
+        return r_input, r_action, r_adv, r_target
 

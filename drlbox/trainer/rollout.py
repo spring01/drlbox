@@ -5,11 +5,9 @@ import numpy as np
 class Rollout:
 
     '''
-    Usage: rollout = Rollout(state, discount)
-        discount:   discount factor gamma (for long term discounted reward);
+    Usage: rollout = Rollout(state)
     '''
-    def __init__(self, state, discount):
-        self.discount = discount
+    def __init__(self, state):
         self.state_list = [state]
         self.action_list = []
         self.reward_list = []
@@ -27,25 +25,17 @@ class Rollout:
     def __len__(self):
         return len(self.reward_list)
 
-    '''
-    target_net: target network for calculating the update target;
-    online_net: in double Q learning, the online network is used to find out
-                the optimal action for the bootstrapped Q.
-    '''
-    def get_feed(self, target_net, online_net):
-        raise NotImplementedError
-
     def state_input_action(self):
         rollout_state = np.stack(self.state_list)
         rollout_input = rollout_state[:-1]
         rollout_action = np.stack(self.action_list)
         return rollout_state, rollout_input, rollout_action
 
-    def target(self, value_last):
+    def target(self, value_last, discount):
         reward_long = 0.0 if self.done else value_last
         rollout_target = np.zeros(len(self))
         for idx in reversed(range(len(self))):
-            reward_long *= self.discount
+            reward_long *= discount
             reward_long += self.reward_list[idx]
             rollout_target[idx] = reward_long
         return rollout_target

@@ -10,6 +10,7 @@ import builtins
 from numpy import concatenate
 from drlbox.common.util import set_args
 from .step_counter import StepCounter
+from .rollout import Rollout
 
 
 print = lambda *args, **kwargs: builtins.print(*args, **kwargs, flush=True)
@@ -32,10 +33,7 @@ class Trainer:
                         opt_batch_size=32,
                         opt_adam_epsilon=1e-4,
                         opt_grad_clip_norm=40.0,
-                        interval_sync_target=40000,
                         interval_save=10000,)
-
-    need_target_net = False
 
     def __init__(self, **kwargs):
         set_args(self, self.KEYWORD_DICT, kwargs)
@@ -67,53 +65,20 @@ class Trainer:
         server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
         print('Starting server #{}'.format(wid))
 
+        self.setup_algorithm(env.action_space)
+
         # global/local devices
         worker_dev = '/job:{}/task:{}/cpu:0'.format(JOBNAME, wid)
         rep_dev = tf.train.replica_device_setter(worker_device=worker_dev,
                                                  cluster=cluster)
 
-        self.setup_algorithm(env.action_space)
-
-        # global net
-        with tf.device(rep_dev):
-            if self.load_model is None:
-                global_net = self.build_net(env)
-            else:
-                saved_model = self.net_cls.load_model(self.load_model)
-                saved_weights = saved_model.get_weights()
-                global_net = self.net_cls.from_model(saved_model)
-            if self.is_master:
-                global_net.model.summary()
-            self.step_counter = StepCounter()
-
-        # local net
-        with tf.device(worker_dev):
-            self.online_net = self.build_net(env)
-            self.online_net.set_loss(**self.loss_kwargs)
-            self.online_net.set_optimizer(**self.opt_kwargs,
-                                     train_weights=global_net.weights)
-            self.online_net.set_sync_weights(global_net.weights)
-            self.step_counter.set_increment()
-
-        # build a separate global target net for dqn
-        if self.need_target_net:
-            with tf.device(rep_dev):
-                self.target_net = self.build_net(env)
-                self.target_net.set_sync_weights(global_net.weights)
-        else: # make target net a reference to the local net
-            self.target_net = self.online_net
+        self.setup_nets(worker_dev, rep_dev, env)
 
         # begin tensorflow session, build async RL agent and train
         port = self.port_list[wid]
         with tf.Session('grpc://{}:{}'.format(LOCALHOST, port)) as sess:
             sess.run(tf.global_variables_initializer())
-            for obj in global_net, self.online_net, self.step_counter:
-                obj.set_session(sess)
-            if self.target_net is not self.online_net:
-                self.target_net.set_session(sess)
-            if self.load_model is not None:
-                global_net.set_sync_weights(saved_weights)
-                global_net.sync()
+            self.set_session(sess)
 
             # train the agent
             self.train_on_env(env)
@@ -127,7 +92,6 @@ class Trainer:
         step = self.step_counter.step_count()
         if self.is_master:
             last_save = step
-            last_sync_target = step
             self.save_model(step)
 
         state = env.reset()
@@ -135,7 +99,7 @@ class Trainer:
         episode_reward = 0.0
         while step <= self.train_steps:
             self.online_net.sync()
-            rollout_list = [self.rollout_builder(state)]
+            rollout_list = [Rollout(state)]
             for batch_step in range(self.opt_batch_size):
                 action_values = self.online_net.action_values([state])[0]
                 action = self.policy.select_action(action_values)
@@ -147,28 +111,14 @@ class Trainer:
                     state = env.reset()
                     state = self.state_to_input(state)
                     if batch_step < self.opt_batch_size - 1:
-                        rollout_list.append(self.rollout_builder(state))
+                        rollout_list.append(Rollout(state))
                     print('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
 
-            '''
-            feed_list is a list of tuples:
-            (inputs, actions, advantages, targets) for actor-critic;
-            (inputs, targets) for dqn.
-            '''
-            feed_list = [rollout.get_feed(self.target_net, self.online_net)
-                         for rollout in rollout_list]
-
-            # concatenate individual types of feeds from the list
-            train_args = map(concatenate, zip(*feed_list))
-            batch_loss = self.online_net.train_on_batch(*train_args)
+            batch_loss = self.train_on_rollout_list(rollout_list)
 
             self.step_counter.increment(self.opt_batch_size)
             step = self.step_counter.step_count()
-            if self.target_net is not self.online_net:
-                if step - last_sync_target > self.interval_sync_target:
-                    self.target_net.sync()
-                    last_sync_target = step
             if self.is_master:
                 if step - last_save > self.interval_save:
                     self.save_model(step)
@@ -182,9 +132,6 @@ class Trainer:
     def port_available(self, host, port):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         return sock.connect_ex((host, port)) != 0
-
-    def setup_algorithm(self, action_space):
-        raise NotImplementedError
 
     def build_net(self, env):
         state, feature = self.feature_maker(env.observation_space)
@@ -218,4 +165,49 @@ class Trainer:
             filename = os.path.join(self.output, 'model_{}.h5'.format(step))
             self.online_net.save_model(filename)
             print('keras model written to {}'.format(filename))
+
+    '''
+    Methods subject to overloading
+    '''
+    def setup_algorithm(self, action_space):
+        raise NotImplementedError
+
+    def setup_nets(self, worker_dev, rep_dev, env):
+        # global net
+        with tf.device(rep_dev):
+            if self.load_model is None:
+                self.global_net = self.build_net(env)
+            else:
+                saved_model = self.net_cls.load_model(self.load_model)
+                self.saved_weights = saved_model.get_weights()
+                self.global_net = self.net_cls.from_model(saved_model)
+            if self.is_master:
+                self.global_net.model.summary()
+            self.step_counter = StepCounter()
+
+        # local net
+        with tf.device(worker_dev):
+            self.online_net = self.build_net(env)
+            self.online_net.set_loss(**self.loss_kwargs)
+            self.online_net.set_optimizer(**self.opt_kwargs,
+                                          train_weights=self.global_net.weights)
+            self.online_net.set_sync_weights(self.global_net.weights)
+            self.step_counter.set_increment()
+
+    def set_session(self, sess):
+        for obj in self.global_net, self.online_net, self.step_counter:
+            obj.set_session(sess)
+        if self.load_model is not None:
+            self.global_net.set_sync_weights(self.saved_weights)
+            self.global_net.sync()
+
+    def train_on_rollout_list(self, rollout_list):
+        feed_list = [self.rollout_feed(rollout) for rollout in rollout_list]
+        # concatenate individual types of feeds from the list
+        train_args = map(concatenate, zip(*feed_list))
+        batch_loss = self.online_net.train_on_batch(*train_args)
+        return batch_loss
+
+    def rollout_feed(self, rollout):
+        raise NotImplementedError
 
