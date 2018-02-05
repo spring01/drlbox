@@ -1,7 +1,7 @@
 
 import time
-import numpy as np
 import tensorflow as tf
+from numpy import mean
 from drlbox.common.util import set_args
 
 
@@ -41,7 +41,7 @@ class Evaluator:
             total_rewards = 0.0
             while True:
                 state = self.state_to_input(state)
-                action_values = net.action_values(np.stack([state]))[0]
+                action_values = net.action_values([state])[0]
                 action = self.policy.select_action(action_values)
                 state, reward, done, info = env.step(action)
                 self.render_env_at_timestep(env)
@@ -52,7 +52,7 @@ class Evaluator:
                 env.render()
             all_total_rewards.append(total_rewards)
             print('episode reward:', total_rewards)
-        print('average episode reward:', np.mean(all_total_rewards))
+        print('average episode reward:', mean(all_total_rewards))
 
     def render_env_at_timestep(self, env):
         if self.render_timestep is not None:
