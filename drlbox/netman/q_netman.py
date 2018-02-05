@@ -1,7 +1,7 @@
 
 from .netman_base import NetManager
 
-class DQNNetManager(NetManager):
+class QNetManager(NetManager):
 
     def rollout_feed(self, rollout):
         r_state, r_input, r_action = rollout.state_input_action()
