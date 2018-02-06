@@ -33,3 +33,6 @@ class Rollout:
         rollout_action = np.stack(self.action_list)
         return rollout_state, rollout_input, rollout_action
 
+    def action_val(self):
+        return np.stack(self.action_val_list)
+
