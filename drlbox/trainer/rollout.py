@@ -1,5 +1,5 @@
 
-import numpy as np
+from numpy import stack
 
 
 class Rollout:
@@ -11,14 +11,14 @@ class Rollout:
         self.state_list = [state]
         self.action_list = []
         self.reward_list = []
-        self.action_val_list = []
+        self.act_val_list = []
         self.done = False
 
-    def append(self, state, action, reward, done, action_val):
+    def append(self, state, action, reward, done, act_val):
         self.state_list.append(state)
         self.action_list.append(action)
         self.reward_list.append(reward)
-        self.action_val_list.append(action_val)
+        self.act_val_list.append(act_val)
         self.done = done
 
     '''
@@ -28,11 +28,11 @@ class Rollout:
         return len(self.reward_list)
 
     def state_input_action(self):
-        rollout_state = np.stack(self.state_list)
+        rollout_state = stack(self.state_list)
         rollout_input = rollout_state[:-1]
-        rollout_action = np.stack(self.action_list)
+        rollout_action = stack(self.action_list)
         return rollout_state, rollout_input, rollout_action
 
-    def action_val(self):
-        return np.stack(self.action_val_list)
+    def act_val(self):
+        return stack(self.act_val_list)
 
