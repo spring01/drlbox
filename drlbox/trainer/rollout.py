@@ -11,12 +11,14 @@ class Rollout:
         self.state_list = [state]
         self.action_list = []
         self.reward_list = []
+        self.action_val_list = []
         self.done = False
 
-    def append(self, state, action, reward, done):
+    def append(self, state, action, reward, done, action_val):
         self.state_list.append(state)
         self.action_list.append(action)
         self.reward_list.append(reward)
+        self.action_val_list.append(action_val)
         self.done = done
 
     '''
