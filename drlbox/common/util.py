@@ -21,11 +21,11 @@ def set_args(obj, default_kwargs, kwargs):
             print(WARN_ARG_NOT_USED.format(keyword), file=sys.stderr)
         setattr(obj, keyword, value)
 
-def softmax(logits):
-    max_value = logits.max()
-    sumexp_shifted = np.sum(np.exp(logits - max_value))
+def softmax(logits, axis=None):
+    max_value = logits.max(axis=axis)
+    sumexp_shifted = np.sum(np.exp(logits - max_value), axis=axis)
     logsumexp = max_value + np.log(sumexp_shifted)
     probs = np.exp(logits - logsumexp)
-    probs /= np.sum(probs)
+    probs /= np.sum(probs, axis=axis)
     return probs
 
