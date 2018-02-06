@@ -1,6 +1,7 @@
 
 import sys
 import gym.spaces
+import numpy as np
 
 
 def discrete_action(action_space):
@@ -19,4 +20,12 @@ def set_args(obj, default_kwargs, kwargs):
         if keyword not in default_kwargs:
             print(WARN_ARG_NOT_USED.format(keyword), file=sys.stderr)
         setattr(obj, keyword, value)
+
+def softmax(logits):
+    max_value = logits.max()
+    sumexp_shifted = np.sum(np.exp(logits - max_value))
+    logsumexp = max_value + np.log(sumexp_shifted)
+    probs = np.exp(logits - logsumexp)
+    probs /= np.sum(probs)
+    return probs
 

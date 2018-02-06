@@ -1,5 +1,6 @@
 
 import numpy as np
+from drlbox.common.util import softmax
 
 
 class Policy:
@@ -59,11 +60,7 @@ class StochasticDisc(Policy):
     `action_values` is supposed to be 'logits', i.e., before softmax
     '''
     def select_action(self, action_values):
-        max_value = action_values.max()
-        sumexp_shifted = np.sum(np.exp(action_values - max_value))
-        logsumexp = max_value + np.log(sumexp_shifted)
-        probs = np.exp(action_values - logsumexp)
-        probs /= np.sum(probs)
+        probs = softmax(action_values)
         return np.random.choice(len(probs), p=probs)
 
 class StochasticCont(Policy):
