@@ -56,6 +56,6 @@ class DQNTrainer(Trainer):
         online_last_value = self.online_net.action_values(last_state)[-1]
         target_last_value = self.target_net.action_values(last_state)[-1]
         target_last_q = target_last_value[argmax(online_last_value)]
-        r_target = rollout.target(target_last_q, self.discount)
+        r_target = self.rollout_target(rollout, target_last_q)
         return r_input, r_action, r_target
 

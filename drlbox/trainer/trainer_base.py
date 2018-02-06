@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import tensorflow as tf
 import builtins
-from numpy import concatenate
+from numpy import concatenate, zeros
 from drlbox.common.util import set_args
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -219,4 +219,13 @@ class Trainer:
 
     def rollout_feed(self, rollout):
         raise NotImplementedError
+
+    def rollout_target(self, rollout, value_last):
+        reward_long = 0.0 if rollout.done else value_last
+        r_target = zeros(len(rollout))
+        for idx in reversed(range(len(rollout))):
+            reward_long *= self.discount
+            reward_long += rollout.reward_list[idx]
+            r_target[idx] = reward_long
+        return r_target
 

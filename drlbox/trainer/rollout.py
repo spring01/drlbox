@@ -33,12 +33,3 @@ class Rollout:
         rollout_action = np.stack(self.action_list)
         return rollout_state, rollout_input, rollout_action
 
-    def target(self, value_last, discount):
-        reward_long = 0.0 if self.done else value_last
-        rollout_target = np.zeros(len(self))
-        for idx in reversed(range(len(self))):
-            reward_long *= discount
-            reward_long += self.reward_list[idx]
-            rollout_target[idx] = reward_long
-        return rollout_target
-
