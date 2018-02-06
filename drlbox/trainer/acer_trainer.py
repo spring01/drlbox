@@ -57,7 +57,6 @@ class ACERTrainer(Trainer):
 
         # baseline, length n+1
         r_baseline = np.sum(r_probs * r_q_val, axis=1)
-        #~ ForkedPdb().set_trace()
 
         # return, length n
         reward_long = 0.0 if rollout.done else r_baseline[-1]
@@ -79,18 +78,4 @@ class ACERTrainer(Trainer):
     def softmax_with_minprob(self, logits):
         return np.maximum(self.minprob, softmax(logits, axis=1))
 
-import sys
-import pdb
 
-class ForkedPdb(pdb.Pdb):
-    """A Pdb subclass that may be used
-    from a forked multiprocessing child
-
-    """
-    def interaction(self, *args, **kwargs):
-        _stdin = sys.stdin
-        try:
-            sys.stdin = open('/dev/stdin')
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = _stdin
