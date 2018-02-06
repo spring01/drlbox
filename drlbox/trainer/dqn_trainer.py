@@ -1,6 +1,5 @@
 
 import tensorflow as tf
-from numpy import argmax
 from drlbox.net import QNet
 from drlbox.common.policy import DecayEpsGreedy
 from drlbox.common.util import discrete_action
@@ -55,7 +54,7 @@ class DQNTrainer(Trainer):
         last_state = r_state[-1:]
         online_last_value = self.online_net.action_values(last_state)[-1]
         target_last_value = self.target_net.action_values(last_state)[-1]
-        target_last_q = target_last_value[argmax(online_last_value)]
+        target_last_q = target_last_value[online_last_value.argmax()]
         r_target = self.rollout_target(rollout, target_last_q)
         return r_input, r_action, r_target
 
