@@ -31,7 +31,7 @@ class ACNet(RLNet):
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
         value = tf.keras.layers.Dense(1)(feature_value)
-        model = tf.keras.models.Model(inputs=state, outputs=[value, logits])
+        model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
         self.action_mode = action_mode
         self.set_model(model)
         return self
@@ -40,7 +40,7 @@ class ACNet(RLNet):
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
-        tf_value, self.tf_logits = model.outputs
+        self.tf_logits, tf_value = model.outputs
         self.tf_value = tf_value[:, 0]
 
     def set_loss(self, entropy_weight=0.01, min_var=None):
