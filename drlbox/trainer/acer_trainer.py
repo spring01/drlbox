@@ -1,9 +1,10 @@
 
-from .trainer_base import Trainer
+import tensorflow as tf
 import numpy as np
 from drlbox.net.acer_net import ACERNet
 from drlbox.common.util import discrete_action, softmax
 from drlbox.common.policy import StochasticDisc, StochasticCont
+from .trainer_base import Trainer
 
 
 ACER_ACTION_SPACE_ONLY_DISC = 'action must be discrete in ACER network'
@@ -28,6 +29,17 @@ class ACERTrainer(Trainer):
         else:
             raise TypeError(ACER_ACTION_SPACE_ONLY_DISC)
 
+    def setup_nets(self, worker_dev, rep_dev, env):
+        super().setup_nets(worker_dev, rep_dev, env)
+        with tf.device(rep_dev):
+            self.average_net = self.build_net(env)
+            self.average_net.set_sync_weights(self.global_net.weights)
+
+    def set_session(self, sess):
+        super().set_session(sess)
+        self.average_net.set_session(sess)
+        self.average_net.sync()
+
     def rollout_feed(self, rollout):
         r_state, r_input, r_action = rollout.state_input_action()
 
@@ -44,7 +56,8 @@ class ACERTrainer(Trainer):
         r_retrace = np.minimum(self.retrace_max, r_lratio)
 
         # baseline, length n+1
-        r_baseline = r_probs.dot(r_q_val.T)
+        r_baseline = np.sum(r_probs * r_q_val, axis=1)
+        #~ ForkedPdb().set_trace()
 
         # return, length n
         reward_long = 0.0 if rollout.done else r_baseline[-1]
@@ -53,8 +66,10 @@ class ACERTrainer(Trainer):
             reward_long *= self.discount
             reward_long += rollout.reward_list[idx]
             r_q_ret[idx] = reward_long
-            val = r_q_val[r_action[idx]]
-            reward_long = r_retrace[idx] * (reward_long - val) + r_baseline[idx]
+            act = r_action[idx]
+            val = r_q_val[idx, act]
+            retrace = r_retrace[idx, act]
+            reward_long = retrace * (reward_long - val) + r_baseline[idx]
 
         # logits from the average net, length n
         r_avg_logits = self.average_net.action_values(r_input)
@@ -64,3 +79,18 @@ class ACERTrainer(Trainer):
     def softmax_with_minprob(self, logits):
         return np.maximum(self.minprob, softmax(logits, axis=1))
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin

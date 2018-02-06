@@ -31,18 +31,17 @@ class ACERNet(RLNet):
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
-        self.tf_logits, tf_value = model.outputs
-        self.tf_value = tf_value[:, 0]
+        self.tf_logits, self.tf_value = model.outputs
 
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, truc_max=10.0):
         num_action = self.tf_logits.shape[1]
         ph_action = tf.placeholder(tf.int32, [None])
         action_onehot = tf.one_hot(ph_action, depth=num_action)
 
-        # importance sampling weight and retrace
+        # importance sampling weight and trunc
         ph_lratio = tf.placeholder(tf.float32, [None, num_action])
-        retrace = tf.minimum(truc_max, ph_lratio)
-        retrace_act = tf.reduce_sum(retrace * action_onehot, axis=1)
+        trunc = tf.minimum(truc_max, ph_lratio)
+        trunc_act = tf.reduce_sum(trunc * action_onehot, axis=1)
 
         # return and value placeholders
         ph_q_ret = tf.placeholder(tf.float32, [None])
@@ -55,13 +54,13 @@ class ACERNet(RLNet):
         # policy loss: return part
         log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
         adv_ret = ph_q_ret - ph_baseline
-        policy_ret_loss = -tf.reduce_mean(retrace * log_probs_act * adv_ret)
+        policy_ret_loss = -tf.reduce_mean(trunc_act * log_probs_act * adv_ret)
 
         # policy loss: value part
         probs = tf.nn.softmax(self.tf_logits)
         probs_const = tf.stop_gradient(probs)
         tru_prob = tf.maximum(0.0, 1.0 - truc_max / ph_lratio) * probs_const
-        adv_val = ph_q_val - ph_baseline
+        adv_val = ph_q_val - ph_baseline[:, tf.newaxis]
         policy_val_loss = -tf.reduce_mean(tru_prob * log_probs * adv_val)
 
         # KL (wrt averaged policy net) loss
@@ -72,7 +71,8 @@ class ACERNet(RLNet):
         kl_loss *= kl_weight
 
         # value (critic) loss
-        value_loss = tf.losses.mean_squared_error(ph_q_ret, self.tf_value,
+        value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
+        value_loss = tf.losses.mean_squared_error(ph_q_ret, value_act,
             reduction=tf.losses.Reduction.MEAN)
 
         # total loss
@@ -102,7 +102,8 @@ class ACERNet(RLNet):
 
     def train_on_batch(self, state, action, lratio, q_ret, q_val,
                        baseline, avg_logits):
-        feed_dict = {self.ph_action:        ph_action,
+        feed_dict = {self.ph_state:         state,
+                     self.ph_action:        action,
                      self.ph_lratio:        lratio,
                      self.ph_q_ret:         q_ret,
                      self.ph_q_val:         q_val,
