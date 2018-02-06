@@ -39,19 +39,20 @@ class Preprocessor(gym.Wrapper):
         assert(len(env.observation_space.shape) == 3)
         width, height = self.resize
         shape = height, width
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=shape)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=shape,
+                                                dtype=np.uint8)
         self.viewer = None
 
-    def _step(self, action):
+    def step(self, action):
         obs, reward, done, info = self.env.step(action)
         self.preprocessed_obs = self.preprocess(obs)
         return self.preprocessed_obs, reward, done, info
 
-    def _reset(self):
+    def reset(self):
         self.preprocessed_obs = self.preprocess(self.env.reset())
         return self.preprocessed_obs
 
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
         if close:
             if self.viewer is not None:
                 self.viewer.close()

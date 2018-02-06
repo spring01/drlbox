@@ -24,7 +24,12 @@ class HistoryStacker(gym.Wrapper):
         self.act_steps = act_steps
         self.viewer = None
 
-    def _step(self, action):
+    def reset(self):
+        obs = self.env.reset()
+        self.obs_list = deque([obs] * self.num_frames)
+        return tuple(self.obs_list)
+
+    def step(self, action):
         done = False
         total_reward = 0.0
         info = {}
@@ -36,11 +41,4 @@ class HistoryStacker(gym.Wrapper):
             total_reward += reward
             current_step += 1
         return tuple(self.obs_list), total_reward, done, info
-
-    def _reset(self):
-        obs = self.env.reset()
-        self.obs_list = deque([obs] * self.num_frames)
-        return tuple(self.obs_list)
-
-
 

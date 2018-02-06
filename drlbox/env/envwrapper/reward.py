@@ -18,7 +18,10 @@ class RewardClipper(gym.Wrapper):
         self.lower = lower
         self.upper = upper
 
-    def _step(self, action):
+    def reset(self):
+        return self.env.reset()
+
+    def step(self, action):
         obs, reward, done, info = self.env.step(action)
         reward = min(max(reward, self.lower), self.upper)
         return obs, reward, done, info
