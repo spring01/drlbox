@@ -28,7 +28,8 @@ class Replay:
 
     def sample(self, batch_size):
         batch_idx = [random.randrange(len(self)) for _ in range(batch_size)]
-        return [self.ring_buffer[i] for i in batch_idx], batch_idx, None
+        batch = [self.ring_buffer[i] for i in batch_idx]
+        return batch, batch_idx, [None] * batch_size
 
     def __len__(self):
         return self.length
