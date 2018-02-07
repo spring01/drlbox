@@ -70,10 +70,11 @@ class Trainer:
 
     def worker(self, wid):
         env = self.env_maker()
-        self.output = self.get_output_dir(env.spec.id)
+        self.is_master = wid == 0
+        if self.is_master:
+            self.output = self.get_output_dir(env.spec.id)
 
         # ports, cluster, and server
-        self.is_master = wid == 0
         cluster_list = ['{}:{}'.format(LOCALHOST, p) for p in self.port_list]
         cluster = tf.train.ClusterSpec({JOBNAME: cluster_list})
         server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
