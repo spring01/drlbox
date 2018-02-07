@@ -2,6 +2,7 @@
 from drlbox.layer.noisy_dense import NoisyDenseIG
 from .net_base import RLNet
 from .ac_net import ACNet
+from .acer_net import ACERNet
 from .q_net import QNet
 
 
@@ -27,6 +28,9 @@ class NoisyNet(RLNet):
 
 
 class NoisyACNet(NoisyNet, ACNet):
+    pass
+
+class NoisyACERNet(NoisyNet, ACERNet):
     pass
 
 class NoisyQNet(NoisyNet, QNet):
