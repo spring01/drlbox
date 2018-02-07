@@ -5,16 +5,15 @@ from drlbox.net.acer_net import ACERNet
 from drlbox.common.util import discrete_action, softmax
 from drlbox.common.policy import StochasticDisc, StochasticCont
 from drlbox.common.replay import Replay
-from .trainer_base import Trainer
+from .a3c_trainer import A3CTrainer
 
 
 ACER_ACTION_SPACE_ONLY_DISC = 'action must be discrete in ACER network'
 
-class ACERTrainer(Trainer):
+class ACERTrainer(A3CTrainer):
 
-    KEYWORD_DICT = {**Trainer.KEYWORD_DICT,
-                    **dict(a3c_entropy_weight=1e-2,
-                           acer_kl_weight=1e-1,
+    KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
+                    **dict(acer_kl_weight=1e-1,
                            acer_truc_max=10.0,
                            acer_soft_update_ratio=0.01,
                            replay_maxlen=1000,

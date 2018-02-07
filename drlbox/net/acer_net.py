@@ -1,13 +1,13 @@
 
 import tensorflow as tf
 import gym.spaces
-from .net_base import RLNet
+from .ac_net import ACNet
 
 
 '''
 ACER assumes discrete action for now.
 '''
-class ACERNet(RLNet):
+class ACERNet(ACNet):
 
     @classmethod
     def from_sfa(cls, state, feature, action_space):
@@ -93,12 +93,6 @@ class ACERNet(RLNet):
     def ac_values(self, state):
         return self.sess.run([self.tf_logits, self.tf_value],
                              feed_dict={self.ph_state: state})
-
-    def action_values(self, state):
-        return self.sess.run(self.tf_logits, feed_dict={self.ph_state: state})
-
-    def state_value(self, state):
-        return self.sess.run(self.tf_value, feed_dict={self.ph_state: state})
 
     def train_on_batch(self, state, action, lratio, q_ret, q_val,
                        baseline, avg_logits):
