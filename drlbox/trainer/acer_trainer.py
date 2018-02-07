@@ -1,9 +1,9 @@
 
 import tensorflow as tf
 import numpy as np
-from drlbox.net.acer_net import ACERNet
+from drlbox.net import ACERNet
 from drlbox.common.util import discrete_action, softmax
-from drlbox.common.policy import StochasticDisc, StochasticCont
+from drlbox.common.policy import StochasticDisc
 from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
 
