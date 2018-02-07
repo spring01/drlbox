@@ -1,6 +1,6 @@
 
-from .acer_eval import ACEREvaluator
 from drlbox.net import NoisyACERNet
+from .acer_eval import ACEREvaluator
 
 
 class NoisyNetACEREvaluator(ACEREvaluator):

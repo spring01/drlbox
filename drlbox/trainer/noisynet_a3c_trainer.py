@@ -1,6 +1,6 @@
 
-from .a3c_trainer import A3CTrainer
 from drlbox.net import NoisyACNet
+from .a3c_trainer import A3CTrainer
 
 
 class NoisyNetA3CTrainer(A3CTrainer):

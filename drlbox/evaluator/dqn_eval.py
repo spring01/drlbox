@@ -1,8 +1,8 @@
 
-from .eval_base import Evaluator
 from drlbox.net import QNet
 from drlbox.common.policy import EpsGreedy
 from drlbox.common.util import discrete_action
+from .eval_base import Evaluator
 
 
 class DQNEvaluator(Evaluator):

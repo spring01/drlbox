@@ -1,6 +1,6 @@
 
-from .dqn_eval import DQNEvaluator
 from drlbox.net import NoisyQNet
+from .dqn_eval import DQNEvaluator
 
 
 class NoisyNetDQNEvaluator(DQNEvaluator):

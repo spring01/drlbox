@@ -1,6 +1,6 @@
 
-from .dqn_trainer import DQNTrainer
 from drlbox.net import NoisyQNet
+from .dqn_trainer import DQNTrainer
 
 
 class NoisyNetDQNTrainer(DQNTrainer):

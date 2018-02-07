@@ -1,6 +1,6 @@
 
-from .a3c_trainer import A3CTrainer
 from drlbox.net import ACKTRNet
+from .a3c_trainer import A3CTrainer
 
 
 class ACKTRTrainer(A3CTrainer):

@@ -1,8 +1,8 @@
 
-from .trainer_base import Trainer
 from drlbox.net import ACNet
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import StochasticDisc, StochasticCont
+from .trainer_base import Trainer
 
 
 class A3CTrainer(Trainer):

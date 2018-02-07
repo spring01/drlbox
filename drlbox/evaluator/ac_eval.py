@@ -1,8 +1,8 @@
 
-from .eval_base import Evaluator
 from drlbox.net import ACNet
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import StochasticDisc, StochasticCont
+from .eval_base import Evaluator
 
 
 class ACEvaluator(Evaluator):

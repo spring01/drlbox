@@ -1,6 +1,6 @@
 
-from .acer_trainer import ACERTrainer
 from drlbox.net import NoisyACERNet
+from .acer_trainer import ACERTrainer
 
 
 class NoisyNetACERTrainer(ACERTrainer):
