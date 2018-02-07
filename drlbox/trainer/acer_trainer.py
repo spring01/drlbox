@@ -4,6 +4,7 @@ import numpy as np
 from drlbox.net.acer_net import ACERNet
 from drlbox.common.util import discrete_action, softmax
 from drlbox.common.policy import StochasticDisc, StochasticCont
+from drlbox.common.replay import Replay
 from .trainer_base import Trainer
 
 
@@ -13,7 +14,10 @@ class ACERTrainer(Trainer):
 
     KEYWORD_DICT = {**Trainer.KEYWORD_DICT,
                     **dict(a3c_entropy_weight=1e-2,
-                           acer_kl_weight=1e-1,)}
+                           acer_kl_weight=1e-1,
+                           replay_maxlen=1000,
+                           replay_minlen=100,
+                           replay_ratio=5,)}
     net_cls = ACERNet
     minprob = 1e-4
     retrace_max = 1.0
@@ -34,11 +38,24 @@ class ACERTrainer(Trainer):
         with tf.device(rep_dev):
             self.average_net = self.build_net(env)
             self.average_net.set_sync_weights(self.global_net.weights)
+        self.replay = Replay(self.replay_maxlen, self.replay_minlen)
 
     def set_session(self, sess):
         super().set_session(sess)
         self.average_net.set_session(sess)
         self.average_net.sync()
+
+    def train_on_rollout_list(self, rollout_list):
+        batch_loss = super().train_on_rollout_list(rollout_list)
+        loss_list = [batch_loss]
+        self.replay.append(rollout_list)
+        if len(self.replay) >= self.replay_minlen:
+            replay_times = np.random.poisson(self.replay_ratio)
+            rep_list, rep_idx, rep_weight = self.replay.sample(replay_times)
+            for roll_list, idx, weight in zip(rep_list, rep_idx, rep_weight):
+                batch_loss = super().train_on_rollout_list(roll_list)
+                loss_list.append(batch_loss)
+        return np.mean(loss_list)
 
     def rollout_feed(self, rollout):
         r_state, r_input, r_action = rollout.state_input_action()
