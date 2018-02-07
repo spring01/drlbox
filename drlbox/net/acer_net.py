@@ -5,7 +5,7 @@ from .net_base import RLNet
 
 
 '''
-Assuming discrete action for now.
+ACER assumes discrete action for now.
 '''
 class ACERNet(RLNet):
 
@@ -51,12 +51,12 @@ class ACERNet(RLNet):
         # log policy
         log_probs = tf.nn.log_softmax(self.tf_logits)
 
-        # policy loss: return part
+        # policy loss: sampled return
         log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
         adv_ret = ph_q_ret - ph_baseline
         policy_ret_loss = -tf.reduce_mean(trunc_act * log_probs_act * adv_ret)
 
-        # policy loss: value part
+        # policy loss: bootstrapped value
         probs = tf.nn.softmax(self.tf_logits)
         probs_const = tf.stop_gradient(probs)
         tru_prob = tf.maximum(0.0, 1.0 - truc_max / ph_lratio) * probs_const
@@ -111,4 +111,14 @@ class ACERNet(RLNet):
                      self.ph_avg_logits:    avg_logits}
         loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
         return loss
+
+    def set_soft_update(self, new_weights, update_ratio):
+        assign_list = []
+        for wt, nwt in zip(self.weights, new_weights):
+            upd = (1.0 - update_ratio) * wt + update_ratio * nwt
+            assign_list.append(wt.assign(upd))
+        self.op_soft_update = tf.group(*assign_list)
+
+    def soft_update(self):
+        self.sess.run(self.op_soft_update)
 

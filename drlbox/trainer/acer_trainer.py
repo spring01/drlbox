@@ -15,16 +15,19 @@ class ACERTrainer(Trainer):
     KEYWORD_DICT = {**Trainer.KEYWORD_DICT,
                     **dict(a3c_entropy_weight=1e-2,
                            acer_kl_weight=1e-1,
+                           acer_truc_max=10.0,
+                           acer_soft_update_ratio=0.01,
                            replay_maxlen=1000,
                            replay_minlen=100,
-                           replay_ratio=5,)}
+                           replay_ratio=4,)}
     net_cls = ACERNet
     minprob = 1e-4
     retrace_max = 1.0
 
     def setup_algorithm(self, action_space):
         self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
-                                kl_weight=self.acer_kl_weight)
+                                kl_weight=self.acer_kl_weight,
+                                truc_max=self.acer_truc_max)
         self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
                                clip_norm=self.opt_grad_clip_norm,
                                epsilon=self.opt_adam_epsilon)
@@ -38,6 +41,8 @@ class ACERTrainer(Trainer):
         with tf.device(rep_dev):
             self.average_net = self.build_net(env)
             self.average_net.set_sync_weights(self.global_net.weights)
+            self.average_net.set_soft_update(self.global_net.weights,
+                                             self.acer_soft_update_ratio)
         self.replay = Replay(self.replay_maxlen, self.replay_minlen)
 
     def set_session(self, sess):
@@ -47,13 +52,16 @@ class ACERTrainer(Trainer):
 
     def train_on_rollout_list(self, rollout_list):
         batch_loss = super().train_on_rollout_list(rollout_list)
+        self.average_net.soft_update()
         loss_list = [batch_loss]
         self.replay.append(rollout_list)
         if len(self.replay) >= self.replay_minlen:
             replay_times = np.random.poisson(self.replay_ratio)
             rep_list, rep_idx, rep_weight = self.replay.sample(replay_times)
             for roll_list, idx, weight in zip(rep_list, rep_idx, rep_weight):
+                self.online_net.sync()
                 batch_loss = super().train_on_rollout_list(roll_list)
+                self.average_net.soft_update()
                 loss_list.append(batch_loss)
         return np.mean(loss_list)
 
