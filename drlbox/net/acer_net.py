@@ -18,6 +18,7 @@ class ACERNet(ACNet):
         else:
             # feature is a single stream otherwise
             feature_logits = feature_value = feature
+        self.action_mode = self.DISCRETE
         size_logits = action_space.n
         init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
