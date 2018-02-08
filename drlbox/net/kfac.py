@@ -1,10 +1,5 @@
 
-import tensorflow as tf
-from tensorflow.python.ops import variables as tf_variables
-from tensorflow.contrib.kfac.python.ops import estimator as est
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-KfacOptimizer = tf.contrib.kfac.optimizer.KfacOptimizer
+from tensorflow.contrib.kfac.python.ops.optimizer import KfacOptimizer
 
 
 class KfacOptimizerTV(KfacOptimizer):
