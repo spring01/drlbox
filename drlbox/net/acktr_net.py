@@ -28,10 +28,9 @@ class ACKTRNet(ACNet):
                 padding = layer.padding.upper()
                 lc.register_conv2d(weights, strides, padding,
                                    layer.input, layer.output)
-        tf_value, tf_logits = self.model.outputs
-        lc.register_normal_predictive_distribution(tf_value)
+        lc.register_normal_predictive_distribution(self.tf_value)
         if self.action_mode == self.DISCRETE:
-            lc.register_categorical_predictive_distribution(tf_logits)
+            lc.register_categorical_predictive_distribution(self.tf_logits)
         elif self.action_mode == self.CONTINUOUS:
             mean = self.tf_mean
             var = tf.expand_dims(self.tf_var, -1)

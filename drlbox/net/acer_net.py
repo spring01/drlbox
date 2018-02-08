@@ -54,33 +54,33 @@ class ACERNet(ACNet):
         # policy loss: sampled return
         log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
         adv_ret = ph_q_ret - ph_baseline
-        policy_ret_loss = -tf.reduce_mean(trunc_act * log_probs_act * adv_ret)
+        policy_ret_loss = -tf.reduce_sum(trunc_act * log_probs_act * adv_ret)
 
         # policy loss: bootstrapped value
         probs = tf.nn.softmax(self.tf_logits)
         probs_const = tf.stop_gradient(probs)
         tru_prob = tf.maximum(0.0, 1.0 - truc_max / ph_lratio) * probs_const
         adv_val = ph_q_val - ph_baseline[:, tf.newaxis]
-        policy_val_loss = -tf.reduce_mean(tru_prob * log_probs * adv_val)
+        policy_val_loss = -tf.reduce_sum(tru_prob * log_probs * adv_val)
 
         # KL (wrt averaged policy net) loss
-        ph_avg_logits= tf.placeholder(tf.float32, [None, num_action])
+        ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
         avg_probs = tf.nn.softmax(ph_avg_logits)
         log_avg_probs = tf.nn.log_softmax(ph_avg_logits)
-        kl_loss = tf.reduce_mean(avg_probs * (log_avg_probs - log_probs))
+        kl_loss = tf.reduce_sum(avg_probs * (log_avg_probs - log_probs))
         kl_loss *= kl_weight
 
         # value (critic) loss
         value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
-        value_loss = tf.losses.mean_squared_error(ph_q_ret, value_act,
-            reduction=tf.losses.Reduction.MEAN)
+        value_squared_diff = tf.squared_difference(ph_q_ret, value_act)
+        value_loss = tf.reduce_sum(value_squared_diff)
 
         # total loss
-        self.tf_loss = value_loss + policy_ret_loss + policy_val_loss + kl_loss
+        self.tf_loss = policy_ret_loss + policy_val_loss + value_loss + kl_loss
 
         # entropy
         if entropy_weight:
-            self.tf_loss += tf.reduce_mean(probs * log_probs) * entropy_weight
+            self.tf_loss += tf.reduce_sum(probs * log_probs) * entropy_weight
 
         # placeholders
         self.ph_action = ph_action
