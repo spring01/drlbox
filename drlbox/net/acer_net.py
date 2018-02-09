@@ -67,9 +67,7 @@ class ACERNet(ACNet):
         # KL (wrt averaged policy net) loss
         ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
         avg_probs = tf.nn.softmax(ph_avg_logits)
-        log_avg_probs = tf.nn.log_softmax(ph_avg_logits)
-        kl_loss = tf.reduce_sum(avg_probs * (log_avg_probs - log_probs))
-        kl_loss *= kl_weight
+        kl_loss = -kl_weight * tf.reduce_sum(avg_probs * log_probs)
 
         # value (critic) loss
         value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
