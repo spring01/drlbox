@@ -45,10 +45,10 @@ class Trainer:
             if not self.port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
         print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
-        master_finished = Event()
+        event_finished = Event()
         worker_list = []
         for wid in range(self.num_parallel):
-            worker = Process(target=self.worker, args=(wid, master_finished))
+            worker = Process(target=self.worker, args=(wid, event_finished))
             worker.start()
             worker_list.append(worker)
 
@@ -56,7 +56,7 @@ class Trainer:
         master_worker = worker_list[0]
         wait_counter = 0
         start_time = time.time()
-        while not master_finished.is_set():
+        while not event_finished.is_set():
             wait_counter += 1
             if wait_counter >= 3000:
                 wait_counter = 0
@@ -71,7 +71,7 @@ class Trainer:
                 time.sleep(0.01)
         print('Asynchronous training has ended')
 
-    def worker(self, wid, master_finished):
+    def worker(self, wid, event_finished):
         env = self.env_maker()
         self.is_master = wid == 0
         if self.is_master:
@@ -102,7 +102,7 @@ class Trainer:
             self.train_on_env(env)
 
         if self.is_master:
-            master_finished.set()
+            event_finished.set()
             while True:
                 time.sleep(1)
 
