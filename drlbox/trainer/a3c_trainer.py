@@ -28,7 +28,7 @@ class A3CTrainer(Trainer):
             raise TypeError('Type of action_space not valid')
 
     def rollout_feed(self, rollout):
-        r_state, r_input, r_action = rollout.state_input_action()
+        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
         r_value = self.online_net.state_value(r_state)
         r_target = self.rollout_target(rollout, r_value[-1])
         r_adv = r_target - r_value[:-1]

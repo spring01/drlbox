@@ -1,6 +1,4 @@
 
-from numpy import stack
-
 
 class Rollout:
 
@@ -26,13 +24,4 @@ class Rollout:
     '''
     def __len__(self):
         return len(self.reward_list)
-
-    def state_input_action(self):
-        rollout_state = stack(self.state_list)
-        rollout_input = rollout_state[:-1]
-        rollout_action = stack(self.action_list)
-        return rollout_state, rollout_input, rollout_action
-
-    def act_val(self):
-        return stack(self.act_val_list)
 

@@ -50,7 +50,7 @@ class DQNTrainer(Trainer):
         return batch_loss
 
     def rollout_feed(self, rollout):
-        r_state, r_input, r_action = rollout.state_input_action()
+        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
         last_state = r_state[-1:]
         online_last_value = self.online_net.action_values(last_state)[-1]
         target_last_value = self.target_net.action_values(last_state)[-1]

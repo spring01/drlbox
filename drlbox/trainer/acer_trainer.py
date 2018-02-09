@@ -20,7 +20,7 @@ class ACERTrainer(A3CTrainer):
                            replay_minlen=100,
                            replay_ratio=4,)}
     net_cls = ACERNet
-    minprob = 1e-4
+    minprob = 1e-6
     retrace_max = 1.0
 
     def setup_algorithm(self, action_space):
@@ -65,10 +65,10 @@ class ACERTrainer(A3CTrainer):
         return np.mean(loss_list)
 
     def rollout_feed(self, rollout):
-        r_state, r_input, r_action = rollout.state_input_action()
+        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
 
         # off-policy probabilities, length n
-        r_act_logits = rollout.act_val()
+        r_act_logits = np.stack(rollout.act_val_list)
         r_act_probs = self.softmax_with_minprob(r_act_logits)
 
         # on-policy probabilities and values, length n+1

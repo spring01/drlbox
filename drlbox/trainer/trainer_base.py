@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import tensorflow as tf
 import builtins
-from numpy import concatenate, zeros
+import numpy as np
 from drlbox.common.util import set_args
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -105,7 +105,6 @@ class Trainer:
             self.save_model(step)
 
         state = env.reset()
-        state = self.state_to_input(state)
         episode_reward = 0.0
         while step <= self.train_steps:
             self.online_net.sync()
@@ -115,11 +114,9 @@ class Trainer:
                 action = self.policy.select_action(act_val)
                 state, reward, done, info = env.step(action)
                 episode_reward += reward
-                state = self.state_to_input(state)
                 rollout_list[-1].append(state, action, reward, done, act_val)
                 if done:
                     state = env.reset()
-                    state = self.state_to_input(state)
                     if batch_step < self.opt_batch_size - 1:
                         rollout_list.append(Rollout(state))
                     print('episode reward {:5.2f}'.format(episode_reward))
@@ -214,16 +211,25 @@ class Trainer:
     def train_on_rollout_list(self, rollout_list):
         feed_list = [self.rollout_feed(rollout) for rollout in rollout_list]
         # concatenate individual types of feeds from the list
-        train_args = map(concatenate, zip(*feed_list))
+        train_args = map(np.concatenate, zip(*feed_list))
         batch_loss = self.online_net.train_on_batch(*train_args)
         return batch_loss
 
     def rollout_feed(self, rollout):
         raise NotImplementedError
 
+    def rollout_state_input_action(self, rollout):
+        r_state = []
+        for state in rollout.state_list:
+            r_state.append(self.state_to_input(state))
+        r_state = np.stack(r_state)
+        r_input = r_state[:-1]
+        r_action = np.stack(rollout.action_list)
+        return r_state, r_input, r_action
+
     def rollout_target(self, rollout, value_last):
         reward_long = 0.0 if rollout.done else value_last
-        r_target = zeros(len(rollout))
+        r_target = np.zeros(len(rollout))
         for idx in reversed(range(len(rollout))):
             reward_long *= self.discount
             reward_long += rollout.reward_list[idx]
