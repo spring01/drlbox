@@ -1,5 +1,5 @@
 
-from multiprocessing import Process, cpu_count
+from multiprocessing import Process, Event, cpu_count
 import socket
 
 import os
@@ -45,9 +45,10 @@ class Trainer:
             if not self.port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
         print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
+        master_finished = Event()
         worker_list = []
         for wid in range(self.num_parallel):
-            worker = Process(target=self.worker, args=(wid,))
+            worker = Process(target=self.worker, args=(wid, master_finished))
             worker.start()
             worker_list.append(worker)
 
@@ -55,7 +56,7 @@ class Trainer:
         master_worker = worker_list[0]
         wait_counter = 0
         start_time = time.time()
-        while master_worker.is_alive():
+        while not master_finished.is_set():
             wait_counter += 1
             if wait_counter >= 3000:
                 wait_counter = 0
@@ -64,11 +65,13 @@ class Trainer:
                 print('Elapsed time:', time_str)
             time.sleep(0.1)
         print('Master worker terminated -- training should end soon')
-        for worker in worker_list:
-            worker.terminate()
+        for worker in worker_list[::-1]:
+            while worker.is_alive():
+                worker.terminate()
+                time.sleep(0.01)
         print('Asynchronous training has ended')
 
-    def worker(self, wid):
+    def worker(self, wid, master_finished):
         env = self.env_maker()
         self.is_master = wid == 0
         if self.is_master:
@@ -97,6 +100,11 @@ class Trainer:
 
             # train the agent
             self.train_on_env(env)
+
+        if self.is_master:
+            master_finished.set()
+            while True:
+                time.sleep(1)
 
     def train_on_env(self, env):
         step = self.step_counter.step_count()
