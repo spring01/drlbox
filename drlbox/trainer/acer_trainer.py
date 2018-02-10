@@ -15,7 +15,7 @@ class ACERTrainer(A3CTrainer):
     KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
                     **dict(acer_kl_weight=1e-1,
                            acer_truc_max=10.0,
-                           acer_soft_update_ratio=0.01,
+                           acer_soft_update_ratio=0.05,
                            replay_maxlen=1000,
                            replay_minlen=100,
                            replay_ratio=4,)}
