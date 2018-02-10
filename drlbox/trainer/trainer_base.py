@@ -118,7 +118,8 @@ class Trainer:
             self.online_net.sync()
             rollout_list = [Rollout(state)]
             for batch_step in range(self.opt_batch_size):
-                act_val = self.online_net.action_values([state])[0]
+                net_input = self.state_to_input(state)
+                act_val = self.online_net.action_values([net_input])[0]
                 action = self.policy.select_action(act_val)
                 state, reward, done, info = env.step(action)
                 episode_reward += reward
