@@ -3,6 +3,7 @@ from multiprocessing import Process, Event, cpu_count
 import socket
 
 import os
+import signal
 import time
 from datetime import timedelta
 
@@ -34,7 +35,8 @@ class Trainer:
                         opt_batch_size=32,
                         opt_adam_epsilon=1e-4,
                         opt_grad_clip_norm=40.0,
-                        interval_save=10000,)
+                        interval_save=10000,
+                        catch_sigint=False,)
 
     def __init__(self, **kwargs):
         set_args(self, self.KEYWORD_DICT, kwargs)
@@ -45,18 +47,20 @@ class Trainer:
             if not self.port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
         print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
-        event_finished = Event()
-        worker_list = []
+        self.event_finished = Event()
+        self.worker_list = []
+        if self.catch_sigint:
+            signal.signal(signal.SIGINT, self.sigint_handler)
         for wid in range(self.num_parallel):
-            worker = Process(target=self.worker, args=(wid, event_finished))
+            worker = Process(target=self.worker, args=(wid,))
             worker.start()
-            worker_list.append(worker)
+            self.worker_list.append(worker)
 
         # terminates the entire training when the master worker terminates
-        master_worker = worker_list[0]
+        master_worker = self.worker_list[0]
         wait_counter = 0
         start_time = time.time()
-        while not event_finished.is_set():
+        while not self.event_finished.is_set():
             wait_counter += 1
             if wait_counter >= 3000:
                 wait_counter = 0
@@ -65,13 +69,20 @@ class Trainer:
                 print('Elapsed time:', time_str)
             time.sleep(0.1)
         print('Master worker terminated -- training should end soon')
-        for worker in worker_list[::-1]:
+        self.terminate_workers()
+        print('Asynchronous training has ended')
+
+    def sigint_handler(self, signum, frame):
+        self.event_finished.set()
+        self.terminate_workers()
+
+    def terminate_workers(self):
+        for worker in self.worker_list[::-1]:
             while worker.is_alive():
                 worker.terminate()
                 time.sleep(0.01)
-        print('Asynchronous training has ended')
 
-    def worker(self, wid, event_finished):
+    def worker(self, wid):
         env = self.env_maker()
         self.is_master = wid == 0
         if self.is_master:
@@ -102,7 +113,7 @@ class Trainer:
             self.train_on_env(env)
 
         if self.is_master:
-            event_finished.set()
+            self.event_finished.set()
             while True:
                 time.sleep(1)
 
