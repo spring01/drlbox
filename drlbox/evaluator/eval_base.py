@@ -7,7 +7,7 @@ from drlbox.common.util import set_args
 
 class Evaluator:
 
-    KEYWORD_DICT = dict(make_env=None,
+    KEYWORD_DICT = dict(env_maker=None,
                         state_to_input=None,
                         load_model=None,
                         render_timestep=None,
@@ -18,7 +18,7 @@ class Evaluator:
         set_args(self, self.KEYWORD_DICT, kwargs)
 
     def run(self):
-        env = self.make_env()
+        env = self.env_maker()
         self.setup_algorithm(env.action_space)
 
         saved_model = self.net_cls.load_model(self.load_model)
