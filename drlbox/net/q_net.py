@@ -11,6 +11,8 @@ class QNet(RLNet):
         self = cls()
         if not discrete_action(action_space):
             raise ValueError('action_space must be discrete in Q network')
+        flatten = tf.keras.layers.Flatten()
+        feature = flatten(feature)
         q_value = self.dense_layer(action_space.n)(feature)
         model = tf.keras.models.Model(inputs=state, outputs=q_value)
         self.set_model(model)

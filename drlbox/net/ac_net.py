@@ -12,12 +12,13 @@ class ACNet(RLNet):
     @classmethod
     def from_sfa(cls, state, feature, action_space):
         self = cls()
+        flatten = tf.keras.layers.Flatten()
         if type(feature) is tuple:
             # separated logits/value streams when feature is a length 2 tuple
-            feature_logits, feature_value = feature
+            feature_logits, feature_value = map(flatten, feature)
         else:
             # feature is a single stream otherwise
-            feature_logits = feature_value = feature
+            feature_logits = feature_value = flatten(feature)
         if discrete_action(action_space):
             action_mode = self.DISCRETE
             size_logits = action_space.n
