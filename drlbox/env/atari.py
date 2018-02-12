@@ -1,14 +1,15 @@
 
 import gym
-from .envwrapper import HistoryStacker, RewardClipper
+from .envwrapper import HistoryStacker, RewardClipper, EpisodicLife
 
 
 def make_env(name, num_frames=4, act_steps=2):
-    num_frames, act_steps = int(num_frames), int(act_steps)
     env = gym.make(name)
+    env = env.unwrapped # unwrap from TimeLimit
     env = Preprocessor(env)
     env = HistoryStacker(env, num_frames, act_steps)
     env = RewardClipper(env, -1.0, 1.0)
+    env = EpisodicLife(env)
     return env
 
 
@@ -52,22 +53,23 @@ class Preprocessor(gym.Wrapper):
         self.preprocessed_obs = self.preprocess(self.env.reset())
         return self.preprocessed_obs
 
-    def render(self, mode='human', close=False):
-        if close:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-            return
+    def render(self, mode='human'):
         if mode == 'rgb_array':
             return self.preprocessed_obs
         elif mode == 'human':
-            self.env.render()
+            self.env.render(mode='human')
         elif mode == 'wrapped':
             from gym.envs.classic_control import rendering
             if self.viewer is None:
                 self.viewer = rendering.SimpleImageViewer()
             img = np.stack([self.preprocessed_obs] * 3, axis=2)
             self.viewer.imshow(img)
+
+    def close(self):
+        self.unwrapped.close()
+        if self.viewer is not None:
+            self.viewer.close()
+            self.viewer = None
 
     def preprocess(self, obs):
         img = Image.fromarray(obs)
