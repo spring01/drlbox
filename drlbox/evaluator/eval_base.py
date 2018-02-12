@@ -3,6 +3,8 @@ import time
 import tensorflow as tf
 from numpy import mean
 from drlbox.common.util import set_args
+from drlbox.common.util import discrete_action, continuous_action
+from drlbox.common.policy import StochasticDisc, StochasticCont, EpsGreedy
 
 
 class Evaluator:
@@ -12,15 +14,36 @@ class Evaluator:
                         load_model=None,
                         render_timestep=None,
                         render_end=False,
-                        num_episodes=20,)
+                        num_episodes=20,
+                        policy_type='stochastic',
+                        policy_sto_cont_min_var=1e-4,
+                        policy_eps=0.0,)
 
     def __init__(self, **kwargs):
         set_args(self, self.KEYWORD_DICT, kwargs)
 
     def run(self):
         env = self.env_maker()
-        self.setup_algorithm(env.action_space)
 
+        # setup policy
+        self.policy_type = self.policy_type.lower()
+        if self.policy_type == 'stochastic':
+            if discrete_action(env.action_space):
+                self.policy = StochasticDisc()
+            elif continuous_action(env.action_space):
+                self.policy = StochasticCont(low=env.action_space.low,
+                    high=env.action_space.high,
+                    min_var=self.policy_sto_cont_min_var)
+            else:
+                raise TypeError('Type of action_space not valid')
+        elif self.policy_type == 'greedy':
+            if not discrete_action(env.action_space):
+                raise TypeError('greedy policy supports only discrete action.')
+            self.policy = EpsGreedy(self.policy_eps)
+        else:
+            raise ValueError('policy type {} invalid.'.format(self.policy_type))
+
+        # load model
         saved_model = self.net_cls.load_model(self.load_model)
         net = self.net_cls.from_model(saved_model)
 
