@@ -100,6 +100,7 @@ class ACERTrainer(A3CTrainer):
                 r_baseline[:-1], r_avg_logits)
 
     def softmax_with_minprob(self, logits):
-        return np.maximum(self.minprob, softmax(logits, axis=1))
+        probs = softmax(logits, axis=1)
+        return np.maximum(self.minprob, probs - self.minprob / logits.shape[1])
 
 

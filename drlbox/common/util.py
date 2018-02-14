@@ -22,9 +22,9 @@ def set_args(obj, default_kwargs, kwargs):
         setattr(obj, keyword, value)
 
 def softmax(logits, axis=None):
-    max_value = logits.max(axis=axis, keepdims=True)
-    sumexp_shifted = np.exp(logits - max_value).sum(axis=axis, keepdims=True)
-    logsumexp = max_value + np.log(sumexp_shifted)
+    max_logits = logits.max(axis=axis, keepdims=True)
+    sumexp_shifted = np.exp(logits - max_logits).sum(axis=axis, keepdims=True)
+    logsumexp = max_logits + np.log(sumexp_shifted)
     probs = np.exp(logits - logsumexp)
     probs /= probs.sum(axis=axis, keepdims=True)
     return probs
