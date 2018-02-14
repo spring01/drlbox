@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from drlbox.net import QNet
-from drlbox.common.policy import DecayEpsGreedy
+from drlbox.common.policy import DecayEpsGreedyPolicy
 from drlbox.common.util import discrete_action
 from .trainer_base import Trainer
 
@@ -27,7 +27,7 @@ class DQNTrainer(Trainer):
         eps_start = self.policy_eps_start
         eps_end = self.policy_eps_end
         eps_delta = (eps_start - eps_end) / self.policy_eps_decay_steps
-        self.policy = DecayEpsGreedy(eps_start, eps_end, eps_delta)
+        self.policy = DecayEpsGreedyPolicy(eps_start, eps_end, eps_delta)
 
     def setup_nets(self, worker_dev, rep_dev, env):
         super().setup_nets(worker_dev, rep_dev, env)

@@ -9,7 +9,7 @@ class Policy:
         raise NotImplementedError('This method should be overriden.')
 
 
-class Random(Policy):
+class RandomPolicy(Policy):
 
     def __init__(self, num_act):
         assert num_act >= 1
@@ -20,11 +20,11 @@ class Random(Policy):
 
 
 '''
-With prob epsilon select a random action; otherwise greedy
-(so that when epsilon = 0.0 it falls back to greedy policy)
+With probability epsilon select a random action; otherwise greedy
+(so that when epsilon = 0.0 it falls back to greedy policy).
 Works only with discrete actions
 '''
-class EpsGreedy(Policy):
+class EpsGreedyPolicy(Policy):
 
     def __init__(self, epsilon):
         self.epsilon = epsilon
@@ -38,7 +38,7 @@ class EpsGreedy(Policy):
 '''
 Also works only with discrete actions
 '''
-class DecayEpsGreedy(EpsGreedy):
+class DecayEpsGreedyPolicy(EpsGreedyPolicy):
 
     def __init__(self, eps_start, eps_end, eps_delta):
         self.epsilon = eps_start
@@ -54,7 +54,7 @@ class DecayEpsGreedy(EpsGreedy):
         return action
 
 
-class StochasticDisc(Policy):
+class SoftmaxPolicy(Policy):
 
     '''
     `action_values` is supposed to be 'logits', i.e., before softmax
@@ -63,7 +63,8 @@ class StochasticDisc(Policy):
         probs = softmax(action_values)
         return np.random.choice(len(probs), p=probs)
 
-class StochasticCont(Policy):
+
+class GaussianPolicy(Policy):
 
     def __init__(self, low, high, min_var=1e-4):
         self.low = low

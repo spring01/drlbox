@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 from drlbox.net import ACERNet
 from drlbox.common.util import discrete_action, softmax
-from drlbox.common.policy import StochasticDisc
+from drlbox.common.policy import SoftmaxPolicy
 from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
 
@@ -31,7 +31,7 @@ class ACERTrainer(A3CTrainer):
                                clip_norm=self.opt_grad_clip_norm,
                                epsilon=self.opt_adam_epsilon)
         if discrete_action(action_space):
-            self.policy = StochasticDisc()
+            self.policy = SoftmaxPolicy()
         else:
             raise TypeError(ACER_ACTION_SPACE_ONLY_DISC)
 

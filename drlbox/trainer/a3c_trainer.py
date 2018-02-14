@@ -1,7 +1,7 @@
 
 from drlbox.net import ACNet
 from drlbox.common.util import discrete_action, continuous_action
-from drlbox.common.policy import StochasticDisc, StochasticCont
+from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy
 from .trainer_base import Trainer
 
 
@@ -19,11 +19,11 @@ class A3CTrainer(Trainer):
                                clip_norm=self.opt_grad_clip_norm,
                                epsilon=self.opt_adam_epsilon)
         if discrete_action(action_space):
-            self.policy = StochasticDisc()
+            self.policy = SoftmaxPolicy()
         elif continuous_action(action_space):
-            self.policy = StochasticCont(low=action_space.low,
-                                    high=action_space.high,
-                                    min_var=self.policy_sto_cont_min_var)
+            self.policy = GaussianPolicy(low=action_space.low,
+                                         high=action_space.high,
+                                         min_var=self.policy_sto_cont_min_var)
         else:
             raise TypeError('Type of action_space not valid')
 

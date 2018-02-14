@@ -4,7 +4,7 @@ import tensorflow as tf
 from numpy import mean
 from drlbox.common.util import set_args
 from drlbox.common.util import discrete_action, continuous_action
-from drlbox.common.policy import StochasticDisc, StochasticCont, EpsGreedy
+from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy, EpsGreedyPolicy
 
 
 class Evaluator:
@@ -29,9 +29,9 @@ class Evaluator:
         self.policy_type = self.policy_type.lower()
         if self.policy_type == 'stochastic':
             if discrete_action(env.action_space):
-                self.policy = StochasticDisc()
+                self.policy = SoftmaxPolicy()
             elif continuous_action(env.action_space):
-                self.policy = StochasticCont(low=env.action_space.low,
+                self.policy = GaussianPolicy(low=env.action_space.low,
                     high=env.action_space.high,
                     min_var=self.policy_sto_cont_min_var)
             else:
@@ -39,7 +39,7 @@ class Evaluator:
         elif self.policy_type == 'greedy':
             if not discrete_action(env.action_space):
                 raise TypeError('greedy policy supports only discrete action.')
-            self.policy = EpsGreedy(self.policy_eps)
+            self.policy = EpsGreedyPolicy(self.policy_eps)
         else:
             raise ValueError('policy type {} invalid.'.format(self.policy_type))
 
