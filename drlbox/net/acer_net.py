@@ -24,7 +24,7 @@ class ACERNet(ACNet):
         init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
-        value = tf.keras.layers.Dense(size_logits)(feature_value)
+        value = self.dense_layer(size_logits)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
         self.set_model(model)
         return self

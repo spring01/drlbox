@@ -31,7 +31,7 @@ class ACNet(RLNet):
             raise ValueError('type of action_space is illegal')
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
-        value = tf.keras.layers.Dense(1)(feature_value)
+        value = self.dense_layer(1)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
         self.action_mode = action_mode
         self.set_model(model)
