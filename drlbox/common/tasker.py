@@ -23,10 +23,10 @@ class Tasker:
         # print arguments
         self.print('#### All arguments ####')
         for keyword, value in sorted(all_kwargs.items()):
+            statement = '    {} = {}'.format(keyword, value)
             if keyword not in self.KEYWORD_DICT:
-                self.print('    {} = {} (UNUSED)'.format(keyword, value))
-            else:
-                self.print('    {} = {}'.format(keyword, value))
+                statement += ' (UNUSED)'
+            self.print(statement)
 
     def print(self, *args, **kwargs):
         if self.verbose:
