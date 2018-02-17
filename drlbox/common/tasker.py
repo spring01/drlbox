@@ -8,21 +8,13 @@ class Tasker:
                         verbose=False,)
 
     def __init__(self, **kwargs):
-        # combine arguments from self.KEYWORD_DICT and kwargs
-        all_kwargs = {}
-        for keyword, value in self.KEYWORD_DICT.items():
-            all_kwargs[keyword] = value
-        # replace with user-specified arguments
-        for keyword, value in kwargs.items():
-            all_kwargs[keyword] = value
-
-        # set arguments
-        for keyword, value in all_kwargs.items():
-            setattr(self, keyword, value)
+        # combine arguments from self.KEYWORD_DICT and kwargs and set arguments
+        self.__dict__.update(self.KEYWORD_DICT)
+        self.__dict__.update(kwargs)
 
         # print arguments
         self.print('#### All arguments ####')
-        for keyword, value in sorted(all_kwargs.items()):
+        for keyword, value in sorted(self.__dict__.items()):
             statement = '    {} = {}'.format(keyword, value)
             if keyword not in self.KEYWORD_DICT:
                 statement += ' (UNUSED)'
