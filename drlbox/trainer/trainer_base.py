@@ -8,45 +8,37 @@ import time
 from datetime import timedelta
 
 import tensorflow as tf
-import builtins
 import numpy as np
-from drlbox.common.util import set_args
+from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
 from .rollout import Rollout
 
 
-print = lambda *args, **kwargs: builtins.print(*args, **kwargs, flush=True)
-
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
-class Trainer:
+class Trainer(Tasker):
 
-    KEYWORD_DICT = dict(env_maker=None,
-                        feature_maker=None,
-                        state_to_input=None,
-                        load_model=None,
-                        save_dir=None,              # Directory to save data to
-                        num_parallel=cpu_count(),
-                        port_begin=2220,
-                        discount=0.99,
-                        train_steps=1000000,
-                        opt_learning_rate=1e-4,
-                        opt_batch_size=32,
-                        opt_adam_epsilon=1e-4,
-                        opt_grad_clip_norm=40.0,
-                        interval_save=10000,
-                        catch_sigint=False,)
-
-    def __init__(self, **kwargs):
-        set_args(self, self.KEYWORD_DICT, kwargs)
+    KEYWORD_DICT = {**Tasker.KEYWORD_DICT,
+                    **dict(feature_maker=None,
+                           save_dir=None,           # Directory to save data to
+                           num_parallel=cpu_count(),
+                           port_begin=2220,
+                           discount=0.99,
+                           train_steps=1000000,
+                           opt_learning_rate=1e-4,
+                           opt_batch_size=32,
+                           opt_adam_epsilon=1e-4,
+                           opt_grad_clip_norm=40.0,
+                           interval_save=10000,
+                           catch_sigint=False,)}
 
     def run(self):
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
         for port in self.port_list:
             if not self.port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
-        print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
+        self.print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
         self.event_finished = Event()
         self.worker_list = []
         if self.catch_sigint:
@@ -66,11 +58,11 @@ class Trainer:
                 wait_counter = 0
                 elapsed = int(time.time() - start_time)
                 time_str = str(timedelta(seconds=elapsed))
-                print('Elapsed time:', time_str)
+                self.print('Elapsed time:', time_str)
             time.sleep(0.1)
-        print('Master worker terminated -- training should end soon')
+        self.print('Master worker terminated -- training should end soon')
         self.terminate_workers()
-        print('Asynchronous training has ended')
+        self.print('Asynchronous training has ended')
 
     def sigint_handler(self, signum, frame):
         self.event_finished.set()
@@ -92,7 +84,7 @@ class Trainer:
         cluster_list = ['{}:{}'.format(LOCALHOST, p) for p in self.port_list]
         cluster = tf.train.ClusterSpec({JOBNAME: cluster_list})
         server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
-        print('Starting server #{}'.format(wid))
+        self.print('Starting server #{}'.format(wid))
 
         self.setup_algorithm(env.action_space)
 
@@ -139,7 +131,7 @@ class Trainer:
                     state = env.reset()
                     if batch_step < self.opt_batch_size - 1:
                         rollout_list.append(Rollout(state))
-                    print('episode reward {:5.2f}'.format(episode_reward))
+                    self.print('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
 
             batch_loss = self.train_on_rollout_list(rollout_list)
@@ -151,7 +143,7 @@ class Trainer:
                     self.save_model(step)
                     last_save = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
-                print(str_step + ', loss {:3.3f}'.format(batch_loss))
+                self.print(str_step + ', loss {:3.3f}'.format(batch_loss))
         # save at the end of training
         if self.is_master:
             self.save_model(step)
@@ -169,7 +161,7 @@ class Trainer:
             return None
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir, exist_ok=True)
-            print('Made output dir', self.save_dir)
+            self.print('Made output dir', self.save_dir)
         save_dir = self.save_dir
         experiment_id = 0
         for folder_name in os.listdir(save_dir):
@@ -191,7 +183,7 @@ class Trainer:
         if self.output is not None:
             filename = os.path.join(self.output, 'model_{}.h5'.format(step))
             self.online_net.save_model(filename)
-            print('keras model written to {}'.format(filename))
+            self.print('keras model written to {}'.format(filename))
 
     '''
     Methods subject to overloading
@@ -208,7 +200,7 @@ class Trainer:
                 saved_model = self.net_cls.load_model(self.load_model)
                 self.saved_weights = saved_model.get_weights()
                 self.global_net = self.net_cls.from_model(saved_model)
-            if self.is_master:
+            if self.is_master and self.verbose:
                 self.global_net.model.summary()
             self.step_counter = StepCounter()
 

@@ -1,26 +1,20 @@
 
 import time
 import tensorflow as tf
-from numpy import mean
-from drlbox.common.util import set_args
+from drlbox.common.tasker import Tasker
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy, EpsGreedyPolicy
 
 
-class Evaluator:
+class Evaluator(Tasker):
 
-    KEYWORD_DICT = dict(env_maker=None,
-                        state_to_input=None,
-                        load_model=None,
-                        render_timestep=None,
-                        render_end=False,
-                        num_episodes=20,
-                        policy_type='stochastic',
-                        policy_sto_cont_min_var=1e-4,
-                        policy_eps=0.0,)
-
-    def __init__(self, **kwargs):
-        set_args(self, self.KEYWORD_DICT, kwargs)
+    KEYWORD_DICT = {**Tasker.KEYWORD_DICT,
+                    **dict(render_timestep=None,
+                           render_end=False,
+                           num_episodes=20,
+                           policy_type='stochastic',
+                           policy_sto_cont_min_var=1e-4,
+                           policy_eps=0.0,)}
 
     def run(self):
         env = self.env_maker()
@@ -74,8 +68,9 @@ class Evaluator:
             if self.render_end:
                 env.render()
             all_total_rewards.append(total_rewards)
-            print('episode reward:', total_rewards)
-        print('average episode reward:', mean(all_total_rewards))
+            self.print('episode reward: {}'.format(total_rewards))
+        average_reward = sum(all_total_rewards) / len(all_total_rewards)
+        self.print('average episode reward: {}'.format(average_reward))
 
     def render_env_at_timestep(self, env):
         if self.render_timestep is not None:
