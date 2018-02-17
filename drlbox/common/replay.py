@@ -37,9 +37,6 @@ class Replay:
     def usable(self):
         return len(self) >= self.minlen
 
-    def print_status(self):
-        print('replay length: {}/{}'.format(self.length, self.maxlen))
-
     def save(self, filepath):
         with open(filepath, 'wb') as save:
             pickle.dump(self, save, protocol=pickle.HIGHEST_PROTOCOL)
