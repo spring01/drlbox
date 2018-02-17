@@ -13,14 +13,14 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
 - gym[atari] (optional)
 
 ## Currently implemented RL algorithms
-- **Actor-critic series**
+- **Actor-critic family**
   - **A3C**  (https://arxiv.org/abs/1602.01783)  Actor-critic, using a critic-based advantage function as the baseline for variance reduction, asynchronous parallel.
   - **ACKTR**  (https://arxiv.org/abs/1708.05144)  A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on A2C, and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense` and `Conv2D` layers.
   - **ACER**  (https://arxiv.org/abs/1611.01224)  A3C with replay for off-policy learning.  The critic becomes a state-action value function instead of a state-only function.  The authors proposed a trust-region optimization scheme based on the KL divergence wrt a Polyak averaging policy network.  This implementation however includes the KL divergence (with a tunable scale factor) in the total loss.  This choice is less stable wrt change in hyperparameters, but simplifies the combination of ACER and ACKTR.
   - **ACERKTR**  (orz)  ACER with the K-FAC optimizer instead of Adam.
   - **NoisyNetA3C** and **NoisyNetACER**  (https://arxiv.org/abs/1706.10295)  Introduces (independent) Gaussian noises to policy network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
 
-- **DQN series**
+- **DQN family**
   - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning without replay memory.
   - **NoisyNetDQN**  (https://arxiv.org/abs/1706.10295)  DQN + NoisyNet.  Uses independent Gaussian noises as opposed to the factored Gaussian noises used in the original paper.
 
@@ -37,7 +37,8 @@ trainer = make_trainer(algorithm='a3c',
                        feature_maker=lambda o: make_feature(o, [100]),
                        state_to_input=state_to_input,
                        num_parallel=1,
-                       train_steps=1000,)
+                       train_steps=1000,
+                       verbose=True,)
 trainer.run()
 ```
 
@@ -97,4 +98,7 @@ def input_shape(observation_space):
     return input_dim,
 ```
 which makes a fully-connected neural network until the last layer before the value/policy layer.  To use the default feature maker, simply let the feature-maker callable be `feature_maker = lambda o: make_feature(o, ARCHITECTURE)`.  The function `state_to_input` can be directly used as the default interface function.
+
+**Note:**  So long as `feature_maker` is implemented correctly, the trainer will run.  However, to utilize the saving/loading functionalities provided by Keras in a hassle-free manner, when writing `feature_maker` it is recommended to only use combinations of Keras layers that already exist, plus some viable NumPy utilities such as `np.newaxis` (NumPy has to be imported as `import numpy as np` as this is the default importing method assumed by Keras in 'keras/layers/core.py').  It is discouraged to use other modules including plain TensorFlow, as the Keras model loading utility will literally "remember" your code of generating the Keras model and run through the code when it tries to load a saved model.  If we really have to, try to import the needed functionalities **inside** `feature_maker` so that it will be imported before execution.  However, please do not import the entire TensorFlow (`from tensorflow import x` is fine but no `import tensorflow as tf`) in `feature_maker` as it will cause circular importing.
+
 
