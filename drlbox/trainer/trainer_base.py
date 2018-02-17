@@ -31,7 +31,7 @@ class Trainer(Tasker):
                            opt_adam_epsilon=1e-4,
                            opt_grad_clip_norm=40.0,
                            interval_save=10000,
-                           catch_sigint=False,)}
+                           catch_signal=False,)}
 
     def run(self):
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
@@ -41,12 +41,18 @@ class Trainer(Tasker):
         self.print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
         self.event_finished = Event()
         self.worker_list = []
-        if self.catch_sigint:
-            signal.signal(signal.SIGINT, self.sigint_handler)
-        for wid in range(self.num_parallel):
-            worker = Process(target=self.worker, args=(wid,))
-            worker.start()
-            self.worker_list.append(worker)
+        try:
+            for wid in range(self.num_parallel):
+                worker = Process(target=self.worker, args=(wid,))
+                worker.start()
+                self.worker_list.append(worker)
+        except:
+            self.terminate_workers()
+
+        if self.catch_signal:
+            signal.signal(signal.SIGINT, self.signal_handler)
+            signal.signal(signal.SIGTERM, self.signal_handler)
+            self.print('SIGINT and SIGTERM will be catched by drlbox')
 
         # terminates the entire training when the master worker terminates
         master_worker = self.worker_list[0]
@@ -60,13 +66,12 @@ class Trainer(Tasker):
                 time_str = str(timedelta(seconds=elapsed))
                 self.print('Elapsed time:', time_str)
             time.sleep(0.1)
-        self.print('Master worker terminated -- training should end soon')
+        self.print('A worker just terminated -- training should end soon')
         self.terminate_workers()
         self.print('Asynchronous training has ended')
 
-    def sigint_handler(self, signum, frame):
+    def signal_handler(self, signum, frame):
         self.event_finished.set()
-        self.terminate_workers()
 
     def terminate_workers(self):
         for worker in self.worker_list[::-1]:
@@ -104,8 +109,8 @@ class Trainer(Tasker):
             # train the agent
             self.train_on_env(env)
 
+        self.event_finished.set()
         if self.is_master:
-            self.event_finished.set()
             while True:
                 time.sleep(1)
 
