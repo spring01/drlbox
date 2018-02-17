@@ -18,7 +18,7 @@ def set_args(obj, default_kwargs, kwargs):
     # replace with user-specified arguments
     for keyword, value in kwargs.items():
         if keyword not in default_kwargs:
-            print(WARN_ARG_NOT_USED.format(keyword), file=sys.stderr)
+            print(WARN_ARG_NOT_USED.format(keyword), flush=True)
         setattr(obj, keyword, value)
 
 def softmax(logits, axis=None):
