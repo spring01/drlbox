@@ -12,14 +12,24 @@ def continuous_action(action_space):
 
 WARN_ARG_NOT_USED = 'Warning: argument "{}" set but not used'
 def set_args(obj, default_kwargs, kwargs):
-    # set default arguments
+    # combine arguments from default_kwargs and kwargs
+    all_kwargs = {}
     for keyword, value in default_kwargs.items():
-        setattr(obj, keyword, value)
+        all_kwargs[keyword] = value
     # replace with user-specified arguments
     for keyword, value in kwargs.items():
         if keyword not in default_kwargs:
             print(WARN_ARG_NOT_USED.format(keyword), flush=True)
+        all_kwargs[keyword] = value
+
+    # set arguments
+    for keyword, value in all_kwargs.items():
         setattr(obj, keyword, value)
+
+    # print arguments
+    print('#### All arguments ####', flush=True)
+    for keyword, value in sorted(all_kwargs.items()):
+        print('    {} = {}'.format(keyword, value), flush=True)
 
 def softmax(logits, axis=None):
     max_logits = logits.max(axis=axis, keepdims=True)
