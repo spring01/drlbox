@@ -7,7 +7,8 @@ from drlbox.common.util import discrete_action, continuous_action
 
 class ACNet(RLNet):
 
-    LOGPI   = 1.1447298858494002
+    LOGPI               = 1.1447298858494002
+    act_decomp_value    = False
 
     @classmethod
     def from_sfa(cls, state, feature, action_space):
@@ -32,7 +33,8 @@ class ACNet(RLNet):
             raise ValueError('Invalid type of action_space')
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
-        value = self.dense_layer(1)(feature_value)
+        size_value = size_logits if self.act_decomp_value else 1
+        value = self.dense_layer(size_value)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
         self.set_model(model)
         return self

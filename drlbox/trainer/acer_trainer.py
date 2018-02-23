@@ -14,7 +14,7 @@ class ACERTrainer(A3CTrainer):
 
     KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
                     **dict(acer_kl_weight=1e-1,
-                           acer_truc_max=10.0,
+                           acer_trunc_max=10.0,
                            acer_soft_update_ratio=0.05,
                            replay_maxlen=1000,
                            replay_minlen=100,
@@ -26,7 +26,7 @@ class ACERTrainer(A3CTrainer):
     def setup_algorithm(self, action_space):
         self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
                                 kl_weight=self.acer_kl_weight,
-                                truc_max=self.acer_truc_max)
+                                trunc_max=self.acer_trunc_max)
         self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
                                clip_norm=self.opt_grad_clip_norm,
                                epsilon=self.opt_adam_epsilon)
