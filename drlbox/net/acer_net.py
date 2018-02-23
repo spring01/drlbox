@@ -19,7 +19,7 @@ class ACERNet(ACNet):
 
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0):
         # sample return and baseline placeholders
-        ph_q_ret = tf.placeholder(tf.float32, [None])
+        ph_sample_return = tf.placeholder(tf.float32, [None])
         ph_baseline = tf.placeholder(tf.float32, [None])
 
         if self.action_mode == self.DISCRETE:
@@ -32,22 +32,22 @@ class ACERNet(ACNet):
             trunc = tf.minimum(trunc_max, ph_lratio)
             trunc_act = tf.reduce_sum(trunc * action_onehot, axis=1)
 
-            # value placeholder
-            ph_q_val = tf.placeholder(tf.float32, [None, num_action])
+            # bootstrapped value placeholder
+            ph_boot_value = tf.placeholder(tf.float32, [None, num_action])
 
             # log policy
             log_probs = tf.nn.log_softmax(self.tf_logits)
 
-            # policy loss: sample return
+            # policy loss: sample return part
             log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
-            adv_ret = trunc_act * (ph_q_ret - ph_baseline)
+            adv_ret = trunc_act * (ph_sample_return - ph_baseline)
             policy_loss_ret = -tf.reduce_sum(adv_ret * log_probs_act)
 
-            # policy loss: bootstrapped value
+            # policy loss: bootstrapped value part
             probs = tf.nn.softmax(self.tf_logits)
             probs_c = tf.stop_gradient(probs)
             trunc_prob = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio) * probs_c
-            adv_val = trunc_prob * (ph_q_val - ph_baseline[:, tf.newaxis])
+            adv_val = trunc_prob * (ph_boot_value - ph_baseline[:, tf.newaxis])
             policy_loss_val = -tf.reduce_sum(adv_val * log_probs)
 
             # KL (wrt averaged policy net) loss
@@ -58,25 +58,26 @@ class ACERNet(ACNet):
             # state-action value
             value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
 
+            # entropy
+            if entropy_weight:
+                neg_entropy = tf.reduce_sum(probs * log_probs)
         else:
             raise ValueError('action_space must be discrete in ACER')
 
         # value (critic) loss
-        value_squared_diff = tf.squared_difference(ph_q_ret, value_act)
+        value_squared_diff = tf.squared_difference(ph_sample_return, value_act)
         value_loss = tf.reduce_sum(value_squared_diff)
 
         # total loss
         self.tf_loss = policy_loss_ret + policy_loss_val + value_loss + kl_loss
-
-        # entropy
         if entropy_weight:
-            self.tf_loss += tf.reduce_sum(probs * log_probs) * entropy_weight
+            self.tf_loss += neg_entropy * entropy_weight
 
         # placeholders
         self.ph_action = ph_action
         self.ph_lratio = ph_lratio
-        self.ph_q_ret = ph_q_ret
-        self.ph_q_val = ph_q_val
+        self.ph_sample_return = ph_sample_return
+        self.ph_boot_value = ph_boot_value
         self.ph_baseline = ph_baseline
         self.ph_avg_logits = ph_avg_logits
 
@@ -84,13 +85,13 @@ class ACERNet(ACNet):
         return self.sess.run([self.tf_logits, self.tf_value],
                              feed_dict={self.ph_state: state})
 
-    def train_on_batch(self, state, action, lratio, q_ret, q_val,
+    def train_on_batch(self, state, action, lratio, sample_return, boot_value,
                        baseline, avg_logits):
         feed_dict = {self.ph_state:         state,
                      self.ph_action:        action,
                      self.ph_lratio:        lratio,
-                     self.ph_q_ret:         q_ret,
-                     self.ph_q_val:         q_val,
+                     self.ph_sample_return: sample_return,
+                     self.ph_boot_value:    boot_value,
                      self.ph_baseline:      baseline,
                      self.ph_avg_logits:    avg_logits}
         loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]

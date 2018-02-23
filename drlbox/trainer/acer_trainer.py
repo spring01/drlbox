@@ -72,7 +72,7 @@ class ACERTrainer(A3CTrainer):
         r_act_probs = self.softmax_with_minprob(r_act_logits)
 
         # on-policy probabilities and values, length n+1
-        r_logits, r_q_val = self.online_net.ac_values(r_state)
+        r_logits, r_boot_value = self.online_net.ac_values(r_state)
         r_probs = self.softmax_with_minprob(r_logits)
 
         # likelihood ratio and retrace, length n
@@ -80,23 +80,23 @@ class ACERTrainer(A3CTrainer):
         r_retrace = np.minimum(self.retrace_max, r_lratio)
 
         # baseline, length n+1
-        r_baseline = np.sum(r_probs * r_q_val, axis=1)
+        r_baseline = np.sum(r_probs * r_boot_value, axis=1)
 
         # return, length n
         reward_long = 0.0 if rollout.done else r_baseline[-1]
-        r_q_ret = np.zeros(len(rollout))
+        r_sample_return = np.zeros(len(rollout))
         for idx in reversed(range(len(rollout))):
             reward_long *= self.discount
             reward_long += rollout.reward_list[idx]
-            r_q_ret[idx] = reward_long
+            r_sample_return[idx] = reward_long
             act = r_action[idx]
-            val = r_q_val[idx, act]
+            val = r_boot_value[idx, act]
             retrace = r_retrace[idx, act]
             reward_long = retrace * (reward_long - val) + r_baseline[idx]
 
         # logits from the average net, length n
         r_avg_logits = self.average_net.action_values(r_input)
-        return (r_input, r_action, r_lratio, r_q_ret, r_q_val[:-1],
+        return (r_input, r_action, r_lratio, r_sample_return, r_boot_value[:-1],
                 r_baseline[:-1], r_avg_logits)
 
     def softmax_with_minprob(self, logits):
