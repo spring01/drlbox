@@ -23,7 +23,7 @@ class DQNTrainer(Trainer):
 
         # policy
         if not discrete_action(action_space):
-            raise TypeError('DQN supports only discrete action.')
+            raise TypeError('action_space must be discrete in DQN')
         eps_start = self.policy_eps_start
         eps_end = self.policy_eps_end
         eps_delta = (eps_start - eps_end) / self.policy_eps_decay_steps

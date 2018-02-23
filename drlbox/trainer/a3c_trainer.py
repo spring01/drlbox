@@ -25,7 +25,7 @@ class A3CTrainer(Trainer):
                                          high=action_space.high,
                                          min_var=self.policy_sto_cont_min_var)
         else:
-            raise TypeError('Type of action_space not valid')
+            raise TypeError('Invalid type of action_space')
 
     def rollout_feed(self, rollout):
         r_state, r_input, r_action = self.rollout_state_input_action(rollout)

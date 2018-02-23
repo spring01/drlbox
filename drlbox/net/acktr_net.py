@@ -36,7 +36,7 @@ class ACKTRNet(ACNet):
             var = tf.expand_dims(self.tf_var, -1)
             lc.register_normal_predictive_distribution(mean, var)
         else:
-            raise ValueError('model.action_mode not recognized')
+            raise ValueError('Invalid action_mode')
         return lc
 
     def set_optimizer(self, learning_rate, cov_ema_decay, damping,

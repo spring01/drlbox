@@ -14,26 +14,26 @@ class ACNet(RLNet):
         self = cls()
         flatten = tf.keras.layers.Flatten()
         if type(feature) is tuple:
+            assert len(feature) == 2
             # separated logits/value streams when feature is a length 2 tuple
             feature_logits, feature_value = map(flatten, feature)
         else:
             # feature is a single stream otherwise
             feature_logits = feature_value = flatten(feature)
         if discrete_action(action_space):
-            action_mode = self.DISCRETE
+            self.action_mode = self.DISCRETE
             size_logits = action_space.n
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         elif continuous_action(action_space):
-            action_mode = self.CONTINUOUS
+            self.action_mode = self.CONTINUOUS
             size_logits = len(action_space.shape) + 1
             init = 'glorot_uniform'
         else:
-            raise ValueError('type of action_space is illegal')
+            raise ValueError('Invalid type of action_space')
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
         value = self.dense_layer(1)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
-        self.action_mode = action_mode
         self.set_model(model)
         return self
 
@@ -71,7 +71,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 neg_entropy = 0.5 * tf.reduce_sum(log_2pi_var + 1.0)
         else:
-            raise ValueError('action_mode not recognized')
+            raise ValueError('Invalid action_mode')
 
         policy_loss = -tf.reduce_sum(log_probs_act * ph_advantage)
         value_squared_diff = tf.squared_difference(ph_target, self.tf_value)

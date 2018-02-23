@@ -8,7 +8,7 @@ from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
 
 
-ACER_ACTION_SPACE_ONLY_DISC = 'action must be discrete in ACER network'
+ACER_ACTION_SPACE_ONLY_DISC = 'action_space must be discrete in ACER network'
 
 class ACERTrainer(A3CTrainer):
 
