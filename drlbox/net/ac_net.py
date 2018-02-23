@@ -24,16 +24,17 @@ class ACNet(RLNet):
         if discrete_action(action_space):
             self.action_mode = self.DISCRETE
             size_logits = action_space.n
+            size_value = size_logits if self.act_decomp_value else 1
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         elif continuous_action(action_space):
             self.action_mode = self.CONTINUOUS
             size_logits = len(action_space.shape) + 1
+            size_value = 1
             init = 'glorot_uniform'
         else:
             raise ValueError('Invalid type of action_space')
         logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
         logits = logits_layer(feature_logits)
-        size_value = size_logits if self.act_decomp_value else 1
         value = self.dense_layer(size_value)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
         self.set_model(model)

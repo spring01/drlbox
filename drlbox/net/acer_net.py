@@ -18,9 +18,12 @@ class ACERNet(ACNet):
         self.tf_logits, self.tf_value = model.outputs
 
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0):
-        num_action = self.tf_logits.shape[1]
+        # sample return and baseline placeholders
+        ph_q_ret = tf.placeholder(tf.float32, [None])
+        ph_baseline = tf.placeholder(tf.float32, [None])
 
         if self.action_mode == self.DISCRETE:
+            num_action = self.tf_logits.shape[1]
             ph_action = tf.placeholder(tf.int32, [None])
             action_onehot = tf.one_hot(ph_action, depth=num_action)
 
@@ -29,15 +32,13 @@ class ACERNet(ACNet):
             trunc = tf.minimum(trunc_max, ph_lratio)
             trunc_act = tf.reduce_sum(trunc * action_onehot, axis=1)
 
-            # return and value placeholders
-            ph_q_ret = tf.placeholder(tf.float32, [None])
+            # value placeholder
             ph_q_val = tf.placeholder(tf.float32, [None, num_action])
-            ph_baseline = tf.placeholder(tf.float32, [None])
 
             # log policy
             log_probs = tf.nn.log_softmax(self.tf_logits)
 
-            # policy loss: sampled return
+            # policy loss: sample return
             log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
             adv_ret = trunc_act * (ph_q_ret - ph_baseline)
             policy_loss_ret = -tf.reduce_sum(adv_ret * log_probs_act)
@@ -47,22 +48,25 @@ class ACERNet(ACNet):
             probs_c = tf.stop_gradient(probs)
             trunc_prob = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio) * probs_c
             adv_val = trunc_prob * (ph_q_val - ph_baseline[:, tf.newaxis])
-            policy_loss_boot = -tf.reduce_sum(adv_val * log_probs)
+            policy_loss_val = -tf.reduce_sum(adv_val * log_probs)
 
             # KL (wrt averaged policy net) loss
             ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
             avg_probs = tf.nn.softmax(ph_avg_logits)
             kl_loss = -kl_weight * tf.reduce_sum(avg_probs * log_probs)
+
+            # state-action value
+            value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
+
         else:
             raise ValueError('action_space must be discrete in ACER')
 
         # value (critic) loss
-        value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
         value_squared_diff = tf.squared_difference(ph_q_ret, value_act)
         value_loss = tf.reduce_sum(value_squared_diff)
 
         # total loss
-        self.tf_loss = policy_loss_ret + policy_loss_boot + value_loss + kl_loss
+        self.tf_loss = policy_loss_ret + policy_loss_val + value_loss + kl_loss
 
         # entropy
         if entropy_weight:
