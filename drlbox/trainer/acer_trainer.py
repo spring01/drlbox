@@ -69,11 +69,11 @@ class ACERTrainer(A3CTrainer):
 
         # off-policy probabilities, length n
         r_act_logits = np.stack(rollout.act_val_list)
-        r_act_probs = softmax_with_minprob(r_act_logits, self.minprob, axis=1)
+        r_act_probs = softmax_with_minprob(r_act_logits, self.minprob)
 
         # on-policy probabilities and values, length n+1
         r_logits, r_boot_value = self.online_net.ac_values(r_state)
-        r_probs = softmax_with_minprob(r_logits, self.minprob, axis=1)
+        r_probs = softmax_with_minprob(r_logits, self.minprob)
 
         # likelihood ratio and retrace, length n
         r_lratio = r_probs[:-1] / r_act_probs
