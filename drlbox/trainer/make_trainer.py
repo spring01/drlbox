@@ -3,6 +3,7 @@ from .a3c_trainer import A3CTrainer
 from .acktr_trainer import ACKTRTrainer
 from .acer_trainer import ACERTrainer
 from .acerktr_trainer import ACERKTRTrainer
+from .impala_trainer import IMPALATrainer
 from .dqn_trainer import DQNTrainer
 from .noisynet_a3c_trainer import NoisyNetA3CTrainer
 from .noisynet_acer_trainer import NoisyNetACERTrainer
@@ -13,6 +14,7 @@ TRAINER_CLS_DICT = {'a3c':              A3CTrainer,
                     'acktr':            ACKTRTrainer,
                     'acer':             ACERTrainer,
                     'acerktr':          ACERKTRTrainer,
+                    'impala':           IMPALATrainer,
                     'noisynet-a3c':     NoisyNetA3CTrainer,
                     'noisynet-acer':    NoisyNetACERTrainer,
                     'dqn':              DQNTrainer,
