@@ -18,3 +18,8 @@ def softmax(logits, axis=None):
     probs /= probs.sum(axis=axis, keepdims=True)
     return probs
 
+def softmax_with_minprob(logits, minprob, axis=None):
+    probs = softmax(logits, axis=axis)
+    return np.maximum(minprob, probs - minprob / logits.shape[1])
+
+

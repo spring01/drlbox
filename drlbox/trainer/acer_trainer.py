@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 from drlbox.net import ACERNet
-from drlbox.common.util import discrete_action, softmax
+from drlbox.common.util import discrete_action, softmax_with_minprob
 from drlbox.common.policy import SoftmaxPolicy
 from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
@@ -69,11 +69,11 @@ class ACERTrainer(A3CTrainer):
 
         # off-policy probabilities, length n
         r_act_logits = np.stack(rollout.act_val_list)
-        r_act_probs = self.softmax_with_minprob(r_act_logits)
+        r_act_probs = softmax_with_minprob(r_act_logits, self.minprob, axis=1)
 
         # on-policy probabilities and values, length n+1
         r_logits, r_boot_value = self.online_net.ac_values(r_state)
-        r_probs = self.softmax_with_minprob(r_logits)
+        r_probs = softmax_with_minprob(r_logits, self.minprob, axis=1)
 
         # likelihood ratio and retrace, length n
         r_lratio = r_probs[:-1] / r_act_probs
@@ -98,9 +98,5 @@ class ACERTrainer(A3CTrainer):
         r_avg_logits = self.average_net.action_values(r_input)
         return (r_input, r_action, r_lratio, r_sample_return, r_boot_value[:-1],
                 r_baseline[:-1], r_avg_logits)
-
-    def softmax_with_minprob(self, logits):
-        probs = softmax(logits, axis=1)
-        return np.maximum(self.minprob, probs - self.minprob / logits.shape[1])
 
 
