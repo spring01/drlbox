@@ -32,7 +32,7 @@ class Tasker:
 
     def do_load_model(self):
         custom_objects = {}
-        if self.noisynet:
+        if self.noisynet is not None:
             noisy_layer_dict = {'NoisyDenseIG': NoisyDenseIG}
             custom_objects.update(noisy_layer_dict)
         if self.load_model_custom is not None:
