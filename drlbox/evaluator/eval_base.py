@@ -1,7 +1,6 @@
 
 import time
 import tensorflow as tf
-from drlbox.layer.noisy_dense import NoisyDenseIG
 from drlbox.common.tasker import Tasker
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy, EpsGreedyPolicy
@@ -42,8 +41,6 @@ class Evaluator(Tasker):
         # load model
         saved_model = self.do_load_model()
         net = self.net_cls()
-        if self.noisynet == 'ig':
-            net.dense_layer = NoisyDenseIG
         net.set_model(saved_model)
 
         # global_variables_initializer will re-initialize net.weights
