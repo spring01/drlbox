@@ -9,6 +9,7 @@ from datetime import timedelta
 
 import tensorflow as tf
 import numpy as np
+from drlbox.layer.noisy_dense import NoisyDenseIG
 from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -30,8 +31,10 @@ class Trainer(Tasker):
                            opt_batch_size=32,
                            opt_adam_epsilon=1e-4,
                            opt_grad_clip_norm=40.0,
+                           noisynet=None,           # None, 'ig', or 'fg'
                            interval_save=10000,
-                           catch_signal=False,)}
+                           catch_signal=False,
+                           )}
 
     def run(self):
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
@@ -124,6 +127,8 @@ class Trainer(Tasker):
         episode_reward = 0.0
         while step <= self.train_steps:
             self.online_net.sync()
+            if self.noisynet is not None:
+                self.online_net.sample_noise()
             rollout_list = [Rollout(state)]
             for batch_step in range(self.opt_batch_size):
                 net_input = self.state_to_input(state)
@@ -157,9 +162,21 @@ class Trainer(Tasker):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         return sock.connect_ex((host, port)) != 0
 
-    def build_net(self, env):
-        state, feature = self.feature_maker(env.observation_space)
-        return self.net_cls.from_sfa(state, feature, env.action_space)
+    def build_net(self, env=None, is_global=False):
+        net = self.net_cls()
+        if self.noisynet == 'ig':
+            net.dense_layer = NoisyDenseIG
+            self.print('Using independent Gaussian NoisyNet')
+        if self.load_model is not None and is_global:
+            model = self.do_load_model()
+            self.saved_weights = model.get_weights()
+        else:
+            state, feature = self.feature_maker(env.observation_space)
+            model = net.build_model(state, feature, env.action_space)
+        net.set_model(model)
+        if self.noisynet is not None:
+            net.set_noise_list()
+        return net
 
     def get_output_dir(self, env_name):
         if self.save_dir is None:
@@ -199,12 +216,7 @@ class Trainer(Tasker):
     def setup_nets(self, worker_dev, rep_dev, env):
         # global net
         with tf.device(rep_dev):
-            if self.load_model is None:
-                self.global_net = self.build_net(env)
-            else:
-                saved_model = self.net_cls.load_model(self.load_model)
-                self.saved_weights = saved_model.get_weights()
-                self.global_net = self.net_cls.from_model(saved_model)
+            self.global_net = self.build_net(env, is_global=True)
             if self.is_master and self.verbose:
                 self.global_net.model.summary()
             self.step_counter = StepCounter()

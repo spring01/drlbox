@@ -1,11 +1,17 @@
 
+import tensorflow as tf
+from drlbox.layer.noisy_dense import NoisyDenseIG
+
 
 class Tasker:
 
     KEYWORD_DICT = dict(env_maker=None,
                         state_to_input=None,
                         load_model=None,
-                        verbose=False,)
+                        load_model_custom=None,
+                        noisynet=None,
+                        verbose=False,
+                        )
 
     def __init__(self, **kwargs):
         # combine arguments from self.KEYWORD_DICT and kwargs and set arguments
@@ -23,3 +29,12 @@ class Tasker:
     def print(self, *args, **kwargs):
         if self.verbose:
             print(*args, **kwargs, flush=True)
+
+    def do_load_model(self):
+        custom_objects = {}
+        if self.noisynet:
+            noisy_layer_dict = {'NoisyDenseIG': NoisyDenseIG}
+            custom_objects.update(noisy_layer_dict)
+        if self.load_model_custom is not None:
+            custom_objects.update(self.load_model_custom)
+        return tf.keras.models.load_model(self.load_model, custom_objects)

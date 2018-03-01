@@ -61,4 +61,10 @@ class NoisyDenseIG(tf.keras.layers.Dense):
             self.bias = None
         self.built = True
 
+    def noise_list(self):
+        noise_list = [self.kernel_noise]
+        if self.use_bias:
+            noise_list.append(self.bias_noise)
+        return noise_list
+
 

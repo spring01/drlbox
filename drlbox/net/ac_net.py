@@ -10,9 +10,7 @@ class ACNet(RLNet):
     LOGPI               = 1.1447298858494002
     act_decomp_value    = False
 
-    @classmethod
-    def from_sfa(cls, state, feature, action_space):
-        self = cls()
+    def build_model(self, state, feature, action_space):
         flatten = tf.keras.layers.Flatten()
         if type(feature) is tuple:
             assert len(feature) == 2
@@ -37,8 +35,7 @@ class ACNet(RLNet):
         logits = logits_layer(feature_logits)
         value = self.dense_layer(size_value)(feature_value)
         model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
-        self.set_model(model)
-        return self
+        return model
 
     def set_model(self, model):
         self.model = model

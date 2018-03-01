@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+from drlbox.layer.noisy_dense import NoisyDenseIG
 
 
 class RLNet:
@@ -8,13 +9,10 @@ class RLNet:
     DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
     dense_layer = tf.keras.layers.Dense
 
-    # net constructed by from_model can predict but cannot be trained
-    @classmethod
-    def from_model(cls, model):
-        self = cls()
-        self.set_model(model)
-        return self
+    def build_model(self, state, feature, action_space):
+        raise NotImplementedError
 
+    # net constructed by set_model only can predict but cannot be trained
     def set_model(self, model):
         raise NotImplementedError
 
@@ -52,10 +50,16 @@ class RLNet:
     def sync(self):
         self.sess.run(self.op_sync)
 
+    def set_noise_list(self):
+        self.noise_list = []
+        for layer in self.model.layers:
+            if type(layer) is NoisyDenseIG:
+                self.noise_list.extend(layer.noise_list())
+
+    def sample_noise(self):
+        for noise in self.noise_list:
+            self.sess.run(noise.initializer)
+
     def save_model(self, filename):
         self.model.save(filename)
-
-    @staticmethod
-    def load_model(filename, custom_objects=None):
-        return tf.keras.models.load_model(filename, custom_objects)
 

@@ -5,9 +5,6 @@ from .acer_trainer import ACERTrainer
 from .acerktr_trainer import ACERKTRTrainer
 from .impala_trainer import IMPALATrainer
 from .dqn_trainer import DQNTrainer
-from .noisynet_a3c_trainer import NoisyNetA3CTrainer
-from .noisynet_acer_trainer import NoisyNetACERTrainer
-from .noisynet_dqn_trainer import NoisyNetDQNTrainer
 
 
 TRAINER_CLS_DICT = {'a3c':              A3CTrainer,
@@ -15,10 +12,7 @@ TRAINER_CLS_DICT = {'a3c':              A3CTrainer,
                     'acer':             ACERTrainer,
                     'acerktr':          ACERKTRTrainer,
                     'impala':           IMPALATrainer,
-                    'noisynet-a3c':     NoisyNetA3CTrainer,
-                    'noisynet-acer':    NoisyNetACERTrainer,
-                    'dqn':              DQNTrainer,
-                    'noisynet-dqn':     NoisyNetDQNTrainer,}
+                    'dqn':              DQNTrainer,}
 
 def make_trainer(algorithm, **kwargs):
     algorithm = algorithm.lower()

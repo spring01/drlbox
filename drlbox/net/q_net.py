@@ -6,17 +6,14 @@ from drlbox.common.util import discrete_action
 
 class QNet(RLNet):
 
-    @classmethod
-    def from_sfa(cls, state, feature, action_space):
-        self = cls()
+    def build_model(self, state, feature, action_space):
         if not discrete_action(action_space):
             raise ValueError('action_space must be discrete in DQN')
         flatten = tf.keras.layers.Flatten()
         feature = flatten(feature)
         q_value = self.dense_layer(action_space.n)(feature)
         model = tf.keras.models.Model(inputs=state, outputs=q_value)
-        self.set_model(model)
-        return self
+        return model
 
     def set_model(self, model):
         self.model = model
