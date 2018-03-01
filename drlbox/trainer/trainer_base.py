@@ -52,9 +52,12 @@ class Trainer(Tasker):
         except:
             self.terminate_workers()
 
+        # set handlers if requested
         if self.catch_signal:
-            signal.signal(signal.SIGINT, self.signal_handler)
-            signal.signal(signal.SIGTERM, self.signal_handler)
+            self.default_sigint_handler = signal.signal(signal.SIGINT,
+                                                        self.signal_handler)
+            self.default_sigterm_handler = signal.signal(signal.SIGTERM,
+                                                         self.signal_handler)
             self.print('SIGINT and SIGTERM will be catched by drlbox')
 
         # terminates the entire training when the master worker terminates
@@ -71,6 +74,12 @@ class Trainer(Tasker):
             time.sleep(0.1)
         self.print('A worker just terminated -- training should end soon')
         self.terminate_workers()
+
+        # restore default handlers
+        if self.catch_signal:
+            signal.signal(signal.SIGINT, self.default_sigint_handler)
+            signal.signal(signal.SIGTERM, self.default_sigterm_handler)
+            self.print('SIGINT and SIGTERM default handlers have been restored')
         self.print('Asynchronous training has ended')
 
     def signal_handler(self, signum, frame):
