@@ -79,7 +79,7 @@ class Trainer(Tasker):
         if self.catch_signal:
             signal.signal(signal.SIGINT, self.default_sigint_handler)
             signal.signal(signal.SIGTERM, self.default_sigterm_handler)
-            self.print('SIGINT and SIGTERM default handlers have been restored')
+            self.print('SIGINT and SIGTERM default handlers reset to default')
         self.print('Asynchronous training has ended')
 
     def signal_handler(self, signum, frame):
