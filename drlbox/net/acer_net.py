@@ -23,6 +23,7 @@ class ACERNet(ACNet):
         ph_baseline = tf.placeholder(tf.float32, [None])
 
         if self.action_mode == self.DISCRETE:
+            kfac_policy_loss = 'categorical_predictive', (self.tf_logits,)
             num_action = self.tf_logits.shape[1]
             ph_action = tf.placeholder(tf.int32, [None])
             action_onehot = tf.one_hot(ph_action, depth=num_action)
@@ -73,29 +74,17 @@ class ACERNet(ACNet):
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
 
+         # kfac loss register
+        kfac_value_loss = 'normal_predictive', (self.tf_value,)
+        self.kfac_loss_list = [kfac_policy_loss, kfac_value_loss]
+
         # placeholders
-        self.ph_action = ph_action
-        self.ph_lratio = ph_lratio
-        self.ph_sample_return = ph_sample_return
-        self.ph_boot_value = ph_boot_value
-        self.ph_baseline = ph_baseline
-        self.ph_avg_logits = ph_avg_logits
+        self.ph_train_list = [self.ph_state, ph_action, ph_lratio,
+            ph_sample_return, ph_boot_value, ph_baseline, ph_avg_logits]
 
     def ac_values(self, state):
         return self.sess.run([self.tf_logits, self.tf_value],
                              feed_dict={self.ph_state: state})
-
-    def train_on_batch(self, state, action, lratio, sample_return, boot_value,
-                       baseline, avg_logits):
-        feed_dict = {self.ph_state:         state,
-                     self.ph_action:        action,
-                     self.ph_lratio:        lratio,
-                     self.ph_sample_return: sample_return,
-                     self.ph_boot_value:    boot_value,
-                     self.ph_baseline:      baseline,
-                     self.ph_avg_logits:    avg_logits}
-        loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
-        return loss
 
     def set_soft_update(self, new_weights, update_ratio):
         assign_list = []

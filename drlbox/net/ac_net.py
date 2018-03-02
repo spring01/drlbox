@@ -50,6 +50,7 @@ class ACNet(RLNet):
         ph_target = tf.placeholder(tf.float32, [None])
 
         if self.action_mode == self.DISCRETE:
+            kfac_policy_loss = 'categorical_predictive', (tf_logits,)
             ph_action = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
             action_onehot = tf.one_hot(ph_action, depth=tf_logits.shape[1])
@@ -63,6 +64,7 @@ class ACNet(RLNet):
             ph_action = tf.placeholder(tf.float32, [None, dim_action])
             self.tf_mean = tf_logits[:, :-1]
             self.tf_var = tf.maximum(tf.nn.softplus(tf_logits[:, -1]), min_var)
+            kfac_policy_loss = 'normal_predictive', (self.tf_mean, self.tf_var)
             two_var = 2.0 * self.tf_var
             act_minus_mean = ph_action - self.tf_mean
             log_norm = tf.reduce_sum(act_minus_mean**2, axis=1) / two_var
@@ -74,15 +76,19 @@ class ACNet(RLNet):
             raise ValueError('Invalid action_mode')
 
         policy_loss = -tf.reduce_sum(log_probs_act * ph_advantage)
+
         value_squared_diff = tf.squared_difference(ph_target, self.tf_value)
         value_loss = tf.reduce_sum(value_squared_diff)
         self.tf_loss = policy_loss + value_loss
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
 
-        self.ph_advantage = ph_advantage
-        self.ph_target = ph_target
-        self.ph_action = ph_action
+        # kfac loss register
+        kfac_value_loss = 'normal_predictive', (self.tf_value,)
+        self.kfac_loss_list = [kfac_policy_loss, kfac_value_loss]
+
+        # placeholders
+        self.ph_train_list = [self.ph_state, ph_action, ph_advantage, ph_target]
 
     def action_values(self, state):
         return self.sess.run(self.tf_logits, feed_dict={self.ph_state: state})
@@ -90,11 +96,4 @@ class ACNet(RLNet):
     def state_value(self, state):
         return self.sess.run(self.tf_value, feed_dict={self.ph_state: state})
 
-    def train_on_batch(self, state, action, advantage, target):
-        feed_dict = {self.ph_state:     state,
-                     self.ph_action:    action,
-                     self.ph_advantage: advantage,
-                     self.ph_target:    target}
-        loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
-        return loss
 

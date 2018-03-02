@@ -27,17 +27,10 @@ class QNet(RLNet):
         ph_target = tf.placeholder(tf.float32, [None])
         act_values = tf.reduce_sum(self.tf_values * action_onehot, axis=1)
         self.tf_loss = tf.losses.huber_loss(ph_target, act_values)
-        self.ph_action = ph_action
-        self.ph_target = ph_target
+        kfac_value_loss = 'normal_predictive', (self.tf_values,)
+        self.kfac_loss_list = [kfac_value_loss]
+        self.ph_train_list = [self.ph_state, ph_action, ph_target]
 
     def action_values(self, state):
         return self.sess.run(self.tf_values, feed_dict={self.ph_state: state})
-
-    def train_on_batch(self, state, action, target):
-        feed_dict = {self.ph_state:         state,
-                     self.ph_action:        action,
-                     self.ph_target:        target,
-                     }
-        loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
-        return loss
 

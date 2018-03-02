@@ -8,6 +8,7 @@ class RLNet:
     op_sync = None
     DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
     dense_layer = tf.keras.layers.Dense
+    kfac_loss_list = []
 
     def build_model(self, state, feature, action_space):
         raise NotImplementedError
@@ -26,23 +27,38 @@ class RLNet:
     def set_loss(self, *args, **kwargs):
         raise NotImplementedError
 
-    def set_optimizer(self, learning_rate, epsilon, clip_norm=None,
-                      train_weights=None):
-        adam = tf.train.AdamOptimizer(learning_rate, epsilon=epsilon)
-        grads_and_vars = adam.compute_gradients(self.tf_loss, self.weights)
+    def set_optimizer(self, optimizer, clip_norm=None, train_weights=None):
+        grads_and_vars = optimizer.compute_gradients(self.tf_loss, self.weights)
         grads = [g for g, v in grads_and_vars]
         if clip_norm is not None:
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
             train_weights = self.weights
-        op_grad = adam.apply_gradients(zip(grads, train_weights))
+        op_grad = optimizer.apply_gradients(zip(grads, train_weights))
         self.op_train = [self.tf_loss, op_grad]
+        self.op_periodic = []
+        self.periodic_interval = None
+        self.periodic_counter = 0
+
+    def set_kfac(self, kfac, inv_upd_interval, train_weights=None):
+        # kfac has a builtin trust-region scheme and so clip_norm is None
+        self.set_optimizer(kfac, train_weights=train_weights)
+        self.op_train.append(kfac.cov_update_op)
+        self.op_periodic = kfac.inv_update_op
+        self.periodic_interval = inv_upd_interval
 
     def action_values(self, state):
         raise NotImplementedError
 
-    def train_on_batch(self, *args, **kwargs):
-        raise NotImplementedError
+    def train_on_batch(self, *args):
+        feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
+        loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
+        if self.periodic_interval is not None:
+            if self.periodic_counter >= self.periodic_interval:
+                self.sess.run(self.op_periodic)
+                self.periodic_counter = 0
+            self.periodic_counter += 1
+        return loss
 
     def state_value(self, *args, **kwargs):
         raise NotImplementedError

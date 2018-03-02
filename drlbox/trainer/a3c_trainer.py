@@ -15,9 +15,6 @@ class A3CTrainer(Trainer):
     def setup_algorithm(self, action_space):
         self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
                                 min_var=self.policy_sto_cont_min_var)
-        self.opt_kwargs = dict(learning_rate=self.opt_learning_rate,
-                               clip_norm=self.opt_grad_clip_norm,
-                               epsilon=self.opt_adam_epsilon)
         if discrete_action(action_space):
             self.policy = SoftmaxPolicy()
         elif continuous_action(action_space):

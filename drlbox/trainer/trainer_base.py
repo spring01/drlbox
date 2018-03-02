@@ -10,6 +10,7 @@ from datetime import timedelta
 import tensorflow as tf
 import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG
+from drlbox.net.kfac import KfacOptimizerTV, build_layer_collection
 from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -29,8 +30,13 @@ class Trainer(Tasker):
                            train_steps=1000000,
                            opt_learning_rate=1e-4,
                            opt_batch_size=32,
+                           opt_type='adam',         # 'adam' or 'kfac'
                            opt_adam_epsilon=1e-4,
-                           opt_grad_clip_norm=40.0,
+                           opt_clip_norm=40.0,
+                           kfac_cov_ema_decay=0.95,
+                           kfac_damping=1e-3,
+                           kfac_trust_radius=1e-3,
+                           kfac_inv_upd_interval=10,
                            noisynet=None,           # None, 'ig', or 'fg'
                            interval_save=10000,
                            catch_signal=False,
@@ -187,6 +193,27 @@ class Trainer(Tasker):
             net.set_noise_list()
         return net
 
+    def set_online_optimizer(self):
+        if self.opt_type == 'adam':
+            adam = tf.train.AdamOptimizer(self.opt_learning_rate,
+                                          epsilon=self.opt_adam_epsilon)
+            self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
+                                          train_weights=self.global_net.weights)
+        elif self.opt_type == 'kfac':
+            layer_list = self.online_net.model.layers
+            layer_collection = build_layer_collection(layer_list,
+                self.online_net.kfac_loss_list)
+            kfac = KfacOptimizerTV(learning_rate=self.opt_learning_rate,
+                                   cov_ema_decay=self.kfac_cov_ema_decay,
+                                   damping=self.kfac_damping,
+                                   norm_constraint=self.kfac_trust_radius,
+                                   layer_collection=layer_collection,
+                                   var_list=self.online_net.weights)
+            self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
+                                     train_weights=self.global_net.weights)
+        else:
+            raise ValueError('Optimizer type {} invalid'.format(self.opt_type))
+
     def get_output_dir(self, env_name):
         if self.save_dir is None:
             return None
@@ -234,8 +261,7 @@ class Trainer(Tasker):
         with tf.device(worker_dev):
             self.online_net = self.build_net(env)
             self.online_net.set_loss(**self.loss_kwargs)
-            self.online_net.set_optimizer(**self.opt_kwargs,
-                                          train_weights=self.global_net.weights)
+            self.set_online_optimizer()
             self.online_net.set_sync_weights(self.global_net.weights)
             self.step_counter.set_increment()
 
