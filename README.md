@@ -15,14 +15,17 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
 ## Currently implemented RL algorithms
 - **Actor-critic family**
   - **A3C**  (https://arxiv.org/abs/1602.01783)  Actor-critic, using a critic-based advantage function as the baseline for variance reduction, asynchronous parallel.
-  - **ACKTR**  (https://arxiv.org/abs/1708.05144)  A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on A2C, and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense` and `Conv2D` layers.
-  - **ACER**  (https://arxiv.org/abs/1611.01224)  A3C with replay for off-policy learning.  The critic becomes a state-action value function instead of a state-only function.  The authors proposed a trust-region optimization scheme based on the KL divergence wrt a Polyak averaging policy network.  This implementation however includes the KL divergence (with a tunable scale factor) in the total loss.  This choice is less stable wrt change in hyperparameters, but simplifies the combination of ACER and ACKTR.
-  - **ACERKTR**  (orz)  ACER with the K-FAC optimizer instead of Adam.
-  - **NoisyNetA3C** and **NoisyNetACER**  (https://arxiv.org/abs/1706.10295)  Introduces (independent) Gaussian noises to policy network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
+  - **ACER**  (https://arxiv.org/abs/1611.01224)  A3C with uniform replay, using the Retrace off-policy correction.  The critic becomes a state-action value function instead of a state-only function.  The authors proposed a trust-region optimization scheme based on the KL divergence wrt a Polyak averaging policy network.  This implementation however includes the KL divergence (with a tunable scale factor) in the total loss.  This choice is less stable wrt change in hyperparameters, but simplifies the combination of ACER and ACKTR.
+  - **IMPALA**  (https://arxiv.org/abs/1802.01561)  A3C with replay and another (actually, a simpler) flavor of off-policy correction called V-trace.  This implementation is a lot more naive compared with the original distributed framework, however it gives an idea of how the off-policy correction is done and is much easier to integrate with ACKTR.
 
 - **DQN family**
   - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning without replay memory.
-  - **NoisyNetDQN**  (https://arxiv.org/abs/1706.10295)  DQN + NoisyNet.  Uses independent Gaussian noises as opposed to the factored Gaussian noises used in the original paper.
+
+- **Algorithm related options**
+  - `opt_type='kfac'`: Based on the idea of **ACKTR** (https://arxiv.org/abs/1708.05144), which is simply A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on synchronous algorithms (e.g., A2C), and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense` and `Conv2D` layers.
+  - `noisynet='ig'`: Based on the idea of **NoisyNet** (https://arxiv.org/abs/1706.10295), which introduces (independent) Gaussian noises to network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
+
+Side note: options `opt_type='kfac'` and `noisynet='ig'` are currently not compatible with each other, as we haven't coded the K-FAC approximation for NoisyNet layers yet.
 
 # Usage
 A minimal demo could be as simple as the following code snippet.  (A3C algorithm, `CartPole-v0` environment, and a 1-layer fully-connected net with 100 hidden units)
