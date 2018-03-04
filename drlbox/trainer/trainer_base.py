@@ -64,7 +64,7 @@ class Trainer(Tasker):
                                                         self.signal_handler)
             self.default_sigterm_handler = signal.signal(signal.SIGTERM,
                                                          self.signal_handler)
-            self.print('SIGINT and SIGTERM will be catched by drlbox')
+            self.print('SIGINT and SIGTERM will be caught by drlbox')
 
         # terminates the entire training when the master worker terminates
         master_worker = self.worker_list[0]
