@@ -100,8 +100,11 @@ class Trainer(Tasker):
     def worker(self, wid):
         env = self.env_maker()
         self.is_master = wid == 0
-        if self.is_master:
-            self.output = self.get_output_dir(env.spec.id)
+        if self.is_master and self.save_dir is not None:
+            env_name = 'UnknownEnv-v0' if env.spec is None else env.spec.id
+            self.output = self.get_output_dir(env_name)
+        else:
+            self.output = None
 
         # ports, cluster, and server
         cluster_list = ['{}:{}'.format(LOCALHOST, p) for p in self.port_list]
@@ -215,8 +218,6 @@ class Trainer(Tasker):
             raise ValueError('Optimizer type {} invalid'.format(self.opt_type))
 
     def get_output_dir(self, env_name):
-        if self.save_dir is None:
-            return None
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir, exist_ok=True)
             self.print('Made output dir', self.save_dir)
