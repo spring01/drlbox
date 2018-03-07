@@ -1,6 +1,6 @@
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from drlbox.net import ACERNet
 from drlbox.common.util import discrete_action, softmax_with_minprob
 from drlbox.common.policy import SoftmaxPolicy
