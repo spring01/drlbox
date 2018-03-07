@@ -1,4 +1,5 @@
 
+import numpy as np
 import tensorflow as tf
 from drlbox.net import QNet
 from drlbox.common.policy import DecayEpsGreedyPolicy
@@ -41,17 +42,29 @@ class DQNTrainer(Trainer):
     def train_on_rollout_list(self, rollout_list):
         batch_loss = super().train_on_rollout_list(rollout_list)
         self.batch_counter += 1
-        if self.batch_counter > self.interval_sync_target:
+        if self.batch_counter >= self.interval_sync_target:
             self.batch_counter = 0
             self.target_net.sync()
         return batch_loss
 
-    def rollout_feed(self, rollout):
-        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
-        last_state = r_state[-1:]
-        online_last_value = self.online_net.action_values(last_state)[-1]
-        target_last_value = self.target_net.action_values(last_state)[-1]
+    def rollout_list_bootstrap(self, cc_state, rl_slice):
+        last_states = [cc_state[r_slice][-1] for r_slice in rl_slice]
+        last_states = np.array(last_states)
+        online_last = self.online_net.action_values(last_states)
+        target_last = self.target_net.action_values(last_states)
+        value_shape = cc_state.shape[0], *online_last.shape[1:]
+        cc_online_value = np.zeros(value_shape)
+        cc_target_value = np.zeros(value_shape)
+        for r_slice, o_last, t_last in zip(rl_slice, online_last, target_last):
+            cc_online_value[r_slice][-1] = o_last
+            cc_target_value[r_slice][-1] = t_last
+        return cc_online_value, cc_target_value
+
+    def rollout_feed(self, rollout, r_online_value, r_target_value):
+        r_action = np.array(rollout.action_list)
+        online_last_value = r_online_value[-1]
+        target_last_value = r_target_value[-1]
         target_last_q = target_last_value[online_last_value.argmax()]
         r_target = self.rollout_target(rollout, target_last_q)
-        return r_input, r_action, r_target
+        return r_action, r_target
 

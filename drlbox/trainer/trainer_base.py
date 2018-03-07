@@ -274,23 +274,45 @@ class Trainer(Tasker):
             self.global_net.sync()
 
     def train_on_rollout_list(self, rollout_list):
-        feed_list = [self.rollout_feed(rollout) for rollout in rollout_list]
+        rl_state = []
+        rl_slice = []
+        last_index = 0
+        for rollout in rollout_list:
+            r_state = []
+            for state in rollout.state_list:
+                r_state.append(self.state_to_input(state))
+            r_state = np.array(r_state)
+            rl_state.append(r_state)
+            index = last_index + len(r_state)
+            rl_slice.append(slice(last_index, index))
+            last_index = index
+        cc_state = np.concatenate(rl_state)
+
+        # cc_boots is a tuple of concatenated bootstrap quantities
+        cc_boots = self.rollout_list_bootstrap(cc_state, rl_slice)
+
+        # rl_boots is a list of tuple of boostrap quantities
+        # and each tuple corresponds to a rollout
+        rl_boots = [tuple(boot[r_slice] for boot in cc_boots)
+                    for r_slice in rl_slice]
+
+        # feed_list contains all arguments to train_on_batch
+        feed_list = []
+        for rollout, r_state, r_boot in zip(rollout_list, rl_state, rl_boots):
+            r_input = r_state[:-1]
+            r_feeds = self.rollout_feed(rollout, *r_boot)
+            feed_list.append((r_input, *r_feeds))
+
         # concatenate individual types of feeds from the list
         train_args = map(np.concatenate, zip(*feed_list))
         batch_loss = self.online_net.train_on_batch(*train_args)
         return batch_loss
 
-    def rollout_feed(self, rollout):
+    def rollout_list_bootstrap(self, cc_state):
         raise NotImplementedError
 
-    def rollout_state_input_action(self, rollout):
-        r_state = []
-        for state in rollout.state_list:
-            r_state.append(self.state_to_input(state))
-        r_state = np.stack(r_state)
-        r_input = r_state[:-1]
-        r_action = np.stack(rollout.action_list)
-        return r_state, r_input, r_action
+    def rollout_feed(self, rollout, *rollout_bootstraps):
+        raise NotImplementedError
 
     def rollout_target(self, rollout, value_last):
         reward_long = 0.0 if rollout.done else value_last

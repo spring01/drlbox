@@ -32,24 +32,25 @@ class IMPALATrainer(A3CTrainer):
                 loss_list.append(batch_loss)
         return np.mean(loss_list)
 
-    def rollout_feed(self, rollout):
-        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
+    def rollout_list_bootstrap(self, cc_state, rl_slice):
+        cc_logits, cc_value = self.online_net.ac_values(cc_state)
+        return cc_logits, cc_value
+
+    def rollout_feed(self, rollout, r_logits, r_value):
+        r_action = np.array(rollout.action_list)
 
         # off-policy probabilities, length n
-        r_act_logits = np.stack(rollout.act_val_list)
-        r_act_probs = softmax_with_minprob(r_act_logits, self.softmax_minprob)
-        r_act_probs_act = r_act_probs[(range(len(r_act_probs)), r_action)]
+        r_off_logits = np.stack(rollout.act_val_list)
+        r_off_probs = softmax_with_minprob(r_off_logits, self.softmax_minprob)
+        r_off_probs_act = r_off_probs[(range(len(r_off_probs)), r_action)]
 
         # on-policy probabilities, length n
-        r_logits = self.online_net.action_values(r_input)
+        r_logits = r_logits[:-1]
         r_probs = softmax_with_minprob(r_logits, self.softmax_minprob)
         r_probs_act = r_probs[(range(len(r_probs)), r_action)]
 
-        # on-policy values, length n+1
-        r_value = self.online_net.state_value(r_state)
-
         # likelihood ratio, length n
-        r_lratio_act = r_probs_act / r_act_probs_act
+        r_lratio_act = r_probs_act / r_off_probs_act
         r_trunc_rho = np.minimum(self.impala_trunc_rho_max, r_lratio_act)
         r_trunc_c = np.minimum(self.impala_trunc_c_max, r_lratio_act)
 
@@ -72,5 +73,5 @@ class IMPALATrainer(A3CTrainer):
 
         # advantage
         r_adv = r_reward + self.discount * r_target[1:] - r_value[:-1]
-        return r_input, r_action, r_adv, r_target[:-1]
+        return r_action, r_adv, r_target[:-1]
 

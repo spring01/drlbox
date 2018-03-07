@@ -1,4 +1,5 @@
 
+import numpy as np
 from drlbox.net import ACNet
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy
@@ -24,10 +25,13 @@ class A3CTrainer(Trainer):
         else:
             raise TypeError('Invalid type of action_space')
 
-    def rollout_feed(self, rollout):
-        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
-        r_value = self.online_net.state_value(r_state)
+    def rollout_list_bootstrap(self, cc_state, rl_slice):
+        cc_value = self.online_net.state_value(cc_state)
+        return cc_value, # should return a tuple
+
+    def rollout_feed(self, rollout, r_value):
+        r_action = np.array(rollout.action_list)
         r_target = self.rollout_target(rollout, r_value[-1])
         r_adv = r_target - r_value[:-1]
-        return r_input, r_action, r_adv, r_target
+        return r_action, r_adv, r_target
 

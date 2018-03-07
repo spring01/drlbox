@@ -61,19 +61,23 @@ class ACERTrainer(A3CTrainer):
                 loss_list.append(batch_loss)
         return np.mean(loss_list)
 
-    def rollout_feed(self, rollout):
-        r_state, r_input, r_action = self.rollout_state_input_action(rollout)
+    def rollout_list_bootstrap(self, cc_state, rl_slice):
+        cc_logits, cc_boot_value = self.online_net.ac_values(cc_state)
+        cc_avg_logits = self.average_net.action_values(cc_state)
+        return cc_logits, cc_boot_value, cc_avg_logits
+
+    def rollout_feed(self, rollout, r_logits, r_boot_value, r_avg_logits):
+        r_action = np.array(rollout.action_list)
 
         # off-policy probabilities, length n
-        r_act_logits = np.stack(rollout.act_val_list)
-        r_act_probs = softmax_with_minprob(r_act_logits, self.softmax_minprob)
+        r_off_logits = np.array(rollout.act_val_list)
+        r_off_probs = softmax_with_minprob(r_off_logits, self.softmax_minprob)
 
         # on-policy probabilities and values, length n+1
-        r_logits, r_boot_value = self.online_net.ac_values(r_state)
         r_probs = softmax_with_minprob(r_logits, self.softmax_minprob)
 
         # likelihood ratio and retrace, length n
-        r_lratio = r_probs[:-1] / r_act_probs
+        r_lratio = r_probs[:-1] / r_off_probs
         r_retrace = np.minimum(self.retrace_max, r_lratio)
 
         # baseline, length n+1
@@ -92,8 +96,7 @@ class ACERTrainer(A3CTrainer):
             reward_long = retrace * (reward_long - val) + r_baseline[idx]
 
         # logits from the average net, length n
-        r_avg_logits = self.average_net.action_values(r_input)
-        return (r_input, r_action, r_lratio, r_sample_return, r_boot_value[:-1],
-                r_baseline[:-1], r_avg_logits)
+        return (r_action, r_lratio, r_sample_return, r_boot_value[:-1],
+                r_baseline[:-1], r_avg_logits[:-1])
 
 

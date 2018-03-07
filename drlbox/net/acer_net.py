@@ -82,10 +82,6 @@ class ACERNet(ACNet):
         self.ph_train_list = [self.ph_state, ph_action, ph_lratio,
             ph_sample_return, ph_boot_value, ph_baseline, ph_avg_logits]
 
-    def ac_values(self, state):
-        return self.sess.run([self.tf_logits, self.tf_value],
-                             feed_dict={self.ph_state: state})
-
     def set_soft_update(self, new_weights, update_ratio):
         assign_list = []
         for wt, nwt in zip(self.weights, new_weights):

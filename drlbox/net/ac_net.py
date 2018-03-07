@@ -96,4 +96,8 @@ class ACNet(RLNet):
     def state_value(self, state):
         return self.sess.run(self.tf_value, feed_dict={self.ph_state: state})
 
+    def ac_values(self, state):
+        return self.sess.run([self.tf_logits, self.tf_value],
+                             feed_dict={self.ph_state: state})
+
 
