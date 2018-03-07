@@ -4,7 +4,6 @@ import numpy as np
 from drlbox.net import ACERNet
 from drlbox.common.util import discrete_action, softmax_with_minprob
 from drlbox.common.policy import SoftmaxPolicy
-from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
 
 
@@ -16,9 +15,8 @@ class ACERTrainer(A3CTrainer):
                     **dict(acer_kl_weight=1e-1,
                            acer_trunc_max=10.0,
                            acer_soft_update_ratio=0.05,
-                           replay_maxlen=1000,
-                           replay_minlen=100,
-                           replay_ratio=4,)}
+                           replay_type='uniform',
+                           )}
     net_cls = ACERNet
     softmax_minprob = 1e-6
     retrace_max = 1.0
@@ -39,7 +37,6 @@ class ACERTrainer(A3CTrainer):
             self.average_net.set_sync_weights(self.global_net.weights)
             self.average_net.set_soft_update(self.global_net.weights,
                                              self.acer_soft_update_ratio)
-        self.replay = Replay(self.replay_maxlen, self.replay_minlen)
 
     def set_session(self, sess):
         super().set_session(sess)
@@ -49,17 +46,7 @@ class ACERTrainer(A3CTrainer):
     def train_on_rollout_list(self, rollout_list):
         batch_loss = super().train_on_rollout_list(rollout_list)
         self.average_net.soft_update()
-        loss_list = [batch_loss]
-        self.replay.append(rollout_list)
-        if len(self.replay) >= self.replay_minlen:
-            replay_times = np.random.poisson(self.replay_ratio)
-            rep_list, rep_idx, rep_weight = self.replay.sample(replay_times)
-            for roll_list, idx, weight in zip(rep_list, rep_idx, rep_weight):
-                self.online_net.sync()
-                batch_loss = super().train_on_rollout_list(roll_list)
-                self.average_net.soft_update()
-                loss_list.append(batch_loss)
-        return np.mean(loss_list)
+        return batch_loss
 
     def rollout_list_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_boot_value = self.online_net.ac_values(cc_state)

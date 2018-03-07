@@ -13,7 +13,8 @@ class DQNTrainer(Trainer):
                     **dict(policy_eps_start=1.0,
                            policy_eps_end=0.01,
                            policy_eps_decay_steps=1000000,
-                           interval_sync_target=1000,)}
+                           interval_sync_target=1000,
+                           )}
     net_cls = QNet
 
     def setup_algorithm(self, action_space):

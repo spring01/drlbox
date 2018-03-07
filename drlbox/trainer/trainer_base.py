@@ -11,6 +11,7 @@ import tensorflow as tf
 import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG
 from drlbox.net.kfac import KfacOptimizerTV, build_layer_collection
+from drlbox.common.replay import Replay
 from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -19,28 +20,34 @@ from .rollout import Rollout
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
+TRAINER_KW = dict(feature_maker=None,
+                  save_dir=None,            # Directory to save data to
+                  num_parallel=cpu_count(),
+                  port_begin=2220,
+                  discount=0.99,
+                  train_steps=1000000,
+                  replay_type=None,         # None, 'uniform', or 'prioritized'
+                  replay_maxlen=1000,
+                  replay_minlen=100,
+                  replay_ratio=4,
+                  opt_learning_rate=1e-4,
+                  opt_batch_size=32,
+                  opt_type='adam',          # 'adam' or 'kfac'
+                  opt_adam_epsilon=1e-4,
+                  opt_clip_norm=40.0,
+                  kfac_cov_ema_decay=0.95,
+                  kfac_damping=1e-3,
+                  kfac_trust_radius=1e-3,
+                  kfac_inv_upd_interval=10,
+                  noisynet=None,            # None, 'ig', or 'fg'
+                  interval_save=10000,
+                  catch_signal=False,
+                  )
+
 class Trainer(Tasker):
 
     KEYWORD_DICT = {**Tasker.KEYWORD_DICT,
-                    **dict(feature_maker=None,
-                           save_dir=None,           # Directory to save data to
-                           num_parallel=cpu_count(),
-                           port_begin=2220,
-                           discount=0.99,
-                           train_steps=1000000,
-                           opt_learning_rate=1e-4,
-                           opt_batch_size=32,
-                           opt_type='adam',         # 'adam' or 'kfac'
-                           opt_adam_epsilon=1e-4,
-                           opt_clip_norm=40.0,
-                           kfac_cov_ema_decay=0.95,
-                           kfac_damping=1e-3,
-                           kfac_trust_radius=1e-3,
-                           kfac_inv_upd_interval=10,
-                           noisynet=None,           # None, 'ig', or 'fg'
-                           interval_save=10000,
-                           catch_signal=False,
-                           )}
+                    **TRAINER_KW}
 
     def run(self):
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
@@ -120,6 +127,12 @@ class Trainer(Tasker):
                                                  cluster=cluster)
 
         self.setup_nets(worker_dev, rep_dev, env)
+        if self.replay_type is None:
+            self.replay = None
+        elif self.replay_type == 'uniform':
+            self.replay = Replay(self.replay_maxlen, self.replay_minlen)
+        else:
+            raise ValueError('replay type {} invalid'.format(self.replay_type))
 
         # begin tensorflow session, build async RL agent and train
         port = self.port_list[wid]
@@ -162,7 +175,20 @@ class Trainer(Tasker):
                     self.print('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
 
+            # on-policy training on the newly collected rollout list
             batch_loss = self.train_on_rollout_list(rollout_list)
+
+            # off-policy training if there is a memory
+            if self.replay is not None:
+                batch_loss_list = [batch_loss]
+                self.replay.append(rollout_list)
+                if len(self.replay) >= self.replay_minlen:
+                    rep = np.random.poisson(self.replay_ratio)
+                    for roll_list, idx, weight in zip(*self.replay.sample(rep)):
+                        self.online_net.sync()
+                        batch_loss = self.train_on_rollout_list(roll_list)
+                        batch_loss_list.append(batch_loss)
+                batch_loss = np.mean(batch_loss_list)
 
             self.step_counter.increment(self.opt_batch_size)
             step = self.step_counter.step_count()

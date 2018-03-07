@@ -1,7 +1,6 @@
 
 import numpy as np
 from drlbox.common.util import softmax_with_minprob
-from drlbox.common.replay import Replay
 from .a3c_trainer import A3CTrainer
 
 
@@ -10,27 +9,9 @@ class IMPALATrainer(A3CTrainer):
     KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
                     **dict(impala_trunc_rho_max=1.0,
                            impala_trunc_c_max=1.0,
-                           replay_maxlen=1000,
-                           replay_minlen=100,
-                           replay_ratio=4,)}
+                           replay_type='uniform',
+                           )}
     softmax_minprob = 1e-6
-
-    def setup_nets(self, worker_dev, rep_dev, env):
-        super().setup_nets(worker_dev, rep_dev, env)
-        self.replay = Replay(self.replay_maxlen, self.replay_minlen)
-
-    def train_on_rollout_list(self, rollout_list):
-        batch_loss = super().train_on_rollout_list(rollout_list)
-        loss_list = [batch_loss]
-        self.replay.append(rollout_list)
-        if len(self.replay) >= self.replay_minlen:
-            replay_times = np.random.poisson(self.replay_ratio)
-            rep_list, rep_idx, rep_weight = self.replay.sample(replay_times)
-            for roll_list, idx, weight in zip(rep_list, rep_idx, rep_weight):
-                self.online_net.sync()
-                batch_loss = super().train_on_rollout_list(roll_list)
-                loss_list.append(batch_loss)
-        return np.mean(loss_list)
 
     def rollout_list_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_value = self.online_net.ac_values(cc_state)
