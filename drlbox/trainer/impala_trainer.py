@@ -21,7 +21,7 @@ class IMPALATrainer(A3CTrainer):
         r_action = np.array(rollout.action_list)
 
         # off-policy probabilities, length n
-        r_off_logits = np.stack(rollout.act_val_list)
+        r_off_logits = np.array(rollout.act_val_list)
         r_off_probs = softmax_with_minprob(r_off_logits, self.softmax_minprob)
         r_off_probs_act = r_off_probs[(range(len(r_off_probs)), r_action)]
 
@@ -36,7 +36,7 @@ class IMPALATrainer(A3CTrainer):
         r_trunc_c = np.minimum(self.impala_trunc_c_max, r_lratio_act)
 
         # v-trace target, length n+1
-        r_reward = np.stack(rollout.reward_list)
+        r_reward = np.array(rollout.reward_list)
         if rollout.done:
             r_value[-1] = 0.0
         r_target = np.zeros(len(rollout) + 1)
