@@ -26,12 +26,13 @@ TRAINER_KW = dict(feature_maker=None,
                   port_begin=2220,
                   discount=0.99,
                   train_steps=1000000,
+                  batch_size=32,
+                  rollout_maxlen=32,
                   replay_type=None,         # None, 'uniform', or 'prioritized'
                   replay_maxlen=1000,
                   replay_minlen=100,
                   replay_ratio=4,
                   opt_learning_rate=1e-4,
-                  opt_batch_size=32,
                   opt_type='adam',          # 'adam' or 'kfac'
                   opt_adam_epsilon=1e-4,
                   opt_clip_norm=40.0,
@@ -163,7 +164,7 @@ class Trainer(Tasker):
             if self.noisynet is not None:
                 self.online_net.sample_noise()
             rollout_list = [Rollout(state)]
-            for batch_step in range(self.opt_batch_size):
+            for batch_step in range(self.batch_size):
                 net_input = self.state_to_input(state)
                 act_val = self.online_net.action_values([net_input])[0]
                 action = self.policy.select_action(act_val)
@@ -172,10 +173,13 @@ class Trainer(Tasker):
                 rollout_list[-1].append(state, action, reward, done, act_val)
                 if done:
                     state = env.reset()
-                    if batch_step < self.opt_batch_size - 1:
+                    if batch_step < self.batch_size - 1:
                         rollout_list.append(Rollout(state))
                     self.print('episode reward {:5.2f}'.format(episode_reward))
                     episode_reward = 0.0
+                if len(rollout_list[-1]) >= self.rollout_maxlen:
+                    if batch_step < self.batch_size - 1:
+                        rollout_list.append(Rollout(state))
 
             # on-policy training on the newly collected rollout list
             batch_loss = self.train_on_rollout_list(rollout_list)
@@ -192,7 +196,7 @@ class Trainer(Tasker):
                         batch_loss_list.append(batch_loss)
                 batch_loss = np.mean(batch_loss_list)
 
-            self.step_counter.increment(self.opt_batch_size)
+            self.step_counter.increment(self.batch_size)
             step = self.step_counter.step_count()
             if self.is_master:
                 if step - last_save > self.interval_save:
