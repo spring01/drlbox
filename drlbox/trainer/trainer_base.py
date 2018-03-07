@@ -131,6 +131,8 @@ class Trainer(Tasker):
             self.replay = None
         elif self.replay_type == 'uniform':
             self.replay = Replay(self.replay_maxlen, self.replay_minlen)
+        elif self.replay_type == 'prioritized':
+            raise NotImplementedError('prioritized replay is not implemented')
         else:
             raise ValueError('replay type {} invalid'.format(self.replay_type))
 
