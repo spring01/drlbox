@@ -71,7 +71,7 @@ TRAINER_KW = dict(feature_maker=None,
                   kfac_inv_upd_interval=10,
                   noisynet=None,            # None, 'ig', or 'fg'
                   interval_save=10000,
-                  catch_signal=False,
+                  catch_signal=False,       # effective on multiprocessing only
                   )
 
 class Trainer(Tasker):
@@ -81,6 +81,13 @@ class Trainer(Tasker):
 
     def run(self):
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
+
+        # single process
+        if self.num_parallel == 1:
+            self.worker(0)
+            return
+
+        # multiprocess parallel training
         for port in self.port_list:
             if not self.port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
@@ -175,10 +182,11 @@ class Trainer(Tasker):
             # train the agent
             self.train_on_env(env)
 
-        self.event_finished.set()
-        if self.is_master:
-            while True:
-                time.sleep(1)
+        if self.num_parallel > 1:
+            self.event_finished.set()
+            if self.is_master:
+                while True:
+                    time.sleep(1)
 
     def train_on_env(self, env):
         step = self.step_counter.step_count()
