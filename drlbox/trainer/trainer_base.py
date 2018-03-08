@@ -61,8 +61,8 @@ TRAINER_KW = dict(feature_maker=None,
                   replay_maxlen=1000,
                   replay_minlen=100,
                   replay_ratio=4,
+                  optimizer='adam',         # 'adam', 'kfac', or Optimizer obj
                   opt_learning_rate=1e-4,
-                  opt_type='adam',          # 'adam' or 'kfac'
                   opt_adam_epsilon=1e-4,
                   opt_clip_norm=40.0,
                   kfac_cov_ema_decay=0.95,
@@ -262,12 +262,12 @@ class Trainer(Tasker):
         return net
 
     def set_online_optimizer(self):
-        if self.opt_type == 'adam':
+        if self.optimizer == 'adam':
             adam = tf.train.AdamOptimizer(self.opt_learning_rate,
                                           epsilon=self.opt_adam_epsilon)
             self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
                                           train_weights=self.global_net.weights)
-        elif self.opt_type == 'kfac':
+        elif self.optimizer == 'kfac':
             layer_list = self.online_net.model.layers
             layer_collection = build_layer_collection(layer_list,
                 self.online_net.kfac_loss_list)
@@ -279,8 +279,12 @@ class Trainer(Tasker):
                                    var_list=self.online_net.weights)
             self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
                                      train_weights=self.global_net.weights)
+        elif isinstance(self.optimizer, tf.train.Optimizer):
+            self.online_net.set_optimizer(self.optimizer,
+                                          clip_norm=self.opt_clip_norm,
+                                          train_weights=self.global_net.weights)
         else:
-            raise ValueError('Optimizer type {} invalid'.format(self.opt_type))
+            raise ValueError('Optimizer {} invalid'.format(self.optimizer))
 
     def get_output_dir(self, env_name):
         if not os.path.isdir(self.save_dir):
