@@ -26,7 +26,7 @@ class A3CTrainer(Trainer):
         else:
             raise TypeError('Invalid type of action_space')
 
-    def rollout_list_bootstrap(self, cc_state, rl_slice):
+    def concat_bootstrap(self, cc_state, rl_slice):
         cc_value = self.online_net.state_value(cc_state)
         return cc_value, # should return a tuple
 

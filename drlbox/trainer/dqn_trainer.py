@@ -40,15 +40,15 @@ class DQNTrainer(Trainer):
         self.target_net.set_session(sess)
         self.target_net.sync()
 
-    def train_on_rollout_list(self, rollout_list):
-        batch_loss = super().train_on_rollout_list(rollout_list)
+    def train_on_batch(self, batch):
+        batch_loss = super().train_on_batch(batch)
         self.batch_counter += 1
         if self.batch_counter >= self.interval_sync_target:
             self.batch_counter = 0
             self.target_net.sync()
         return batch_loss
 
-    def rollout_list_bootstrap(self, cc_state, rl_slice):
+    def concat_bootstrap(self, cc_state, rl_slice):
         last_states = [cc_state[r_slice][-1] for r_slice in rl_slice]
         last_states = np.array(last_states)
         online_last = self.online_net.action_values(last_states)

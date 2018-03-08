@@ -17,6 +17,34 @@ from .step_counter import StepCounter
 from .rollout import Rollout
 
 
+'''
+Explanation of batched n-step training and arguments:
+
+1. Rollout:
+    The basic unit of training is a length-L "rollout" of the form
+    { s_t, a_t, r_t, s_{t+1}, ..., s_{t+L} }
+    which contains L transitions.  In practice, L is not always a fixed length
+    as a rollout must terminate at the end of an episode.
+
+    Argument 'rollout_maxlen' is the maximum length a rollout can ever have,
+    and is related with the number of bootstrap steps.  For example, setting
+    'rollout_maxlen = 1' corresponds to 1-step bootstrapped TD learning.
+    If we set 'rollout_maxlen = N', then the first state in the rollout will be
+    subject to a N-step TD learning, the second state will be subject to
+    a (N-1)-step TD learning, and so on.
+
+2. Rollout list:
+    "rollout_list" (abbr. "rlist") is a list of (various-length) rollouts
+    and is guaranteed to contain a fixed number of transitions.
+
+    Argument 'rollout_list_len' is this fixed number.
+
+3. Batch:
+    A "batch" is simply a fixed number of rollout lists.  One training on
+    a single batch executes exactly one update to the network weights.
+
+'''
+
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
@@ -26,8 +54,9 @@ TRAINER_KW = dict(feature_maker=None,
                   port_begin=2220,
                   discount=0.99,
                   train_steps=1000000,
-                  batch_size=32,
+                  batch_size=1,
                   rollout_maxlen=32,
+                  rollout_list_len=32,
                   replay_type=None,         # None, 'uniform', or 'prioritized'
                   replay_maxlen=1000,
                   replay_minlen=100,
@@ -158,45 +187,49 @@ class Trainer(Tasker):
             self.save_model(step)
 
         state = env.reset()
-        episode_reward = 0.0
+        ep_reward = 0.0
         while step <= self.train_steps:
             self.online_net.sync()
             if self.noisynet is not None:
                 self.online_net.sample_noise()
-            rollout_list = [Rollout(state)]
+            batch = []
             for batch_step in range(self.batch_size):
-                net_input = self.state_to_input(state)
-                act_val = self.online_net.action_values([net_input])[0]
-                action = self.policy.select_action(act_val)
-                state, reward, done, info = env.step(action)
-                episode_reward += reward
-                rollout_list[-1].append(state, action, reward, done, act_val)
-                if done:
-                    state = env.reset()
-                    if batch_step < self.batch_size - 1:
-                        rollout_list.append(Rollout(state))
-                    self.print('episode reward {:5.2f}'.format(episode_reward))
-                    episode_reward = 0.0
-                if len(rollout_list[-1]) >= self.rollout_maxlen:
-                    if batch_step < self.batch_size - 1:
-                        rollout_list.append(Rollout(state))
+                rlist = [Rollout(state)]
+                for rlist_step in range(self.rollout_list_len):
+                    net_input = self.state_to_input(state)
+                    act_val = self.online_net.action_values([net_input])[0]
+                    action = self.policy.select_action(act_val)
+                    state, reward, done, info = env.step(action)
+                    ep_reward += reward
+                    rlist[-1].append(state, action, reward, done, act_val)
+                    if done:
+                        state = env.reset()
+                        if rlist_step < self.rollout_list_len - 1:
+                            rlist.append(Rollout(state))
+                        self.print('episode reward {:5.2f}'.format(ep_reward))
+                        ep_reward = 0.0
+                    if len(rlist[-1]) >= self.rollout_maxlen:
+                        if rlist_step < self.rollout_list_len - 1:
+                            rlist.append(Rollout(state))
+                batch.append(rlist)
 
             # on-policy training on the newly collected rollout list
-            batch_loss = self.train_on_rollout_list(rollout_list)
+            batch_loss = self.train_on_batch(batch)
 
             # off-policy training if there is a memory
             if self.replay is not None:
                 batch_loss_list = [batch_loss]
-                self.replay.append(rollout_list)
+                self.replay.extend(batch)
                 if len(self.replay) >= self.replay_minlen:
                     rep = np.random.poisson(self.replay_ratio)
-                    for roll_list, idx, weight in zip(*self.replay.sample(rep)):
+                    for _ in range(rep):
+                        batch, idx, weight = self.replay.sample(self.batch_size)
                         self.online_net.sync()
-                        batch_loss = self.train_on_rollout_list(roll_list)
+                        batch_loss = self.train_on_batch(batch)
                         batch_loss_list.append(batch_loss)
                 batch_loss = np.mean(batch_loss_list)
 
-            self.step_counter.increment(self.batch_size)
+            self.step_counter.increment(self.batch_size * self.rollout_list_len)
             step = self.step_counter.step_count()
             if self.is_master:
                 if step - last_save > self.interval_save:
@@ -305,23 +338,26 @@ class Trainer(Tasker):
             self.global_net.set_sync_weights(self.saved_weights)
             self.global_net.sync()
 
-    def train_on_rollout_list(self, rollout_list):
+    def train_on_batch(self, batch):
         rl_state = []
         rl_slice = []
         last_index = 0
-        for rollout in rollout_list:
-            r_state = []
-            for state in rollout.state_list:
-                r_state.append(self.state_to_input(state))
-            r_state = np.array(r_state)
-            rl_state.append(r_state)
-            index = last_index + len(r_state)
-            rl_slice.append(slice(last_index, index))
-            last_index = index
+        unrolled_batch = []
+        for rlist in batch:
+            for rollout in rlist:
+                unrolled_batch.append(rollout)
+                r_state = []
+                for state in rollout.state_list:
+                    r_state.append(self.state_to_input(state))
+                r_state = np.array(r_state)
+                rl_state.append(r_state)
+                index = last_index + len(r_state)
+                rl_slice.append(slice(last_index, index))
+                last_index = index
         cc_state = np.concatenate(rl_state)
 
         # cc_boots is a tuple of concatenated bootstrap quantities
-        cc_boots = self.rollout_list_bootstrap(cc_state, rl_slice)
+        cc_boots = self.concat_bootstrap(cc_state, rl_slice)
 
         # rl_boots is a list of tuple of boostrap quantities
         # and each tuple corresponds to a rollout
@@ -330,7 +366,7 @@ class Trainer(Tasker):
 
         # feed_list contains all arguments to train_on_batch
         feed_list = []
-        for rollout, r_state, r_boot in zip(rollout_list, rl_state, rl_boots):
+        for rollout, r_state, r_boot in zip(unrolled_batch, rl_state, rl_boots):
             r_input = r_state[:-1]
             r_feeds = self.rollout_feed(rollout, *r_boot)
             feed_list.append((r_input, *r_feeds))
@@ -340,7 +376,7 @@ class Trainer(Tasker):
         batch_loss = self.online_net.train_on_batch(*train_args)
         return batch_loss
 
-    def rollout_list_bootstrap(self, cc_state):
+    def concat_bootstrap(self, cc_state):
         raise NotImplementedError
 
     def rollout_feed(self, rollout, *rollout_bootstraps):

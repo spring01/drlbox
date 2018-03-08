@@ -26,6 +26,10 @@ class Replay:
         self.index = (self.index + 1) % self.maxlen
         self.length = min(self.length + 1, self.maxlen)
 
+    def extend(self, batch):
+        for transition in batch:
+            self.append(transition)
+
     def sample(self, batch_size):
         batch_idx = [random.randrange(len(self)) for _ in range(batch_size)]
         batch = [self.ring_buffer[i] for i in batch_idx]

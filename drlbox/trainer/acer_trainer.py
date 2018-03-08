@@ -43,12 +43,12 @@ class ACERTrainer(A3CTrainer):
         self.average_net.set_session(sess)
         self.average_net.sync()
 
-    def train_on_rollout_list(self, rollout_list):
-        batch_loss = super().train_on_rollout_list(rollout_list)
+    def train_on_batch(self, batch):
+        batch_loss = super().train_on_batch(batch)
         self.average_net.soft_update()
         return batch_loss
 
-    def rollout_list_bootstrap(self, cc_state, rl_slice):
+    def concat_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_boot_value = self.online_net.ac_values(cc_state)
         cc_avg_logits = self.average_net.action_values(cc_state)
         return cc_logits, cc_boot_value, cc_avg_logits

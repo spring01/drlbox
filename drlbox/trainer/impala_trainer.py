@@ -13,7 +13,7 @@ class IMPALATrainer(A3CTrainer):
                            )}
     softmax_minprob = 1e-6
 
-    def rollout_list_bootstrap(self, cc_state, rl_slice):
+    def concat_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_value = self.online_net.ac_values(cc_state)
         return cc_logits, cc_value
 
