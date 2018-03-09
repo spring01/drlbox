@@ -10,6 +10,7 @@ class DQNTrainer(Trainer):
 
     KEYWORD_DICT = {**Trainer.KEYWORD_DICT,
                     **dict(dqn_double=True,
+                           dqn_dueling=True,
                            policy_eps_start=1.0,
                            policy_eps_end=0.01,
                            policy_eps_decay_steps=1000000,
@@ -38,8 +39,34 @@ class DQNTrainer(Trainer):
     def build_model(self, state, feature):
         assert self.action_mode == 'discrete'
         flatten = tf.keras.layers.Flatten()
-        feature = flatten(feature)
-        q_value = self.dense_layer(self.action_dim)(feature)
+        if self.dqn_dueling:
+            if type(feature) is tuple:
+                assert len(feature) == 2
+                # separated adv/value streams when feature is a length 2 tuple
+                feature_adv, feature_value = map(flatten, feature)
+            else:
+                feature = flatten(feature)
+                size_last_hid = feature.shape.as_list()[-1]
+                assert size_last_hid % 2 == 0
+                size_dueling = size_last_hid // 2
+                # split feature in halves
+                l_first_half = lambda x: x[..., :size_dueling]
+                l_last_half = lambda x: x[..., size_dueling:]
+                feature_adv = tf.keras.layers.Lambda(l_first_half)(feature)
+                feature_value = tf.keras.layers.Lambda(l_last_half)(feature)
+            hid_adv = tf.keras.layers.Dense(size_dueling)(feature_adv)
+            hid_adv = tf.keras.layers.Activation('relu')(hid_adv)
+            hid_value = tf.keras.layers.Dense(size_dueling)(feature_value)
+            hid_value = tf.keras.layers.Activation('relu')(hid_value)
+            adv = self.dense_layer(self.action_dim)(hid_adv)
+            value = self.dense_layer(1)(hid_value)
+            l_baseline = lambda x: -tf.reduce_mean(x, axis=-1, keepdims=True)
+            baseline = tf.keras.layers.Lambda(l_baseline)(adv)
+            q_value = tf.keras.layers.Add()([value, baseline, adv])
+            #~ import pdb; pdb.set_trace()
+        else:
+            feature = flatten(feature)
+            q_value = self.dense_layer(self.action_dim)(feature)
         model = tf.keras.models.Model(inputs=state, outputs=q_value)
         return model
 
