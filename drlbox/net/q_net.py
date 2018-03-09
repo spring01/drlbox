@@ -1,19 +1,9 @@
 
 import tensorflow as tf
 from .net_base import RLNet
-from drlbox.common.util import discrete_action
 
 
 class QNet(RLNet):
-
-    def build_model(self, state, feature, action_space):
-        if not discrete_action(action_space):
-            raise ValueError('action_space must be discrete in DQN')
-        flatten = tf.keras.layers.Flatten()
-        feature = flatten(feature)
-        q_value = self.dense_layer(action_space.n)(feature)
-        model = tf.keras.models.Model(inputs=state, outputs=q_value)
-        return model
 
     def set_model(self, model):
         self.model = model

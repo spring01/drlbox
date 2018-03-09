@@ -1,41 +1,11 @@
 
 import tensorflow as tf
-import gym.spaces
 from .net_base import RLNet
-from drlbox.common.util import discrete_action, continuous_action
 
 
 class ACNet(RLNet):
 
     LOGPI               = 1.1447298858494002
-    act_decomp_value    = False
-
-    def build_model(self, state, feature, action_space):
-        flatten = tf.keras.layers.Flatten()
-        if type(feature) is tuple:
-            assert len(feature) == 2
-            # separated logits/value streams when feature is a length 2 tuple
-            feature_logits, feature_value = map(flatten, feature)
-        else:
-            # feature is a single stream otherwise
-            feature_logits = feature_value = flatten(feature)
-        if discrete_action(action_space):
-            self.action_mode = 'discrete'
-            size_logits = action_space.n
-            size_value = size_logits if self.act_decomp_value else 1
-            init = tf.keras.initializers.RandomNormal(stddev=1e-3)
-        elif continuous_action(action_space):
-            self.action_mode = 'continuous'
-            size_logits = len(action_space.shape) + 1
-            size_value = 1
-            init = 'glorot_uniform'
-        else:
-            raise ValueError('Invalid type of action_space')
-        logits_layer = self.dense_layer(size_logits, kernel_initializer=init)
-        logits = logits_layer(feature_logits)
-        value = self.dense_layer(size_value)(feature_value)
-        model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
-        return model
 
     def set_model(self, model):
         self.model = model
@@ -44,12 +14,12 @@ class ACNet(RLNet):
         self.tf_logits, tf_value = model.outputs
         self.tf_value = tf_value[:, 0]
 
-    def set_loss(self, entropy_weight=0.01, min_var=None):
+    def set_loss(self, entropy_weight=0.01, min_var=None, policy_type=None):
         tf_logits = self.tf_logits
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == 'discrete':
+        if policy_type == 'softmax':
             kfac_policy_loss = 'categorical_predictive', (tf_logits,)
             ph_action = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
@@ -58,7 +28,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
                 neg_entropy = tf.reduce_sum(probs * log_probs)
-        elif self.action_mode == 'continuous':
+        elif policy_type == 'gaussian':
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
             ph_action = tf.placeholder(tf.float32, [None, dim_action])
@@ -73,7 +43,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 neg_entropy = 0.5 * tf.reduce_sum(log_2pi_var + 1.0)
         else:
-            raise ValueError('Invalid action_mode')
+            raise ValueError('policy_type {} invalid'.format(policy_type))
 
         policy_loss = -tf.reduce_sum(log_probs_act * ph_advantage)
 

@@ -1,7 +1,7 @@
 
 import numpy as np
+import tensorflow as tf
 from drlbox.net import ACNet
-from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy
 from .trainer_base import Trainer
 
@@ -14,17 +14,46 @@ class A3CTrainer(Trainer):
                            )}
     net_cls = ACNet
 
-    def setup_algorithm(self, action_space):
-        self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
-                                min_var=self.policy_sto_cont_min_var)
-        if discrete_action(action_space):
+    def setup_algorithm(self):
+        entropy_weight = self.a3c_entropy_weight if self.noisynet is None else 0
+        if self.action_mode == 'discrete':
+            policy_type = 'softmax'
+            size_logits = self.action_dim
+            size_value = 1
+            logits_init = tf.keras.initializers.RandomNormal(stddev=1e-3)
             self.policy = SoftmaxPolicy()
-        elif continuous_action(action_space):
-            self.policy = GaussianPolicy(low=action_space.low,
-                                         high=action_space.high,
+        elif self.action_mode == 'continuous':
+            policy_type = 'gaussian'
+            size_logits = self.action_dim + 1
+            size_value = 1
+            logits_init = 'glorot_uniform'
+            self.policy = GaussianPolicy(low=self.action_low,
+                                         high=self.action_high,
                                          min_var=self.policy_sto_cont_min_var)
         else:
-            raise TypeError('Invalid type of action_space')
+            raise TypeError('action_mode {} invalid'.format(self.action_mode))
+        self.loss_kwargs = dict(entropy_weight=entropy_weight,
+                                min_var=self.policy_sto_cont_min_var,
+                                policy_type=policy_type)
+        self.model_kwargs = dict(size_logits=size_logits,
+                                 size_value=size_value,
+                                 logits_init=logits_init)
+
+    def build_model(self, state, feature, size_logits, size_value, logits_init):
+        flatten = tf.keras.layers.Flatten()
+        if type(feature) is tuple:
+            assert len(feature) == 2
+            # separated logits/value streams when feature is a length 2 tuple
+            feature_logits, feature_value = map(flatten, feature)
+        else:
+            # feature is a single stream otherwise
+            feature_logits = feature_value = flatten(feature)
+        logits_layer = self.dense_layer(size_logits,
+                                        kernel_initializer=logits_init)
+        logits = logits_layer(feature_logits)
+        value = self.dense_layer(size_value)(feature_value)
+        model = tf.keras.models.Model(inputs=state, outputs=[logits, value])
+        return model
 
     def concat_bootstrap(self, cc_state, rl_slice):
         cc_value = self.online_net.state_value(cc_state)

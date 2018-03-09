@@ -1,6 +1,5 @@
 
 import tensorflow as tf
-import gym.spaces
 from .ac_net import ACNet
 
 
@@ -9,20 +8,19 @@ ACER assumes discrete action for now.
 '''
 class ACERNet(ACNet):
 
-    act_decomp_value = True
-
     def set_model(self, model):
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
         self.tf_logits, self.tf_value = model.outputs
 
-    def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0):
+    def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0,
+                 policy_type=None):
         # sample return and baseline placeholders
         ph_sample_return = tf.placeholder(tf.float32, [None])
         ph_baseline = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == 'discrete':
+        if policy_type == 'softmax':
             kfac_policy_loss = 'categorical_predictive', (self.tf_logits,)
             num_action = self.tf_logits.shape[1]
             ph_action = tf.placeholder(tf.int32, [None])
@@ -63,7 +61,7 @@ class ACERNet(ACNet):
             if entropy_weight:
                 neg_entropy = tf.reduce_sum(probs * log_probs)
         else:
-            raise ValueError('action_space must be discrete in ACER')
+            raise ValueError('policy_type must be softmax in ACER, for now')
 
         # value (critic) loss
         value_squared_diff = tf.squared_difference(ph_sample_return, value_act)

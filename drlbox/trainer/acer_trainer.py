@@ -2,12 +2,10 @@
 import numpy as np
 import tensorflow as tf
 from drlbox.net import ACERNet
-from drlbox.common.util import discrete_action, softmax_with_minprob
+from drlbox.common.util import softmax_with_minprob
 from drlbox.common.policy import SoftmaxPolicy
 from .a3c_trainer import A3CTrainer
 
-
-ACER_ACTION_SPACE_ONLY_DISC = 'action_space must be discrete in ACER network'
 
 class ACERTrainer(A3CTrainer):
 
@@ -21,14 +19,15 @@ class ACERTrainer(A3CTrainer):
     softmax_minprob = 1e-6
     retrace_max = 1.0
 
-    def setup_algorithm(self, action_space):
+    def setup_algorithm(self):
+        super().setup_algorithm()
+        assert self.action_mode == 'discrete'
         self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
                                 kl_weight=self.acer_kl_weight,
-                                trunc_max=self.acer_trunc_max)
-        if discrete_action(action_space):
-            self.policy = SoftmaxPolicy()
-        else:
-            raise TypeError(ACER_ACTION_SPACE_ONLY_DISC)
+                                trunc_max=self.acer_trunc_max,
+                                policy_type='softmax')
+        self.model_kwargs['size_value'] = self.action_dim
+        self.policy = SoftmaxPolicy()
 
     def setup_nets(self, worker_dev, rep_dev, env):
         super().setup_nets(worker_dev, rep_dev, env)

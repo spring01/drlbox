@@ -12,6 +12,7 @@ import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG
 from drlbox.net.kfac import KfacOptimizerTV, build_layer_collection
 from drlbox.common.replay import Replay
+from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
 from .rollout import Rollout
@@ -50,8 +51,7 @@ JOBNAME = 'local'
 
 TRAINER_KW = dict(feature_maker=None,
                   model_maker=None,         # if set, ignores feature_maker
-                  action_mode='discrete',
-                  save_dir=None,            # Directory to save data to
+                  save_dir=None,            # directory to save data to
                   num_parallel=cpu_count(),
                   port_begin=2220,
                   discount=0.99,
@@ -78,10 +78,20 @@ TRAINER_KW = dict(feature_maker=None,
 
 class Trainer(Tasker):
 
+    dense_layer = tf.keras.layers.Dense
     KEYWORD_DICT = {**Tasker.KEYWORD_DICT,
                     **TRAINER_KW}
 
     def run(self):
+        # change default dense_layer to noisy layer if requested
+        if self.noisynet is None:
+            pass
+        elif self.noisynet == 'ig':
+            self.dense_layer = NoisyDenseIG
+            self.print('Using independent Gaussian NoisyNet')
+        else:
+            raise ValueError('noisynet={} is invalid'.format(self.noisynet))
+
         self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
 
         # single process
@@ -146,6 +156,19 @@ class Trainer(Tasker):
     def worker(self, wid):
         assert callable(self.env_maker)
         env = self.env_maker()
+
+        # determine action mode from env.action_space
+        if discrete_action(env.action_space):
+            self.action_mode = 'discrete'
+            self.action_dim = env.action_space.n
+        elif continuous_action(env.action_space):
+            self.action_mode = 'continuous'
+            self.action_dim = len(env.action_space.shape)
+            self.action_low = env.action_space.low
+            self.action_high = env.action_space.high
+        else:
+            raise TypeError('Invalid type of env.action_space')
+
         self.is_master = wid == 0
         if self.is_master and self.save_dir is not None:
             env_name = 'UnknownEnv-v0' if env.spec is None else env.spec.id
@@ -159,7 +182,7 @@ class Trainer(Tasker):
         server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
         self.print('Starting server #{}'.format(wid))
 
-        self.setup_algorithm(env.action_space)
+        self.setup_algorithm()
 
         # global/local devices
         worker_dev = '/job:{}/task:{}/cpu:0'.format(JOBNAME, wid)
@@ -258,9 +281,6 @@ class Trainer(Tasker):
 
     def build_net(self, env=None, is_global=False):
         net = self.net_cls()
-        if self.noisynet == 'ig':
-            net.dense_layer = NoisyDenseIG
-            self.print('Using independent Gaussian NoisyNet')
         if self.load_model is not None:
             if is_global:
                 model = self.do_load_model()
@@ -271,13 +291,11 @@ class Trainer(Tasker):
             if self.model_maker is None:
                 assert callable(self.feature_maker)
                 state, feature = self.feature_maker(env.observation_space)
-                model = net.build_model(state, feature, env.action_space)
+                model = self.build_model(state, feature, **self.model_kwargs)
             else:
                 assert callable(self.model_maker)
                 model = self.model_maker(env)
         net.set_model(model)
-        if not hasattr(net, 'action_mode'):
-            net.action_mode = self.action_mode
         if self.noisynet is not None:
             net.set_noise_list()
         return net
@@ -337,7 +355,7 @@ class Trainer(Tasker):
     '''
     Methods subject to overloading
     '''
-    def setup_algorithm(self, action_space):
+    def setup_algorithm(self):
         raise NotImplementedError
 
     def setup_nets(self, worker_dev, rep_dev, env):
@@ -355,6 +373,9 @@ class Trainer(Tasker):
             self.set_online_optimizer()
             self.online_net.set_sync_weights(self.global_net.weights)
             self.step_counter.set_increment()
+
+    def build_model(self, state, feature, **kwargs):
+        raise NotImplementedError
 
     def set_session(self, sess):
         for obj in self.global_net, self.online_net, self.step_counter:

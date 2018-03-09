@@ -6,11 +6,7 @@ from drlbox.layer.noisy_dense import NoisyDenseIG
 class RLNet:
 
     op_sync = None
-    dense_layer = tf.keras.layers.Dense
     kfac_loss_list = []
-
-    def build_model(self, state, feature, action_space):
-        raise NotImplementedError
 
     # net constructed by set_model only can predict but cannot be trained
     def set_model(self, model):
