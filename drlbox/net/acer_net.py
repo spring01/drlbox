@@ -22,7 +22,7 @@ class ACERNet(ACNet):
         ph_sample_return = tf.placeholder(tf.float32, [None])
         ph_baseline = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == self.DISCRETE:
+        if self.action_mode == 'discrete':
             kfac_policy_loss = 'categorical_predictive', (self.tf_logits,)
             num_action = self.tf_logits.shape[1]
             ph_action = tf.placeholder(tf.int32, [None])

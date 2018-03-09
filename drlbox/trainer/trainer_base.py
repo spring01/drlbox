@@ -50,6 +50,7 @@ JOBNAME = 'local'
 
 TRAINER_KW = dict(feature_maker=None,
                   model_maker=None,         # if set, ignores feature_maker
+                  action_mode='discrete',
                   save_dir=None,            # Directory to save data to
                   num_parallel=cpu_count(),
                   port_begin=2220,
@@ -143,6 +144,7 @@ class Trainer(Tasker):
                 time.sleep(0.01)
 
     def worker(self, wid):
+        assert callable(self.env_maker)
         env = self.env_maker()
         self.is_master = wid == 0
         if self.is_master and self.save_dir is not None:
@@ -259,16 +261,23 @@ class Trainer(Tasker):
         if self.noisynet == 'ig':
             net.dense_layer = NoisyDenseIG
             self.print('Using independent Gaussian NoisyNet')
-        if self.load_model is not None and is_global:
-            model = self.do_load_model()
-            self.saved_weights = model.get_weights()
+        if self.load_model is not None:
+            if is_global:
+                model = self.do_load_model()
+                self.saved_weights = model.get_weights()
+            else:
+                model = self.do_load_model(load_weights=False)
         else:
             if self.model_maker is None:
+                assert callable(self.feature_maker)
                 state, feature = self.feature_maker(env.observation_space)
                 model = net.build_model(state, feature, env.action_space)
             else:
+                assert callable(self.model_maker)
                 model = self.model_maker(env)
         net.set_model(model)
+        if not hasattr(net, 'action_mode'):
+            net.action_mode = self.action_mode
         if self.noisynet is not None:
             net.set_noise_list()
         return net

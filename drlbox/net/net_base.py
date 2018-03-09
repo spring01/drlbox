@@ -6,7 +6,6 @@ from drlbox.layer.noisy_dense import NoisyDenseIG
 class RLNet:
 
     op_sync = None
-    DISCRETE, CONTINUOUS = 'discrete', 'continuous' # action mode names
     dense_layer = tf.keras.layers.Dense
     kfac_loss_list = []
 

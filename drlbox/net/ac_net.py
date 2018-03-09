@@ -20,12 +20,12 @@ class ACNet(RLNet):
             # feature is a single stream otherwise
             feature_logits = feature_value = flatten(feature)
         if discrete_action(action_space):
-            self.action_mode = self.DISCRETE
+            self.action_mode = 'discrete'
             size_logits = action_space.n
             size_value = size_logits if self.act_decomp_value else 1
             init = tf.keras.initializers.RandomNormal(stddev=1e-3)
         elif continuous_action(action_space):
-            self.action_mode = self.CONTINUOUS
+            self.action_mode = 'continuous'
             size_logits = len(action_space.shape) + 1
             size_value = 1
             init = 'glorot_uniform'
@@ -49,7 +49,7 @@ class ACNet(RLNet):
         ph_advantage = tf.placeholder(tf.float32, [None])
         ph_target = tf.placeholder(tf.float32, [None])
 
-        if self.action_mode == self.DISCRETE:
+        if self.action_mode == 'discrete':
             kfac_policy_loss = 'categorical_predictive', (tf_logits,)
             ph_action = tf.placeholder(tf.int32, [None])
             log_probs = tf.nn.log_softmax(tf_logits)
@@ -58,7 +58,7 @@ class ACNet(RLNet):
             if entropy_weight:
                 probs = tf.nn.softmax(tf_logits)
                 neg_entropy = tf.reduce_sum(probs * log_probs)
-        elif self.action_mode == self.CONTINUOUS:
+        elif self.action_mode == 'continuous':
             assert min_var is not None
             dim_action = tf_logits.shape[1] - 1
             ph_action = tf.placeholder(tf.float32, [None, dim_action])

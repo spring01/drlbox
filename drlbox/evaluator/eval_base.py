@@ -18,6 +18,7 @@ class Evaluator(Tasker):
                            )}
 
     def run(self):
+        assert callable(self.env_maker)
         env = self.env_maker()
 
         # setup policy
