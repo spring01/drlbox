@@ -49,6 +49,7 @@ LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
 TRAINER_KW = dict(feature_maker=None,
+                  model_maker=None,         # if set, ignores feature_maker
                   save_dir=None,            # Directory to save data to
                   num_parallel=cpu_count(),
                   port_begin=2220,
@@ -262,8 +263,11 @@ class Trainer(Tasker):
             model = self.do_load_model()
             self.saved_weights = model.get_weights()
         else:
-            state, feature = self.feature_maker(env.observation_space)
-            model = net.build_model(state, feature, env.action_space)
+            if self.model_maker is None:
+                state, feature = self.feature_maker(env.observation_space)
+                model = net.build_model(state, feature, env.action_space)
+            else:
+                model = self.model_maker(env)
         net.set_model(model)
         if self.noisynet is not None:
             net.set_noise_list()
