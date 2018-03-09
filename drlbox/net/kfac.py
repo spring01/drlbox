@@ -53,10 +53,9 @@ def build_layer_collection(layer_list, loss_list):
     # register losses
     for loss_type, args in loss_list:
         if loss_type == 'normal_predictive':
-            reg_func = lc.register_normal_predictive_distribution
+            lc.register_normal_predictive_distribution(*args)
         elif loss_type == 'categorical_predictive':
-            reg_func = lc.register_categorical_predictive_distribution
-        reg_func(*args)
+            lc.register_categorical_predictive_distribution(*args)
 
     return lc
 

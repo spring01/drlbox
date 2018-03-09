@@ -40,10 +40,9 @@ class Tasker:
         if self.load_model_custom is not None:
             custom_objects.update(self.load_model_custom)
         if load_weights:
-            load_model_func = tf.keras.models.load_model
+            return tf.keras.models.load_model(self.load_model, custom_objects)
         else:
-            load_model_func = self.load_model_no_weights
-        return load_model_func(self.load_model, custom_objects)
+            return self.load_model_no_weights(self.load_model, custom_objects)
 
     def load_model_no_weights(self, filepath, custom_objects=None):
         if not custom_objects:
