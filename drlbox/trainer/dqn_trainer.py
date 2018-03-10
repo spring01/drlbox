@@ -8,7 +8,7 @@ from .trainer_base import Trainer
 
 DQN_KWARGS = dict(
     dqn_double=True,
-    dqn_dueling=True,
+    dqn_dueling=False,
     policy_eps_start=1.0,
     policy_eps_end=0.01,
     policy_eps_decay_steps=1000000,
@@ -39,6 +39,7 @@ class DQNTrainer(Trainer):
         self.batch_counter = 0
 
     def build_model(self, state, feature):
+        import pdb; pdb.set_trace()
         assert self.action_mode == 'discrete'
         if self.dqn_dueling:
             if type(feature) is tuple:
