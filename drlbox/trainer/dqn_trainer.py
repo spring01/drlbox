@@ -39,7 +39,6 @@ class DQNTrainer(Trainer):
         self.batch_counter = 0
 
     def build_model(self, state, feature):
-        import pdb; pdb.set_trace()
         assert self.action_mode == 'discrete'
         if self.dqn_dueling:
             if type(feature) is tuple:
