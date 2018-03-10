@@ -5,26 +5,29 @@ import tensorflow as tf
 from drlbox.layer.noisy_dense import NoisyDenseIG
 
 
+TASKER_KWARGS = dict(
+    env_maker=None,
+    state_to_input=None,
+    load_model=None,
+    load_model_custom=None,
+    noisynet=None,
+    verbose=False,
+    )
+
 class Tasker:
 
-    KEYWORD_DICT = dict(env_maker=None,
-                        state_to_input=None,
-                        load_model=None,
-                        load_model_custom=None,
-                        noisynet=None,
-                        verbose=False,
-                        )
+    KWARGS = TASKER_KWARGS
 
     def __init__(self, **kwargs):
-        # combine arguments from self.KEYWORD_DICT and kwargs and set arguments
-        self.__dict__.update(self.KEYWORD_DICT)
+        # combine arguments from self.KWARGS and kwargs and set arguments
+        self.__dict__.update(self.KWARGS)
         self.__dict__.update(kwargs)
 
         # print arguments
         self.print('#### All arguments ####')
         for keyword, value in sorted(self.__dict__.items()):
             statement = '    {} = {}'.format(keyword, value)
-            if keyword not in self.KEYWORD_DICT:
+            if keyword not in self.KWARGS:
                 statement += ' (UNUSED)'
             self.print(statement)
 

@@ -4,13 +4,15 @@ from drlbox.common.util import softmax_with_minprob
 from .a3c_trainer import A3CTrainer
 
 
+IMPALA_KWARGS = dict(
+    impala_trunc_rho_max=1.0,
+    impala_trunc_c_max=1.0,
+    replay_type='uniform',
+    )
+
 class IMPALATrainer(A3CTrainer):
 
-    KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
-                    **dict(impala_trunc_rho_max=1.0,
-                           impala_trunc_c_max=1.0,
-                           replay_type='uniform',
-                           )}
+    KWARGS = {**A3CTrainer.KWARGS, **IMPALA_KWARGS}
     softmax_minprob = 1e-6
 
     def concat_bootstrap(self, cc_state, rl_slice):

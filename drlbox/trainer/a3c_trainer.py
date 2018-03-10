@@ -6,12 +6,14 @@ from drlbox.common.policy import SoftmaxPolicy, GaussianPolicy
 from .trainer_base import Trainer
 
 
+A3C_KWARGS = dict(
+    a3c_entropy_weight=1e-2,
+    policy_sto_cont_min_var=1e-4,
+    )
+
 class A3CTrainer(Trainer):
 
-    KEYWORD_DICT = {**Trainer.KEYWORD_DICT,
-                    **dict(a3c_entropy_weight=1e-2,
-                           policy_sto_cont_min_var=1e-4,
-                           )}
+    KWARGS = {**Trainer.KWARGS, **A3C_KWARGS}
     net_cls = ACNet
 
     def setup_algorithm(self):
@@ -40,14 +42,13 @@ class A3CTrainer(Trainer):
                                  logits_init=logits_init)
 
     def build_model(self, state, feature, size_logits, size_value, logits_init):
-        flatten = tf.keras.layers.Flatten()
         if type(feature) is tuple:
             assert len(feature) == 2
             # separated logits/value streams when feature is a length 2 tuple
-            feature_logits, feature_value = map(flatten, feature)
+            feature_logits, feature_value = map(self.layer_flatten, feature)
         else:
             # feature is a single stream otherwise
-            feature_logits = feature_value = flatten(feature)
+            feature_logits = feature_value = self.layer_flatten(feature)
         logits_layer = self.dense_layer(size_logits,
                                         kernel_initializer=logits_init)
         logits = logits_layer(feature_logits)

@@ -32,7 +32,6 @@ def make_feature(observation_space, net_name='fc', net_size=512):
     conv1_32 = Conv2D(32, (8, 8), strides=(4, 4))
     conv2_64 = Conv2D(64, (4, 4), strides=(2, 2))
     conv3_64 = Conv2D(64, (3, 3), strides=(1, 1))
-    relu = Activation('relu')
 
     # if recurrent net then change input shape
     if 'lstm' in net_name or 'gru' in net_name:
@@ -42,11 +41,11 @@ def make_feature(observation_space, net_name='fc', net_size=512):
 
         # extract features with `TimeDistributed` wrapped convolutional layers
         dist_conv1 = TimeDistributed(conv1_32)(dist_state)
-        dist_conv1 = TimeDistributed(relu)(dist_conv1)
+        dist_conv1 = TimeDistributed(Activation('relu'))(dist_conv1)
         dist_conv2 = TimeDistributed(conv2_64)(dist_conv1)
-        dist_conv2 = TimeDistributed(relu)(dist_conv2)
+        dist_conv2 = TimeDistributed(Activation('relu'))(dist_conv2)
         dist_convf = TimeDistributed(conv3_64)(dist_conv2)
-        dist_convf = TimeDistributed(relu)(dist_convf)
+        dist_convf = TimeDistributed(Activation('relu'))(dist_convf)
         feature = TimeDistributed(Flatten())(dist_convf)
 
         # specify final hidden layer type
@@ -58,11 +57,11 @@ def make_feature(observation_space, net_name='fc', net_size=512):
         # fully connected final hidden layer
         # extract features with convolutional layers
         conv1 = conv1_32(inp_state)
-        conv1 = relu(conv1)
+        conv1 = Activation('relu')(conv1)
         conv2 = conv2_64(conv1)
-        conv2 = relu(conv2)
+        conv2 = Activation('relu')(conv2)
         convf = conv3_64(conv2)
-        convf = relu(convf)
+        convf = Activation('relu')(convf)
         feature = Flatten()(convf)
 
         # specify final hidden layer type
@@ -72,6 +71,6 @@ def make_feature(observation_space, net_name='fc', net_size=512):
 
     # actor (policy) and critic (value) stream
     feature = hidden_layer(net_size)(feature)
-    feature = relu(feature)
+    feature = Activation('relu')(feature)
     return inp_state, feature
 

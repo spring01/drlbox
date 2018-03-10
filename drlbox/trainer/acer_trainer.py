@@ -7,14 +7,16 @@ from drlbox.common.policy import SoftmaxPolicy
 from .a3c_trainer import A3CTrainer
 
 
+ACER_KWARGS = dict(
+    acer_kl_weight=1e-1,
+    acer_trunc_max=10.0,
+    acer_soft_update_ratio=0.05,
+    replay_type='uniform',
+    )
+
 class ACERTrainer(A3CTrainer):
 
-    KEYWORD_DICT = {**A3CTrainer.KEYWORD_DICT,
-                    **dict(acer_kl_weight=1e-1,
-                           acer_trunc_max=10.0,
-                           acer_soft_update_ratio=0.05,
-                           replay_type='uniform',
-                           )}
+    KWARGS = {**A3CTrainer.KWARGS, **ACER_KWARGS}
     net_cls = ACERNet
     softmax_minprob = 1e-6
     retrace_max = 1.0

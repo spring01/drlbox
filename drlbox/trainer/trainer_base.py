@@ -49,38 +49,38 @@ Explanation of batched n-step training and arguments:
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
-TRAINER_KW = dict(feature_maker=None,
-                  model_maker=None,         # if set, ignores feature_maker
-                  save_dir=None,            # directory to save data to
-                  num_parallel=cpu_count(),
-                  port_begin=2220,
-                  discount=0.99,
-                  train_steps=1000000,
-                  batch_size=1,
-                  rollout_maxlen=32,
-                  rollout_list_len=32,
-                  replay_type=None,         # None, 'uniform', or 'prioritized'
-                  replay_maxlen=1000,
-                  replay_minlen=100,
-                  replay_ratio=4,
-                  optimizer='adam',         # 'adam', 'kfac', or Optimizer obj
-                  opt_learning_rate=1e-4,
-                  opt_adam_epsilon=1e-4,
-                  opt_clip_norm=40.0,
-                  kfac_cov_ema_decay=0.95,
-                  kfac_damping=1e-3,
-                  kfac_trust_radius=1e-3,
-                  kfac_inv_upd_interval=10,
-                  noisynet=None,            # None, 'ig', or 'fg'
-                  interval_save=10000,
-                  catch_signal=False,       # effective on multiprocessing only
-                  )
+TRAINER_KWARGS = dict(
+    feature_maker=None,
+    model_maker=None,           # if set, ignores feature_maker
+    save_dir=None,              # directory to save data
+    num_parallel=cpu_count(),
+    port_begin=2220,
+    discount=0.99,
+    train_steps=1000000,
+    batch_size=1,
+    rollout_maxlen=32,
+    rollout_list_len=32,
+    replay_type=None,           # None, 'uniform', or 'prioritized'
+    replay_maxlen=1000,
+    replay_minlen=100,
+    replay_ratio=4,
+    optimizer='adam',           # 'adam', 'kfac', or tf.train.Optimizer instance
+    opt_learning_rate=1e-4,
+    opt_adam_epsilon=1e-4,
+    opt_clip_norm=40.0,
+    kfac_cov_ema_decay=0.95,
+    kfac_damping=1e-3,
+    kfac_trust_radius=1e-3,
+    kfac_inv_upd_interval=10,
+    noisynet=None,              # None, 'ig', or 'fg'
+    interval_save=10000,
+    catch_signal=False,         # effective on multiprocessing only
+    )
 
 class Trainer(Tasker):
 
     dense_layer = tf.keras.layers.Dense
-    KEYWORD_DICT = {**Tasker.KEYWORD_DICT,
-                    **TRAINER_KW}
+    KWARGS = {**Tasker.KWARGS, **TRAINER_KWARGS}
 
     def run(self):
         # change default dense_layer to noisy layer if requested
@@ -299,6 +299,11 @@ class Trainer(Tasker):
         if self.noisynet is not None:
             net.set_noise_list()
         return net
+
+    def layer_flatten(self, layer):
+        if len(layer.shape) > 2:
+            layer = tf.keras.layers.Flatten()(layer)
+        return layer
 
     def set_online_optimizer(self):
         if self.optimizer == 'adam':
