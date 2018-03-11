@@ -223,9 +223,7 @@ class Trainer(Tasker):
         state = env.reset()
         ep_reward = 0.0
         while step <= self.train_steps:
-            self.online_net.sync()
-            if self.noisynet is not None:
-                self.online_net.sample_noise()
+            self.sync_to_global()
             batch = []
             for batch_step in range(self.batch_size):
                 rlist = [Rollout(state)]
@@ -258,7 +256,7 @@ class Trainer(Tasker):
                     rep = np.random.poisson(self.replay_ratio)
                     for _ in range(rep):
                         batch, idx, weight = self.replay.sample(self.batch_size)
-                        self.online_net.sync()
+                        self.sync_to_global()
                         batch_loss = self.train_on_batch(batch)
                         batch_loss_list.append(batch_loss)
                 batch_loss = np.mean(batch_loss_list)
@@ -388,6 +386,11 @@ class Trainer(Tasker):
         if self.load_model is not None:
             self.global_net.set_sync_weights(self.saved_weights)
             self.global_net.sync()
+
+    def sync_to_global(self):
+        self.online_net.sync()
+        if self.noisynet is not None:
+            self.online_net.sample_noise()
 
     def train_on_batch(self, batch):
         rl_state = []

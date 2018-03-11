@@ -75,6 +75,12 @@ class DQNTrainer(Trainer):
         self.target_net.set_session(sess)
         self.target_net.sync()
 
+    def sync_to_global(self):
+        self.online_net.sync()
+        if self.noisynet is not None:
+            self.online_net.sample_noise()
+            self.target_net.sample_noise()
+
     def train_on_batch(self, batch):
         batch_loss = super().train_on_batch(batch)
         self.batch_counter += 1

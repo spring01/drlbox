@@ -44,6 +44,12 @@ class ACERTrainer(A3CTrainer):
         self.average_net.set_session(sess)
         self.average_net.sync()
 
+    def sync_to_global(self):
+        self.online_net.sync()
+        if self.noisynet is not None:
+            self.online_net.sample_noise()
+            self.average_net.sample_noise()
+
     def train_on_batch(self, batch):
         batch_loss = super().train_on_batch(batch)
         self.average_net.soft_update()
