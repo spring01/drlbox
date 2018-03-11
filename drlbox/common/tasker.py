@@ -2,7 +2,7 @@
 import h5py
 import json
 import tensorflow as tf
-from drlbox.layer.noisy_dense import NoisyDenseIG
+from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 
 
 TASKER_KWARGS = dict(
@@ -38,7 +38,8 @@ class Tasker:
     def do_load_model(self, load_weights=True):
         custom_objects = {}
         if self.noisynet is not None:
-            noisy_layer_dict = {'NoisyDenseIG': NoisyDenseIG}
+            noisy_layer_dict = {'NoisyDenseIG': NoisyDenseIG,
+                                'NoisyDenseFG': NoisyDenseFG}
             custom_objects.update(noisy_layer_dict)
         if self.load_model_custom is not None:
             custom_objects.update(self.load_model_custom)
@@ -48,7 +49,7 @@ class Tasker:
             return self.load_model_no_weights(self.load_model, custom_objects)
 
     def load_model_no_weights(self, filepath, custom_objects=None):
-        if not custom_objects:
+        if custom_objects is None:
             custom_objects = {}
         with h5py.File(filepath, mode='r') as f:
             # instantiate model

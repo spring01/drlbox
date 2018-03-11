@@ -1,16 +1,12 @@
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base
 from tensorflow.python.ops.init_ops import Constant
 
 
-IG_SCALE_INIT = 0.017
-
-'''
-Noisy dense layer with independent Gaussian noise
-'''
-class NoisyDenseIG(tf.keras.layers.Dense):
+class NoisyDense(tf.keras.layers.Dense):
 
     def build(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape)
@@ -27,17 +23,14 @@ class NoisyDenseIG(tf.keras.layers.Dense):
                                          constraint=self.kernel_constraint,
                                          dtype=self.dtype,
                                          trainable=True)
-        scale_init = Constant(value=IG_SCALE_INIT)
+        scale_init = Constant(value=(0.5 / np.sqrt(kernel_shape[0])))
         kernel_noise_scale = self.add_variable('kernel_noise_scale',
                                                shape=kernel_shape,
                                                initializer=scale_init,
                                                dtype=self.dtype,
                                                trainable=True)
-        kernel_noise = tf.random_normal(kernel_shape, dtype=self.dtype)
-        self.kernel_noise = tf.Variable(kernel_noise,
-                                        trainable=False,
-                                        dtype=self.dtype)
-        self.kernel = kernel_quiet + kernel_noise_scale * self.kernel_noise
+        kernel_noise = self.make_kernel_noise(shape=kernel_shape)
+        self.kernel = kernel_quiet + kernel_noise_scale * kernel_noise
         if self.use_bias:
             bias_shape = [self.units,]
             bias_quiet = self.add_variable('bias_quiet',
@@ -52,19 +45,57 @@ class NoisyDenseIG(tf.keras.layers.Dense):
                                                  initializer=scale_init,
                                                  dtype=self.dtype,
                                                  trainable=True)
-            bias_noise = tf.random_normal(bias_shape, dtype=self.dtype)
-            self.bias_noise = tf.Variable(bias_noise,
-                                          trainable=False,
-                                          dtype=self.dtype)
-            self.bias = bias_quiet + bias_noise_scale * self.bias_noise
+            bias_noise = self.make_bias_noise(shape=bias_shape)
+            self.bias = bias_quiet + bias_noise_scale * bias_noise
         else:
             self.bias = None
         self.built = True
 
-    def noise_list(self):
-        noise_list = [self.kernel_noise]
-        if self.use_bias:
-            noise_list.append(self.bias_noise)
-        return noise_list
+    def make_kernel_noise(self, shape):
+        raise NotImplementedError
+
+    def make_bias_noise(self, shape):
+        raise NotImplementedError
+
+
+'''
+Noisy dense layer with independent Gaussian noise
+'''
+class NoisyDenseIG(NoisyDense):
+
+    def make_kernel_noise(self, shape):
+        noise = tf.random_normal(shape, dtype=self.dtype)
+        kernel_noise = tf.Variable(noise, trainable=False, dtype=self.dtype)
+        self.noise_list = [kernel_noise]
+        return kernel_noise
+
+    def make_bias_noise(self, shape):
+        noise = tf.random_normal(shape, dtype=self.dtype)
+        bias_noise = tf.Variable(noise, trainable=False, dtype=self.dtype)
+        self.noise_list.append(bias_noise)
+        return bias_noise
+
+
+'''
+Noisy dense layer with factorized Gaussian noise
+'''
+class NoisyDenseFG(NoisyDense):
+
+    def make_kernel_noise(self, shape):
+        kernel_noise_left = self.make_fg_noise(shape=[shape[0]])
+        kernel_noise_right = self.make_fg_noise(shape=[shape[1]])
+        self.noise_list = [kernel_noise_left, kernel_noise_right]
+        kernel_noise = (kernel_noise_left[:, tf.newaxis] * kernel_noise_right)
+        return kernel_noise
+
+    def make_bias_noise(self, shape):
+        bias_noise = self.make_fg_noise(shape=shape)
+        self.noise_list.append(bias_noise)
+        return bias_noise
+
+    def make_fg_noise(self, shape):
+        noise = tf.random_normal(shape, dtype=self.dtype)
+        trans_noise = tf.sign(noise) * tf.sqrt(tf.abs(noise))
+        return tf.Variable(trans_noise, trainable=False, dtype=self.dtype)
 
 

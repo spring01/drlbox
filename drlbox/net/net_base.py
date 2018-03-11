@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from drlbox.layer.noisy_dense import NoisyDenseIG
+from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 
 
 class RLNet:
@@ -64,8 +64,8 @@ class RLNet:
     def set_noise_list(self):
         self.noise_list = []
         for layer in self.model.layers:
-            if type(layer) is NoisyDenseIG:
-                self.noise_list.extend(layer.noise_list())
+            if type(layer) in {NoisyDenseIG, NoisyDenseFG}:
+                self.noise_list.extend(layer.noise_list)
 
     def sample_noise(self):
         for noise in self.noise_list:

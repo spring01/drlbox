@@ -9,7 +9,7 @@ from datetime import timedelta
 
 import tensorflow as tf
 import numpy as np
-from drlbox.layer.noisy_dense import NoisyDenseIG
+from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 from drlbox.net.kfac import KfacOptimizerTV, build_layer_collection
 from drlbox.common.replay import Replay
 from drlbox.common.util import discrete_action, continuous_action
@@ -89,6 +89,9 @@ class Trainer(Tasker):
         elif self.noisynet == 'ig':
             self.dense_layer = NoisyDenseIG
             self.print('Using independent Gaussian NoisyNet')
+        elif self.noisynet == 'fg':
+            self.dense_layer = NoisyDenseFG
+            self.print('Using factorized Gaussian NoisyNet')
         else:
             raise ValueError('noisynet={} is invalid'.format(self.noisynet))
 
