@@ -82,14 +82,14 @@ Noisy dense layer with factorized Gaussian noise
 class NoisyDenseFG(NoisyDense):
 
     def make_kernel_noise(self, shape):
-        kernel_noise_left = self.make_fg_noise(shape=[shape[0]])
-        kernel_noise_right = self.make_fg_noise(shape=[shape[1]])
-        self.noise_list = [kernel_noise_left, kernel_noise_right]
-        kernel_noise = (kernel_noise_left[:, tf.newaxis] * kernel_noise_right)
+        kernel_noise_input = self.make_fg_noise(shape=[shape[0]])
+        kernel_noise_output = self.make_fg_noise(shape=[shape[1]])
+        self.noise_list = [kernel_noise_input, kernel_noise_output]
+        kernel_noise = kernel_noise_input[:, tf.newaxis] * kernel_noise_output
         return kernel_noise
 
     def make_bias_noise(self, shape):
-        return self.noise_list[1] # kernel_noise_right
+        return self.noise_list[1] # kernel_noise_output
 
     def make_fg_noise(self, shape):
         noise = tf.random_normal(shape, dtype=self.dtype)
