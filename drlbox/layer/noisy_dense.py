@@ -89,9 +89,7 @@ class NoisyDenseFG(NoisyDense):
         return kernel_noise
 
     def make_bias_noise(self, shape):
-        bias_noise = self.make_fg_noise(shape=shape)
-        self.noise_list.append(bias_noise)
-        return bias_noise
+        return self.noise_list[1] # kernel_noise_right
 
     def make_fg_noise(self, shape):
         noise = tf.random_normal(shape, dtype=self.dtype)
