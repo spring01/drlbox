@@ -10,7 +10,8 @@ from datetime import timedelta
 import tensorflow as tf
 import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
-from drlbox.net.kfac import KfacOptimizerTV, build_layer_collection
+from drlbox.net.kfac.optimizer import KfacOptimizerTV
+from drlbox.net.kfac.build_layer_collection import build_layer_collection
 from drlbox.common.replay import Replay
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.tasker import Tasker
