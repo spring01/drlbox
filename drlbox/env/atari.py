@@ -27,7 +27,7 @@ class Preprocessor(gym.Wrapper):
     """
 
     metadata = {'render.modes': ['human', 'wrapped', 'rgb_array']}
-    resize = 84, 110 # tuple of 2 integers (height, width).
+    resize = 84, 84 # tuple of 2 integers (height, width).
 
     '''
         Arguments for the constructor:

@@ -73,6 +73,7 @@ TRAINER_KWARGS = dict(
     kfac_damping=1e-3,
     kfac_trust_radius=1e-3,
     kfac_inv_upd_interval=10,
+    kfac_momentum=0.0,
     noisynet=None,              # None, 'ig', or 'fg'
     interval_save=10000,
     catch_signal=False,         # effective on multiprocessing only
@@ -322,7 +323,8 @@ class Trainer(Tasker):
                                    damping=self.kfac_damping,
                                    norm_constraint=self.kfac_trust_radius,
                                    layer_collection=layer_collection,
-                                   var_list=self.online_net.weights)
+                                   var_list=self.online_net.weights,
+                                   momentum=self.kfac_momentum)
             self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
                                      train_weights=self.global_net.weights)
         elif isinstance(self.optimizer, tf.train.Optimizer):
