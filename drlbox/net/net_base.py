@@ -36,7 +36,7 @@ class RLNet:
         self.periodic_counter = 0
 
     def set_kfac(self, kfac, inv_upd_interval, train_weights=None):
-        # kfac has a builtin trust-region scheme and so clip_norm is None
+        # kfac has a builtin trust-region scheme and so there is no clip_norm
         self.set_optimizer(kfac, train_weights=train_weights)
         self.op_train.append(kfac.cov_update_op)
         self.op_periodic = kfac.inv_update_op

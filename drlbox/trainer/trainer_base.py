@@ -45,6 +45,8 @@ Explanation of batched n-step training and arguments:
     A "batch" is simply a fixed number of rollout lists.  One training on
     a single batch executes exactly one update to the network weights.
 
+    Argument 'batch_size' is the number of rollout lists.
+
 '''
 
 LOCALHOST = 'localhost'
@@ -220,7 +222,8 @@ class Trainer(Tasker):
             self.replay = None
         else:
             replay_kwargs = {**REPLAY_KWARGS, **self.replay_kwargs}
-            self.print_kwargs(replay_kwargs, 'Replay memory arguments')
+            if self.is_master:
+                self.print_kwargs(replay_kwargs, 'Replay memory arguments')
             if self.replay_type == 'uniform':
                 self.replay = Replay(**replay_kwargs)
             elif self.replay_type == 'prioritized':
@@ -337,13 +340,15 @@ class Trainer(Tasker):
     def set_online_optimizer(self):
         if self.optimizer == 'adam':
             adam_kwargs = {**ADAM_KWARGS, **self.opt_kwargs}
-            self.print_kwargs(adam_kwargs, 'Adam arguments')
+            if self.is_master:
+                self.print_kwargs(adam_kwargs, 'Adam arguments')
             adam = tf.train.AdamOptimizer(**adam_kwargs)
             self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
                                           train_weights=self.global_net.weights)
         elif self.optimizer == 'kfac':
             kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
-            self.print_kwargs(kfac_kwargs, 'KFAC arguments')
+            if self.is_master:
+                self.print_kwargs(kfac_kwargs, 'KFAC arguments')
             layer_collection = build_layer_collection(
                 layer_list=self.online_net.model.layers,
                 loss_list=self.online_net.kfac_loss_list,

@@ -17,7 +17,6 @@ class A3CTrainer(Trainer):
     net_cls = ACNet
 
     def setup_algorithm(self):
-        entropy_weight = self.a3c_entropy_weight if self.noisynet is None else 0
         if self.action_mode == 'discrete':
             policy_type = 'softmax'
             size_logits = self.action_dim
@@ -34,7 +33,7 @@ class A3CTrainer(Trainer):
                                          min_var=self.policy_sto_cont_min_var)
         else:
             raise TypeError('action_mode {} invalid'.format(self.action_mode))
-        self.loss_kwargs = dict(entropy_weight=entropy_weight,
+        self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
                                 min_var=self.policy_sto_cont_min_var,
                                 policy_type=policy_type)
         self.model_kwargs = dict(size_logits=size_logits,
