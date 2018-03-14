@@ -24,6 +24,10 @@ class Tasker:
         self.__dict__.update(kwargs)
         self.print_kwargs(self.__dict__, 'All arguments', default=self.KWARGS)
 
+        # set self.state_to_input to 'do nothing' if it is None
+        if self.state_to_input is None:
+            self.state_to_input = lambda x: x
+
     def print_kwargs(self, kwargs, header=None, default=None):
         self.print('#### {} ####'.format(header))
         for key, value in sorted(kwargs.items()):
