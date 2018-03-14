@@ -11,7 +11,6 @@ TASKER_KWARGS = dict(
     state_to_input=None,
     load_model=None,
     load_model_custom=None,
-    noisynet=None,
     verbose=False,
     )
 
@@ -41,11 +40,8 @@ class Tasker:
             print(*args, **kwargs, flush=True)
 
     def do_load_model(self, load_weights=True):
-        custom_objects = {}
-        if self.noisynet is not None:
-            noisy_layer_dict = {'NoisyDenseIG': NoisyDenseIG,
-                                'NoisyDenseFG': NoisyDenseFG}
-            custom_objects.update(noisy_layer_dict)
+        custom_objects = {'NoisyDenseIG': NoisyDenseIG,
+                          'NoisyDenseFG': NoisyDenseFG}
         if self.load_model_custom is not None:
             custom_objects.update(self.load_model_custom)
         if load_weights:
