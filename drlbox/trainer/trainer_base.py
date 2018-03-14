@@ -39,7 +39,7 @@ Explanation of batched n-step training and arguments:
     "rollout_list" (abbr. "rlist") is a list of (various-length) rollouts
     and is guaranteed to contain a fixed number of transitions.
 
-    Argument 'rollout_list_len' is this fixed number.
+    Argument 'rollout_maxlen' is also this fixed number.
 
 3. Batch:
     A "batch" is simply a fixed number of rollout lists.  One training on
@@ -50,6 +50,32 @@ Explanation of batched n-step training and arguments:
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
 
+'''
+Optimizer related default kwargs
+'''
+ADAM_KWARGS = dict(
+    learning_rate=1e-4,
+    epsilon=1e-4,
+    )
+KFAC_KWARGS = dict(
+    learning_rate=1e-4,
+    cov_ema_decay=0.95,
+    damping=1e-3,
+    norm_constraint=1e-3,
+    momentum=0.0,
+    )
+
+'''
+Replay memory related default kwargs
+'''
+REPLAY_KWARGS = dict(
+    maxlen=1000,
+    minlen=100,
+    )
+
+'''
+Trainer default kwargs
+'''
 TRAINER_KWARGS = dict(
     feature_maker=None,
     model_maker=None,           # if set, ignores feature_maker
@@ -58,26 +84,21 @@ TRAINER_KWARGS = dict(
     port_begin=2220,
     discount=0.99,
     train_steps=1000000,
-    batch_size=1,
     rollout_maxlen=32,
-    rollout_list_len=32,
+    batch_size=1,
+    online_learning=True,       # whether or not to perform online learning
     replay_type=None,           # None, 'uniform', or 'prioritized'
-    replay_maxlen=1000,
-    replay_minlen=100,
     replay_ratio=4,
+    replay_kwargs={},
     optimizer='adam',           # 'adam', 'kfac', or tf.train.Optimizer instance
-    opt_learning_rate=1e-4,
-    opt_adam_epsilon=1e-4,
     opt_clip_norm=40.0,
-    kfac_cov_ema_decay=0.95,
-    kfac_damping=1e-3,
-    kfac_trust_radius=1e-3,
+    opt_kwargs={},
     kfac_inv_upd_interval=10,
-    kfac_momentum=0.0,
     noisynet=None,              # None, 'ig', or 'fg'
     interval_save=10000,
     catch_signal=False,         # effective on multiprocessing only
     )
+
 
 class Trainer(Tasker):
 
@@ -197,12 +218,16 @@ class Trainer(Tasker):
         self.setup_nets(worker_dev, rep_dev, env)
         if self.replay_type is None:
             self.replay = None
-        elif self.replay_type == 'uniform':
-            self.replay = Replay(self.replay_maxlen, self.replay_minlen)
-        elif self.replay_type == 'prioritized':
-            raise NotImplementedError('prioritized replay is not implemented')
         else:
-            raise ValueError('replay type {} invalid'.format(self.replay_type))
+            replay_kwargs = {**REPLAY_KWARGS, **self.replay_kwargs}
+            self.print_kwargs(replay_kwargs, 'Replay memory arguments')
+            if self.replay_type == 'uniform':
+                self.replay = Replay(**replay_kwargs)
+            elif self.replay_type == 'prioritized':
+                raise NotImplementedError('prioritized replay not implemented')
+            else:
+                message = 'replay type {} invalid'.format(self.replay_type)
+                raise ValueError(message)
 
         # begin tensorflow session, build async RL agent and train
         port = self.port_list[wid]
@@ -232,7 +257,7 @@ class Trainer(Tasker):
             batch = []
             for batch_step in range(self.batch_size):
                 rlist = [Rollout(state)]
-                for rlist_step in range(self.rollout_list_len):
+                for rlist_step in range(self.rollout_maxlen):
                     net_input = self.state_to_input(state)
                     act_val = self.online_net.action_values([net_input])[0]
                     action = self.policy.select_action(act_val)
@@ -241,23 +266,24 @@ class Trainer(Tasker):
                     rlist[-1].append(state, action, reward, done, act_val)
                     if done:
                         state = env.reset()
-                        if rlist_step < self.rollout_list_len - 1:
+                        if rlist_step < self.rollout_maxlen - 1:
                             rlist.append(Rollout(state))
                         self.print('episode reward {:5.2f}'.format(ep_reward))
                         ep_reward = 0.0
                     if len(rlist[-1]) >= self.rollout_maxlen:
-                        if rlist_step < self.rollout_list_len - 1:
+                        if rlist_step < self.rollout_maxlen - 1:
                             rlist.append(Rollout(state))
                 batch.append(rlist)
 
-            # on-policy training on the newly collected rollout list
-            batch_loss = self.train_on_batch(batch)
+            if self.online_learning:
+                # on-policy training on the newly collected rollout list
+                batch_loss = self.train_on_batch(batch)
 
             # off-policy training if there is a memory
             if self.replay is not None:
                 batch_loss_list = [batch_loss]
                 self.replay.extend(batch)
-                if len(self.replay) >= self.replay_minlen:
+                if self.replay.usable():
                     rep = np.random.poisson(self.replay_ratio)
                     for _ in range(rep):
                         batch, idx, weight = self.replay.sample(self.batch_size)
@@ -266,7 +292,7 @@ class Trainer(Tasker):
                         batch_loss_list.append(batch_loss)
                 batch_loss = np.mean(batch_loss_list)
 
-            self.step_counter.increment(self.batch_size * self.rollout_list_len)
+            self.step_counter.increment(self.batch_size * self.rollout_maxlen)
             step = self.step_counter.step_count()
             if self.is_master:
                 if step - last_save > self.interval_save:
@@ -310,24 +336,25 @@ class Trainer(Tasker):
 
     def set_online_optimizer(self):
         if self.optimizer == 'adam':
-            adam = tf.train.AdamOptimizer(self.opt_learning_rate,
-                                          epsilon=self.opt_adam_epsilon)
+            adam_kwargs = {**ADAM_KWARGS, **self.opt_kwargs}
+            self.print_kwargs(adam_kwargs, 'Adam arguments')
+            adam = tf.train.AdamOptimizer(**adam_kwargs)
             self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
                                           train_weights=self.global_net.weights)
         elif self.optimizer == 'kfac':
-            layer_list = self.online_net.model.layers
-            layer_collection = build_layer_collection(layer_list,
-                self.online_net.kfac_loss_list)
-            kfac = KfacOptimizerTV(learning_rate=self.opt_learning_rate,
-                                   cov_ema_decay=self.kfac_cov_ema_decay,
-                                   damping=self.kfac_damping,
-                                   norm_constraint=self.kfac_trust_radius,
+            kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
+            self.print_kwargs(kfac_kwargs, 'KFAC arguments')
+            layer_collection = build_layer_collection(
+                layer_list=self.online_net.model.layers,
+                loss_list=self.online_net.kfac_loss_list,
+                )
+            kfac = KfacOptimizerTV(**kfac_kwargs,
                                    layer_collection=layer_collection,
-                                   var_list=self.online_net.weights,
-                                   momentum=self.kfac_momentum)
+                                   var_list=self.online_net.weights)
             self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
                                      train_weights=self.global_net.weights)
         elif isinstance(self.optimizer, tf.train.Optimizer):
+            # if self.optimizer is a (subclass) instance of tf.train.Optimizer
             self.online_net.set_optimizer(self.optimizer,
                                           clip_norm=self.opt_clip_norm,
                                           train_weights=self.global_net.weights)
