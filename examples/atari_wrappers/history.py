@@ -6,8 +6,8 @@ from collections import deque
 class HistoryStacker(gym.Wrapper):
     """
         A wrapper for history stacking.
-        Stacks `num_frames` most recent frames together,
-        and performs action for `act_steps` steps each time env.step is called.
+        Stacks 'num_frames' most recent frames together,
+        and performs action for 'act_steps' steps each time env.step is called.
     """
 
     '''

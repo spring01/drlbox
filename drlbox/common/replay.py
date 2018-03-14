@@ -7,7 +7,7 @@ FILL_PERCENT = 0.1
 
 '''
 Ring-buffer uniformly sampled replay memory.
-Both `append` and `sample` are O(1)
+Both 'append' and 'sample' are O(1)
 '''
 class Replay:
 

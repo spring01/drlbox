@@ -57,7 +57,7 @@ class DecayEpsGreedyPolicy(EpsGreedyPolicy):
 class SoftmaxPolicy(Policy):
 
     '''
-    `action_values` is supposed to be 'logits', i.e., before softmax
+    'action_values' is supposed to be 'logits', i.e., before softmax
     '''
     def select_action(self, action_values):
         probs = softmax(action_values)
@@ -72,8 +72,8 @@ class GaussianPolicy(Policy):
         self.min_var = min_var
 
     '''
-    `action_values` is supposed to be 'logits'. In continuous control,
-    `action_values` is interpreted as a spherical Gaussian signal where
+    'action_values' is supposed to be 'logits'. In continuous control,
+    'action_values' is interpreted as a spherical Gaussian signal where
     action_values[:-1] is the mean, and action_values[-1] is the variance.
     '''
     def select_action(self, action_values):
