@@ -43,7 +43,7 @@ Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not comp
   - `discount`: *`float`*.  Discount factor (gamma) in reinforcement learning.  Default: `0.99`.
   - `train_steps`: *`int`*.  Maximum number of gym env steps in training.  Default: `1000000`.
   - `rollout_maxlen`: *`int`*.  Maximum length of a rollout.  Also the number of env steps in a rollout list.  Please refer to the comments in [drlbox/trainer/trainer_base.py](drlbox/trainer/trainer_base.py) for detail explanation.  Default: `32`.
-  - `batch_size`: *`int`*.  Number of rollout lists in a batch.  Please refer to the comments in [drlbox/trainer/trainer_base.py](drlbox/trainer/trainer_base.py) for detail explanation.  Default: `1`.
+  - `batch_size`: *`int`*.  Number of rollout lists in a batch.  Please refer to the comments in [drlbox/trainer/trainer_base.py](drlbox/trainer/trainer_base.py) for details.  Default: `1`.
   - `online_learning`: *`bool`*.  Whether or not to perform online learning on a newly collected batch.  Default: `True`.
   - `replay_type`: *`None` or `str`*.  Type of the replay memory.  Choices are `[None, 'uniform']` where `None` means no replay memory.  Default: `None` (note: some algorithms such as ACER and IMPALA will set `replay_type='uniform'` by default).
   - `replay_ratio`: *`int`*.  After putting a newly collected online batch into the replay memory, a random integer number of offline, off-policy batch learnings will be performed, and the random integer number will be coming from a Poisson distribution using this argument as the Poisson parameter.  Default: `4`.
