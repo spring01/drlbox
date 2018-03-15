@@ -66,10 +66,11 @@ class SoftmaxPolicy(Policy):
 
 class GaussianPolicy(Policy):
 
-    def __init__(self, low, high, min_var=1e-4):
+    min_var=1e-4
+
+    def __init__(self, low, high):
         self.low = low
         self.high = high
-        self.min_var = min_var
 
     '''
     'action_values' is supposed to be 'logits'. In continuous control,

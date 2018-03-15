@@ -11,7 +11,6 @@ EVALUATOR_KWARGS = dict(
     render_end=False,
     num_episodes=20,
     policy_type='stochastic',
-    policy_sto_cont_min_var=1e-4,
     policy_eps=0.0,
     )
 
@@ -29,11 +28,8 @@ class Evaluator(Tasker):
             if discrete_action(env.action_space):
                 self.policy = SoftmaxPolicy()
             elif continuous_action(env.action_space):
-                self.policy = GaussianPolicy(
-                    low=env.action_space.low,
-                    high=env.action_space.high,
-                    min_var=self.policy_sto_cont_min_var
-                    )
+                self.policy = GaussianPolicy(low=env.action_space.low,
+                                             high=env.action_space.high)
             else:
                 raise TypeError('Type of action_space not valid')
         elif self.policy_type == 'greedy':

@@ -14,7 +14,6 @@ class A3CTrainer(Trainer):
 
     KWARGS = {**Trainer.KWARGS, **A3C_KWARGS}
     net_cls = ACNet
-    policy_sto_cont_min_var = 1e-4
 
     def setup_algorithm(self):
         if self.action_mode == 'discrete':
@@ -29,12 +28,11 @@ class A3CTrainer(Trainer):
             size_value = 1
             logits_init = 'glorot_uniform'
             self.policy = GaussianPolicy(low=self.action_low,
-                                         high=self.action_high,
-                                         min_var=self.policy_sto_cont_min_var)
+                                         high=self.action_high)
         else:
             raise TypeError('action_mode {} invalid'.format(self.action_mode))
         self.loss_kwargs = dict(entropy_weight=self.a3c_entropy_weight,
-                                min_var=self.policy_sto_cont_min_var,
+                                min_var=GaussianPolicy.min_var,
                                 policy_type=policy_type)
         self.model_kwargs = dict(size_logits=size_logits,
                                  size_value=size_value,
