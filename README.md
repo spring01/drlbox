@@ -19,7 +19,7 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
   - **IMPALA**  (https://arxiv.org/abs/1802.01561)  A3C with replay and another (actually, a simpler) flavor of off-policy correction called V-trace.  This implementation is a lot more naive compared with the original distributed framework, however it gives an idea of how the off-policy correction is done and is much easier to integrate with ACKTR.
 
 - **DQN family**
-  - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning without replay memory.
+  - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning.
 
 - **Algorithm related options**
   - `optimizer='kfac'`: Based on the idea of **ACKTR** (https://arxiv.org/abs/1708.05144), which is simply A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on synchronous algorithms (e.g., A2C), and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense`, `Conv2D`, and (self-implemented) `drlbox.layer.noisy_dense.NoisyNetFG` layers.
@@ -53,9 +53,30 @@ Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not comp
   - `opt_kwargs`: *`dict`*.  Keyword arguments that will be passed to the optimizer constructor after combining with the default keyword arguments.  For `'adam'`, the default keyword arguments are `dict(learning_rate=1e-4, epsilon=1e-4)`.  For `'kfac'`, the default keyword arguments are `dict(learning_rate=1e-4, cov_ema_decay=0.95, damping=1e-3, norm_constraint=1e-3, momentum=0.0)`.  Default: `{}`.
   - `noisynet`: *`None` or `str`*.  Whether or not to enable NoisyNet in building the neural net.  Detailed in the above **Algorithm related options** section.  `str` choices are `['fg', 'ig']` corresponding to factorized and independent Gaussian noises, respectively.  Default: `None`.
   - `save_dir`: *`str`*.  Path to save intermediate `tf.keras` models during training.  Will not save any model if set to `None`.  Defaul: `None`.
-  - `save_interval`: *`int`*.  Interval between saving `tf.keras` models during training.  Default: `10000`.
+  - `save_interval`: *`int`*.  Number of (global) env steps between saving `tf.keras` models during training.  Default: `10000`.
   - `catch_signal`: *`bool`*.  Whether or not to catch `sigint` and `sigterm` during multiprocess training.  Useful in cleaning up dangling processes when run in background but may prevent other parts of the program to respond to signals.  Default: `False`.
-
+- **`algorithm='a3c'` introduces the following additional arguments**
+  - `a3c_entropy_weight`: *`float`*.  Weight of the entropy term in the A3C loss.  When `noisynet` is not `None`, it is recommended to set this argument to `0.0`.  Default: `1e-2`.
+- **`algorithm='acer'` introduces the following additional arguments**
+  - `acer_kl_weight`: *`float`*.  Weight of the KL divergence term wrt the average net in the ACER loss.  Default: `1e-1`.
+  - `acer_trunc_max`: *`float`*.  Truncating threshold in ACER's modified Retrace off-policy correction.  Default: `10.0`.
+  - `acer_soft_update_ratio`: *`float`*.  Soft update ratio to the average net.  At each online network weight update, the weights in the average net will be a convex combination of the old average net weights and the new online network weights, and the coefficient of the new online network weights is this argument.  Default: `0.05`.
+- **`algorithm='impala'` introduces the following additional arguments**
+  - `impala_trunc_rho_max`: *`float`*.  Truncating threshold *rho* in IMPALA's V-trace off-policy correction.  Default: `1.0`.
+  - `impala_trunc_c_max`: *`float`*.  Truncating threshold *c* in IMPALA's V-trace off-policy correction.  Default: `1.0`.
+- **`algorithm='dqn'` introduces the following additional arguments**
+  - `dqn_double`: *`bool`*.  Whether to perform double DQN update or regular DQN update.  Default: `True`.
+  - `dqn_dueling`: *`bool`*.  Whether to setup the DQN network as a dueling network (https://arxiv.org/abs/1511.06581).  Default: `False`.
+  - `policy_eps_start`: *`float`*.  Starting epsilon in the linearly decayed epsilon greedy policy.  Default: `1.0`.
+  - `policy_eps_end`: *`float`*.  Ending epsilon in the linearly decayed epsilon greedy policy.  Default: `0.01`.
+  - `policy_eps_decay_steps`: *`int`*.  Number of (per-process) env steps before the linearly decayed epsilon to reach its minimum.  Default: `1000000`.
+  - `sync_target_interval`: *`int`*.  Number of online updates between two synchronizations of the target network.  Default: `1000`.
+- **`evaluator` arguments**
+  - `render_timestep`: *`None` or `float`*.  Timestep between two `env.render()` calls.  `None` means no rendering.  Default: `None`.
+  - `render_end`: *`bool`*.  If set to `True`, will do one `env.render()` call after each episode ends.  Default: `False`.
+  - `num_episodes`: *`int`*.  Number of evalution episodes.  Default: `20`.
+  - `policy_type`: *`str`*.  Type of evaluation policy.  Choices are `['stochastic', 'greedy']`.  Default: `stochastic`.
+  - `policy_eps`: *`float`*.  Epsilon in the epsilon greedy policy when `policy_type='greedy'`.  Default: `0.0`.
 
 
 ## Demo
@@ -139,6 +160,7 @@ Alternatively, it is possible to specify a full `tf.keras` model by implementing
 #### Example
 The following code snippet contains a trivial example for implementing a full `tf.keras` model for A3C or IMPALA:
 ```python
+from tensorflow.python.keras.initializers import RandomNormal
 from tensorflow.python.keras.layers import Input, Dense, Activation
 from tensorflow.python.keras.models import Model
 
@@ -153,12 +175,12 @@ def make_feature(env, num_hid_list):
     for num_hid in num_hid_list:
         feature = Dense(num_hid)(feature)
         feature = Activation('relu')(feature)
-    logits_init = tf.keras.initializers.RandomNormal(stddev=1e-3)
+    logits_init = RandomNormal(stddev=1e-3)
     logits = Dense(env.action_space.n, kernel_initializer=logits_init)(feature)
     value = Dense(1)(feature)
     return Model(inputs=inp_state, outputs=[logits, value])
 ```
-A more detailed usage example can be found in `examples/breakout_acer.py`.
+A more detailed example can be found in `examples/breakout_acer.py`.
 
 ### Implementing an interface function
 The user is also supposed to implement a `state_to_input` callable which takes in the `observation` from the output of the OpenAI-gym environment's `reset` or `step` function ([explanation](https://gym.openai.com/docs)) and returns something that a `tf.keras` model can directly take in.  Usually, this function does stuffs like `numpy` stackings/reshapings/etc.  By default, `state_to_input` is set to `None`, in which case the a dummy callable `state_to_input = lambda x: x` will be created and used internally.
