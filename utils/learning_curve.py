@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Draw learning curve')
+    parser = argparse.ArgumentParser(description='Draw a learning curve')
     parser.add_argument('--window_small', default=100, type=int,
-        help='Low level averaging window')
+        help='Small averaging window for instantaneous performance')
     parser.add_argument('--window_large', default=1000, type=int,
-        help='High level averaging window')
+        help='Large averaging window for average performance')
 
     args, unknown_args = parser.parse_known_args()
     filename = unknown_args[0]
