@@ -8,7 +8,7 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
 `pip install -e .` in your favorite virtual env.
 
 ## Requirements
-- tensorflow>=1.5.0
+- tensorflow>=1.5.0 (lower versions may be used if `optimizer='kfac'` is never invoked)
 - gym>=0.9.6
 - gym[atari] (optional)
 
@@ -22,86 +22,116 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
   - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning without replay memory.
 
 - **Algorithm related options**
-  - `opt_type='kfac'`: Based on the idea of **ACKTR** (https://arxiv.org/abs/1708.05144), which is simply A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on synchronous algorithms (e.g., A2C), and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense` and `Conv2D` layers.
-  - `noisynet='ig'`: Based on the idea of **NoisyNet** (https://arxiv.org/abs/1706.10295), which introduces (independent) Gaussian noises to network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
+  - `optimizer='kfac'`: Based on the idea of **ACKTR** (https://arxiv.org/abs/1708.05144), which is simply A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on synchronous algorithms (e.g., A2C), and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense`, `Conv2D`, and (self-implemented) `drlbox.layer.noisy_dense.NoisyNetFG` layers.
+  - `noisynet='ig'` or `noisynet='fg'`: Based on the idea of **NoisyNet** (https://arxiv.org/abs/1706.10295), which introduces independent (`'ig'`) or factorized (`'fg'`) Gaussian noises to network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
 
-Side note: options `opt_type='kfac'` and `noisynet='ig'` are currently not compatible with each other, as we haven't coded the K-FAC approximation for NoisyNet layers yet.
+Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not compatible with each other, as we haven't coded the K-FAC approximation for independent Gaussian noise NoisyNet layer yet.  On the other hand, `noisynet='fg'` works fine with `optimizer='kfac'`.
 
 # Usage
-A minimal demo could be as simple as the following code snippet.  (A3C algorithm, `CartPole-v0` environment, and a 1-layer fully-connected net with 100 hidden units)
-```
-from drlbox.env.default import make_env
-from drlbox.feature.fc import state_to_input, make_feature
+A minimal demo could be as simple as the following code snippet (in `examples/cartpole_a3c.py`).  (A3C algorithm, `CartPole-v0` environment, and a 2-layer fully-connected net with 200/100 hidden units in each layer.)
+```python
+'''
+cartpole_a3c.py
+'''
+import gym
+from tensorflow.python.keras.layers import Input, Dense, Activation
 from drlbox.trainer import make_trainer
 
 
-trainer = make_trainer(algorithm='a3c',
-                       env_maker=lambda: make_env('CartPole-v0'),
-                       feature_maker=lambda o: make_feature(o, [100]),
-                       state_to_input=state_to_input,
-                       num_parallel=1,
-                       train_steps=1000,
-                       verbose=True,)
-trainer.run()
+'''
+Input arguments:
+    observation_space: Observation space of the environment;
+    num_hid_list:      List of hidden unit numbers in the fully-connected net.
+'''
+def make_feature(observation_space, num_hid_list):
+    inp_state = Input(shape=observation_space.shape)
+    feature = inp_state
+    for num_hid in num_hid_list:
+        feature = Dense(num_hid)(feature)
+        feature = Activation('relu')(feature)
+    return inp_state, feature
+
+
+'''
+A3C, CartPole-v0
+'''
+if __name__ == '__main__':
+    trainer = make_trainer(
+        algorithm='a3c',
+        env_maker=lambda: gym.make('CartPole-v0'),
+        feature_maker=lambda obs_space: make_feature(obs_space, [200, 100]),
+        num_parallel=1,
+        train_steps=1000,
+        verbose=True,
+        )
+    trainer.run()
 ```
 
 ## Gym Environment
 ### Implementing an OpenAI-gym environment maker
 The user is supposed to implement a `env_maker` callable which returns **an OpenAI-gym environment**.  Things like history stacking/frame skipping/reward engineering are usually handled here as well.
 
-By default, the package provides a trivial example `drlbox/env/default.py`:
+The above code snippet contains a trivial example:
 ```python
-import gym
-
-def make_env(name):
-    return gym.make(name)
+env_maker=lambda: gym.make('CartPole-v0')
 ```
-which takes in a name of the environment, let `gym` make the environment, and returns the environment.  To use the default env maker, simply let the callable be `env_maker = lambda: make_env(ENV_NAME)`.
+which is a callable that returns the `'CartPole-v0'` environment.
 
 
 ## Neural network
 ### Implementing (part of) a `tf.keras` model
 The user is supposed to implement a `feature_maker` callable which takes in an `observation_space` ([explanation](https://gym.openai.com/docs)) and returns `inp_state`, a `tf.keras.layers.Input` layer, and `feature`, a `tf.keras` layer or a tuple of 2 `tf.keras` layers.  For example, with actor-critic algorithms, when `feature` is a `tf.keras` layer, the actor and the critic streams share a common stack of layers. When `feature` is a tuple of 2 `tf.keras` layers, the actor and the critic will be completely separated).
 
-### Implementing an interface function
-The user is also supposed to implement a `state_to_input` callable which takes in the `observation` from the output of the OpenAI-gym environment's `reset` or `step` function ([explanation](https://gym.openai.com/docs)) and returns something that a `tf.keras` model can directly take in.  Usually, this function does stuffs like `numpy` stackings/reshapings/etc.
-
-### Example
-By default, the package provides a trivial example `drlbox/feature/fc.py`:
+#### Example
+The above code snippet `cartpole_a3c.py` also contains a trivial example for the part of a `tf.keras` model:
 ```python
-import numpy as np
-import gym.spaces
 from tensorflow.python.keras.layers import Input, Dense, Activation
-
-
-def state_to_input(state):
-    return np.array(state).ravel()
 
 '''
 Input arguments:
     observation_space: Observation space of the environment;
-    net_arch:          Architecture of the neural net, e.g., [16, 16, 16].
+    num_hid_list:      List of hidden unit numbers in the fully-connected net.
 '''
-def make_feature(observation_space, net_arch):
-    inp_state = Input(shape=input_shape(observation_space))
+def make_feature(observation_space, num_hid_list):
+    inp_state = Input(shape=observation_space.shape)
     feature = inp_state
-    for num_hid in net_arch:
+    for num_hid in num_hid_list:
         feature = Dense(num_hid)(feature)
         feature = Activation('relu')(feature)
     return inp_state, feature
-
-
-def input_shape(observation_space):
-    if type(observation_space) is gym.spaces.Box:
-        input_dim = np.prod(observation_space.shape)
-    elif type(observation_space) is gym.spaces.Tuple:
-        input_dim = sum(np.prod(sp.shape) for sp in observation_space.spaces)
-    else:
-        raise TypeError('Type of observation_space is not recognized')
-    return input_dim,
 ```
-which makes a fully-connected neural network until the last layer before the value/policy layer.  To use the default feature maker, simply let the feature-maker callable be `feature_maker = lambda o: make_feature(o, ARCHITECTURE)`.  The function `state_to_input` can be directly used as the default interface function.
+which makes a fully-connected neural network until the last layer before the policy/value layer.  To use the default feature maker, simply let the feature-maker callable be `feature_maker=lambda obs_space: make_feature(obs_space, [200, 100])`.
 
-**Note:**  So long as `feature_maker` is implemented correctly, the trainer will run.  However, to utilize the saving/loading functionalities provided by Keras in a hassle-free manner, when writing `feature_maker` it is recommended to only use combinations of Keras layers that already exist, plus some viable NumPy utilities such as `np.newaxis` (NumPy has to be imported as `import numpy as np` as this is the default importing method assumed by Keras in 'keras/layers/core.py').  It is discouraged to use other modules including plain TensorFlow, as the Keras model loading utility will literally "remember" your code of generating the Keras model and run through the code when it tries to load a saved model.  If we really have to, try to import the needed functionalities **inside** `feature_maker` so that it will be imported before execution.  However, please do not import the entire TensorFlow (`from tensorflow import x` is fine but no `import tensorflow as tf`) in `feature_maker` as it will cause circular importing.
+### Implementing a full `tf.keras` model
+Alternatively, it is possible to specify a full `tf.keras` model by implementing a `model_maker` callable.  `model_maker` should take in the full gym `env` and returns a `tf.keras` model that satisfies the output requirements for each kind of training algorithm.  Its `model.inputs` should always be a 1-tuple like `(inp_state,)` where `inp_state` is a `tf.keras.layers.Input` layer.  Its `model.outputs` should also be a tuple but the content varies according to the selected algorithm.  For example, with `algorithm='a3c'`, `model.outputs` should be a 2-tuple of `(logits, value)`; with `algorithm='dqn'`, `model.outputs` should be a 1-tuple of `(q_values,)`.
+
+#### Example
+The following code snippet contains a trivial example for implementing a full `tf.keras` model for A3C or IMPALA:
+```python
+from tensorflow.python.keras.layers import Input, Dense, Activation
+from tensorflow.python.keras.models import Model
+
+'''
+Input arguments:
+    env:          Gym env;
+    num_hid_list: List of hidden unit numbers in the fully-connected net.
+'''
+def make_feature(env, num_hid_list):
+    inp_state = Input(shape=env.observation_space.shape)
+    feature = inp_state
+    for num_hid in num_hid_list:
+        feature = Dense(num_hid)(feature)
+        feature = Activation('relu')(feature)
+    logits_init = tf.keras.initializers.RandomNormal(stddev=1e-3)
+    logits = Dense(env.action_space.n, kernel_initializer=logits_init)(feature)
+    value = Dense(1)(feature)
+    return Model(inputs=inp_state, outputs=[logits, value])
+```
+A more detailed usage example can be found in `examples/breakout_acer.py`.
+
+### Implementing an interface function
+The user is also supposed to implement a `state_to_input` callable which takes in the `observation` from the output of the OpenAI-gym environment's `reset` or `step` function ([explanation](https://gym.openai.com/docs)) and returns something that a `tf.keras` model can directly take in.  Usually, this function does stuffs like `numpy` stackings/reshapings/etc.  By default, `state_to_input` is set to `None`, in which case the a dummy callable `state_to_input = lambda x: x` will be created and used internally.
+
+**Note:**  So long as `feature_maker` or `model_maker` is implemented correctly, the trainer will run.  However, to utilize the saving/loading functionalities provided by Keras in a hassle-free manner, when writing `feature_maker` or `model_maker` it is recommended to only use combinations of Keras layers that already exist, plus some viable NumPy utilities such as `np.newaxis` (NumPy has to be imported as `import numpy as np` as this is the default importing method assumed by Keras in 'keras/layers/core.py').  It is discouraged to use other modules including plain TensorFlow, as the Keras model loading utility will literally "remember" your code of generating the Keras model and run through the code when it tries to load a saved model.  If we really have to, try to import the needed functionalities **inside** `feature_maker` or `model_maker` so that it will be imported before execution.  However, please do not import the entire TensorFlow (`from tensorflow import x` is fine but no `import tensorflow as tf`) in `feature_maker` or `model_maker` as it will cause circular importing.
 
 
