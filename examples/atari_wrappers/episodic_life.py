@@ -1,7 +1,9 @@
 
 import gym
 
-
+'''
+A shameless copy-paste from OpenAI baselines
+'''
 class EpisodicLife(gym.Wrapper):
     def __init__(self, env):
         """Make end-of-life == end-of-episode, but only reset on true game over.

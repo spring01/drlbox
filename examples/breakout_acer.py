@@ -1,11 +1,8 @@
 
 import gym
 import numpy as np
-import tensorflow as tf
-from tensorflow.python.keras.layers import (Input, Conv2D, Activation, Lambda,
-    TimeDistributed, LSTM, GRU, Flatten, Dense)
-from examples.atari_wrappers import (HistoryStacker, RewardClipper,
-    EpisodicLife, Preprocessor)
+import atari_wrappers as aw
+from tensorflow.python.keras import layers, initializers, models
 from drlbox.trainer import make_trainer
 
 
@@ -14,10 +11,10 @@ Make a properly wrapped Atari env
 '''
 def make_env(name, num_frames=4, act_steps=2):
     env = gym.make(name)
-    env = Preprocessor(env, shape=(84, 84))
-    env = HistoryStacker(env, num_frames, act_steps)
-    env = RewardClipper(env, -1.0, 1.0)
-    env = EpisodicLife(env)
+    env = aw.Preprocessor(env, shape=(84, 84))
+    env = aw.HistoryStacker(env, num_frames, act_steps)
+    env = aw.RewardClipper(env, -1.0, 1.0)
+    env = aw.EpisodicLife(env)
     return env
 
 
@@ -41,25 +38,25 @@ def make_model(env):
     input_shape = height, width, num_frames
 
     # input state
-    ph_state = Input(shape=input_shape)
+    ph_state = layers.Input(shape=input_shape)
 
     # convolutional layers
-    conv1 = Conv2D(32, (8, 8), strides=(4, 4))(ph_state)
-    conv1 = Activation('relu')(conv1)
-    conv2 = Conv2D(64, (4, 4), strides=(2, 2))(conv1)
-    conv2 = Activation('relu')(conv2)
-    conv3 = Conv2D(64, (3, 3), strides=(1, 1))(conv2)
-    conv3 = Activation('relu')(conv3)
-    conv_flat = Flatten()(conv3)
-    feature = Dense(512)(conv_flat)
-    feature = Activation('relu')(feature)
+    conv1 = layers.Conv2D(32, (8, 8), strides=(4, 4))(ph_state)
+    conv1 = layers.Activation('relu')(conv1)
+    conv2 = layers.Conv2D(64, (4, 4), strides=(2, 2))(conv1)
+    conv2 = layers.Activation('relu')(conv2)
+    conv3 = layers.Conv2D(64, (3, 3), strides=(1, 1))(conv2)
+    conv3 = layers.Activation('relu')(conv3)
+    conv_flat = layers.Flatten()(conv3)
+    feature = layers.Dense(512)(conv_flat)
+    feature = layers.Activation('relu')(feature)
 
     # actor (policy) and critic (value) streams
     size_logits = size_value = env.action_space.n
-    logits_init = tf.keras.initializers.RandomNormal(stddev=1e-3)
-    logits = Dense(size_logits, kernel_initializer=logits_init)(feature)
-    value = Dense(size_value)(feature)
-    return tf.keras.models.Model(inputs=ph_state, outputs=[logits, value])
+    logits_init = initializers.RandomNormal(stddev=1e-3)
+    logits = layers.Dense(size_logits, kernel_initializer=logits_init)(feature)
+    value = layers.Dense(size_value)(feature)
+    return models.Model(inputs=ph_state, outputs=[logits, value])
 
 
 '''
