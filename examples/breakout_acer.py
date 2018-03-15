@@ -10,23 +10,6 @@ from drlbox.trainer import make_trainer
 
 
 '''
-ACER on Breakout-v0
-'''
-def main():
-    trainer = make_trainer('acer',
-        env_maker=lambda: make_env('Breakout-v0'),
-        model_maker=make_model,
-        state_to_input=state_to_input,
-        num_parallel=1,
-        train_steps=1000,
-        rollout_maxlen=4,
-        batch_size=8,
-        verbose=True,
-        )
-    trainer.run()
-
-
-'''
 Make a properly wrapped Atari env
 '''
 def make_env(name, num_frames=4, act_steps=2):
@@ -79,6 +62,19 @@ def make_model(env):
     return tf.keras.models.Model(inputs=ph_state, outputs=[logits, value])
 
 
+'''
+ACER on Breakout-v0
+'''
 if __name__ == '__main__':
-    main()
+    trainer = make_trainer('acer',
+        env_maker=lambda: make_env('Breakout-v0'),
+        model_maker=make_model,
+        state_to_input=state_to_input,
+        num_parallel=1,
+        train_steps=1000,
+        rollout_maxlen=4,
+        batch_size=8,
+        verbose=True,
+        )
+    trainer.run()
 

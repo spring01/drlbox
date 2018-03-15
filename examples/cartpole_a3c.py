@@ -5,21 +5,6 @@ from drlbox.trainer import make_trainer
 
 
 '''
-A3C, CartPole-v0
-'''
-def main():
-    trainer = make_trainer(
-        algorithm='a3c',
-        env_maker=lambda: gym.make('CartPole-v0'),
-        feature_maker=lambda obs_space: make_feature(obs_space, [200, 100]),
-        num_parallel=1,
-        train_steps=1000,
-        verbose=True,
-        )
-    trainer.run()
-
-
-'''
 Input arguments:
     observation_space: Observation space of the environment;
     num_hid_list:      List of hidden unit numbers in the fully-connected net.
@@ -33,5 +18,16 @@ def make_feature(observation_space, num_hid_list):
     return inp_state, feature
 
 
+'''
+A3C, CartPole-v0
+'''
 if __name__ == '__main__':
-    main()
+    trainer = make_trainer(
+        algorithm='a3c',
+        env_maker=lambda: gym.make('CartPole-v0'),
+        feature_maker=lambda obs_space: make_feature(obs_space, [200, 100]),
+        num_parallel=1,
+        train_steps=1000,
+        verbose=True,
+        )
+    trainer.run()
