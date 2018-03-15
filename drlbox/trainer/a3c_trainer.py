@@ -8,13 +8,13 @@ from .trainer_base import Trainer
 
 A3C_KWARGS = dict(
     a3c_entropy_weight=1e-2,
-    policy_sto_cont_min_var=1e-4,
     )
 
 class A3CTrainer(Trainer):
 
     KWARGS = {**Trainer.KWARGS, **A3C_KWARGS}
     net_cls = ACNet
+    policy_sto_cont_min_var=1e-4
 
     def setup_algorithm(self):
         if self.action_mode == 'discrete':
