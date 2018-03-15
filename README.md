@@ -30,11 +30,33 @@ Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not comp
 # Usage
 ## Arguments
 - **Arguments shared by `trainer` and `evaluator` classes**
-  - `env_maker`: A callable that returns a gym env on calling.  Default: `None`.
-  - `state_to_input`: A callable that converts the `observation` from a gym env to some data (usually NumPy array) that can be fed into a `tf.keras` model.  Default: `None` (will set to `state_to_input = lambda x: x` internally if `None` is specified).
-  - `load_model`: File name (full path) of a `h5py` file that contains a saved `tf.keras` model (usually save through `tf.keras.models.save_model`).  If specified, training or evaluating will be starting from this model.  Default: `None`.
-  - `load_model_custom`: A dictionary in the same format as the `custom_objects` argument in `tf.keras.models.load_model`.  Default: `None`.
-  - `verbose`: Whether or not to print training/evaluating information.  Default: `False`.
+  - `env_maker`: *callable*.  Returns a gym env on calling.  Detailed in the **Gym Environment** section below.  Default: `None`.
+  - `state_to_input`: *callable*.  Converts the `observation` from a gym env to some data (usually NumPy array) that can be fed into a `tf.keras` model.  Detailed in the **Neural network** section below.  Default: `None` (will set `self.state_to_input = lambda x: x` internally if set to `None`).
+  - `load_model`: *`str`*.  File name (full path) of a `h5py` file that contains a saved `tf.keras` model (usually saved through [`tf.keras.models.Model:save`](https://www.tensorflow.org/api_docs/python/tf/keras/Model#save)).  If specified, training or evaluation will start from this model.  Default: `None`.
+  - `load_model_custom`: *`dict`*.  As same as the `custom_objects` argument in [`tf.keras.models.load_model`](https://www.tensorflow.org/api_docs/python/tf/keras/models/load_model).  Default: `None`.
+  - `verbose`: *`bool`*.  Whether or not to print training/evaluating information.  Default: `False`.
+- **`trainer` classes common arguments**
+  - `feature_maker`: *callable*.  Takes in `env.observation_space` and returns `(inp_state, feature)`, a 2-tuple of a `tf.keras.layers.Input` layer and an arbitrary typed (e.g., `tf.keras.layes.Dense`) `tf.keras` layer.  Detailed in the **Neural network** section below.  Default: `None`.
+  - `model_maker`: *callable*.  Takes in a gym env and returns a `tf.keras` model.  Detailed in the **Neural network** section below.  The trainer will ignore `feature_maker` if `model_maker` is set.  Default: `None`.
+  - `num_parallel`: *`int`*.  Number of parallel processes in training.  Default: number of cpu (logical) core counts.
+  - `port_begin`: *`int`*.  Starting gRPC port number used by distributed tensorflow.  Default: `2220`.
+  - `discount`: *`float`*.  Discount factor (gamma) in reinforcement learning.  Default: `0.99`.
+  - `train_steps`: *`int`*.  Maximum number of gym env steps in training.  Default: `1000000`.
+  - `rollout_maxlen`: *`int`*.  Maximum length of a rollout.  Also the number of env steps in a rollout list.  Please refer to the comments in [drlbox/trainer/trainer_base.py](drlbox/trainer/trainer_base.py) for detail explanation.  Default: `32`.
+  - `batch_size`: *`int`*.  Number of rollout lists in a batch.  Please refer to the comments in [drlbox/trainer/trainer_base.py](drlbox/trainer/trainer_base.py) for detail explanation.  Default: `1`.
+  - `online_learning`: *`bool`*.  Whether or not to perform online learning on a newly collected batch.  Default: `True`.
+  - `replay_type`: *`None` or `str`*.  Type of the replay memory.  Choices are `[None, 'uniform']` where `None` means no replay memory.  Default: `None` (note: some algorithms such as ACER and IMPALA will set `replay_type='uniform'` by default).
+  - `replay_ratio`: *`int`*.  After putting a newly collected online batch into the replay memory, a random integer number of offline, off-policy batch learnings will be performed, and the random integer number will be coming from a Poisson distribution using this argument as the Poisson parameter.  Default: `4`.
+  - `replay_kwargs`: *`dict`*.  Keyword arguments that will be passed to the replay constructor after combining with the default replay keyword arguments `dict(maxlen=1000, minlen=100)`.  Default: `{}`.
+  - `optimizer`: *`str` or a `tf.train.Optimizer` instance*.  `str` choices are `['adam', 'kfac']`.  Default: `adam`.
+  - `opt_clip_norm`: *`float`*.  Maximum global gradient norm for gradient clipping.  Default: `40.0`.
+  - `opt_kwargs`: *`dict`*.  Keyword arguments that will be passed to the optimizer constructor after combining with the default keyword arguments.  For `'adam'`, the default keyword arguments are `dict(learning_rate=1e-4, epsilon=1e-4)`.  For `'kfac'`, the default keyword arguments are `dict(learning_rate=1e-4, cov_ema_decay=0.95, damping=1e-3, norm_constraint=1e-3, momentum=0.0)`.  Default: `{}`.
+  - `noisynet`: *`None` or `str`*.  Whether or not to enable NoisyNet in building the neural net.  Detailed in the above **Algorithm related options** section.  `str` choices are `['fg', 'ig']` corresponding to factorized and independent Gaussian noises, respectively.  Default: `None`.
+  - `save_dir`: *`str`*.  Path to save intermediate `tf.keras` models during training.  Will not save any model if set to `None`.  Defaul: `None`.
+  - `save_interval`: *`int`*.  Interval between saving `tf.keras` models during training.  Default: `10000`.
+  - `catch_signal`: *`bool`*.  Whether or not to catch `sigint` and `sigterm` during multiprocess training.  Useful in cleaning up dangling processes when run in background but may prevent other parts of the program to respond to signals.  Default: `False`.
+
+
 
 ## Demo
 A minimal demo could be as simple as the following code snippet (in `examples/cartpole_a3c.py`).  (A3C algorithm, `CartPole-v0` environment, and a 2-layer fully-connected net with 200/100 hidden units in each layer.)
