@@ -28,6 +28,15 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
 Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not compatible with each other, as we haven't coded the K-FAC approximation for independent Gaussian noise NoisyNet layer yet.  On the other hand, `noisynet='fg'` works fine with `optimizer='kfac'`.
 
 # Usage
+## Arguments
+- **Arguments shared by `trainer` and `evaluator` classes**
+  - `env_maker`: A callable that returns a gym env on calling.  Default: `None`.
+  - `state_to_input`: A callable that converts the `observation` from a gym env to some data (usually NumPy array) that can be fed into a `tf.keras` model.  Default: `None` (will set to `state_to_input = lambda x: x` internally if `None` is specified).
+  - `load_model`: File name (full path) of a `h5py` file that contains a saved `tf.keras` model (usually save through `tf.keras.models.save_model`).  If specified, training or evaluating will be starting from this model.  Default: `None`.
+  - `load_model_custom`: A dictionary in the same format as the `custom_objects` argument in `tf.keras.models.load_model`.  Default: `None`.
+  - `verbose`: Whether or not to print training/evaluating information.  Default: `False`.
+
+## Demo
 A minimal demo could be as simple as the following code snippet (in `examples/cartpole_a3c.py`).  (A3C algorithm, `CartPole-v0` environment, and a 2-layer fully-connected net with 200/100 hidden units in each layer.)
 ```python
 '''
