@@ -81,7 +81,6 @@ Trainer default kwargs
 TRAINER_KWARGS = dict(
     feature_maker=None,
     model_maker=None,           # if set, ignores feature_maker
-    save_dir=None,              # directory to save data
     num_parallel=cpu_count(),
     port_begin=2220,
     discount=0.99,
@@ -97,7 +96,8 @@ TRAINER_KWARGS = dict(
     opt_kwargs={},
     kfac_inv_upd_interval=10,
     noisynet=None,              # None, 'ig', or 'fg'
-    interval_save=10000,
+    save_dir=None,              # directory to save tf.keras models
+    save_interval=10000,
     catch_signal=False,         # effective on multiprocessing only
     )
 
@@ -298,7 +298,7 @@ class Trainer(Tasker):
             self.step_counter.increment(self.batch_size * self.rollout_maxlen)
             step = self.step_counter.step_count()
             if self.is_master:
-                if step - last_save > self.interval_save:
+                if step - last_save > self.save_interval:
                     self.save_model(step)
                     last_save = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)

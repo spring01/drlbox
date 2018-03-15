@@ -12,7 +12,7 @@ DQN_KWARGS = dict(
     policy_eps_start=1.0,
     policy_eps_end=0.01,
     policy_eps_decay_steps=1000000,
-    interval_sync_target=1000,
+    sync_target_interval=1000,
     )
 
 class DQNTrainer(Trainer):
@@ -84,7 +84,7 @@ class DQNTrainer(Trainer):
     def train_on_batch(self, batch):
         batch_loss = super().train_on_batch(batch)
         self.batch_counter += 1
-        if self.batch_counter >= self.interval_sync_target:
+        if self.batch_counter >= self.sync_target_interval:
             self.batch_counter = 0
             self.target_net.sync()
         return batch_loss
