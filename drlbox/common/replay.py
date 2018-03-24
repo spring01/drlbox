@@ -57,17 +57,17 @@ Proportional prioritization with ring-buffer and sum-tree indexing.
 '''
 class PriorityReplay(Replay):
 
-    max_priority = 1.0
     error_eps = 1e-2
 
     def __init__(self, maxlen, minlen=None,
                  alpha=0.6, beta=0.4, beta_delta=1e-8):
         super().__init__(maxlen, minlen)
-        self.rt_offset = maxlen - 1
         self.sum_tree = [0.0] * (2 * self.maxlen - 1)
+        self.sum_tree_kickout = [0.0] * (2 * self.maxlen - 1)
         self.alpha = alpha
         self.beta = beta
         self.beta_delta = beta_delta
+        self.max_priority = 1.0         # max priority we've ever seen so far
 
     def append(self, transition):
         self.update_sumtree(self.index, self.max_priority)
@@ -91,8 +91,8 @@ class PriorityReplay(Replay):
     def update_priority(self, batch_idx, batch_error):
         for ring_idx, error in zip(batch_idx, batch_error):
             priority = abs(error) + self.error_eps
-            priority = min(self.max_priority, priority)
             priority **= self.alpha
+            self.max_priority = max(self.max_priority, priority)
             self.update_sumtree(ring_idx, priority)
 
     def get_leaf(self, value):
@@ -120,11 +120,11 @@ class PriorityReplay(Replay):
                 else:
                     value -= self.sum_tree[left]
                     parent = right
-        ring_idx = leaf_idx - self.rt_offset
+        ring_idx = leaf_idx - (self.maxlen - 1)
         return ring_idx, self.sum_tree[leaf_idx], self.ring_buffer[ring_idx]
 
     def update_sumtree(self, ring_idx, priority):
-        leaf_idx = ring_idx + self.rt_offset
+        leaf_idx = ring_idx + (self.maxlen - 1)
         change = priority - self.sum_tree[leaf_idx]
         self.sum_tree[leaf_idx] = priority
         while leaf_idx:
