@@ -407,12 +407,18 @@ class Trainer(Tasker):
                 self.global_net.model.summary()
             self.step_counter = StepCounter()
 
-        # local net
-        with tf.device(worker_dev):
-            self.online_net = self.build_net(env)
+        if self.num_parallel > 1:
+            # local net
+            with tf.device(worker_dev):
+                self.online_net = self.build_net(env)
+                self.online_net.set_loss(**self.loss_kwargs)
+                self.set_online_optimizer()
+                self.online_net.set_sync_weights(self.global_net.weights)
+                self.step_counter.set_increment()
+        else:
+            self.online_net = self.global_net
             self.online_net.set_loss(**self.loss_kwargs)
             self.set_online_optimizer()
-            self.online_net.set_sync_weights(self.global_net.weights)
             self.step_counter.set_increment()
 
     def build_model(self, state, feature, **kwargs):
@@ -426,7 +432,8 @@ class Trainer(Tasker):
             self.global_net.sync()
 
     def sync_to_global(self):
-        self.online_net.sync()
+        if self.num_parallel > 1:
+            self.online_net.sync()
         if self.noisynet is not None:
             self.online_net.sample_noise()
 

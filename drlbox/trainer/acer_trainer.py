@@ -8,8 +8,8 @@ from .a3c_trainer import A3CTrainer
 
 
 ACER_KWARGS = dict(
-    acer_kl_weight=1e-1,
     acer_trunc_max=10.0,
+    acer_kl_weight=0.0,
     acer_soft_update_ratio=0.05,
     replay_type='uniform',
     )
@@ -33,34 +33,43 @@ class ACERTrainer(A3CTrainer):
 
     def setup_nets(self, worker_dev, rep_dev, env):
         super().setup_nets(worker_dev, rep_dev, env)
-        with tf.device(rep_dev):
-            self.average_net = self.build_net(env)
-            self.average_net.set_sync_weights(self.global_net.weights)
-            self.average_net.set_soft_update(self.global_net.weights,
-                                             self.acer_soft_update_ratio)
+        if self.acer_kl_weight:
+            with tf.device(rep_dev):
+                self.average_net = self.build_net(env)
+                self.average_net.set_sync_weights(self.global_net.weights)
+                self.average_net.set_soft_update(self.global_net.weights,
+                                                 self.acer_soft_update_ratio)
 
     def set_session(self, sess):
         super().set_session(sess)
-        self.average_net.set_session(sess)
-        self.average_net.sync()
+        if self.acer_kl_weight:
+            self.average_net.set_session(sess)
+            self.average_net.sync()
 
     def sync_to_global(self):
-        self.online_net.sync()
-        if self.noisynet is not None:
-            self.online_net.sample_noise()
+        super().sync_to_global()
+        if self.acer_kl_weight and self.noisynet is not None:
             self.average_net.sample_noise()
 
     def train_on_batch(self, batch):
         batch_loss = super().train_on_batch(batch)
-        self.average_net.soft_update()
+        if self.acer_kl_weight:
+            self.average_net.soft_update()
         return batch_loss
 
     def concat_bootstrap(self, cc_state, rl_slice):
-        cc_logits, cc_boot_value = self.online_net.ac_values(cc_state)
-        cc_avg_logits = self.average_net.action_values(cc_state)
-        return cc_logits, cc_boot_value, cc_avg_logits
+        cc_logits, cc_boot = self.online_net.ac_values(cc_state)
+        if self.acer_kl_weight:
+            cc_avg_logits = self.average_net.action_values(cc_state)
+            return cc_logits, cc_boot, cc_avg_logits
+        else:
+            return cc_logits, cc_boot
 
-    def rollout_feed(self, rollout, r_logits, r_boot_value, r_avg_logits):
+    def rollout_feed(self, *args):
+        if self.acer_kl_weight:
+            rollout, r_logits, r_boot, r_avg_logits = args
+        else:
+            rollout, r_logits, r_boot = args
         r_action = np.array(rollout.action_list)
 
         # off-policy probabilities, length n
@@ -75,22 +84,24 @@ class ACERTrainer(A3CTrainer):
         r_retrace = np.minimum(self.retrace_max, r_lratio)
 
         # baseline, length n+1
-        r_baseline = np.sum(r_probs * r_boot_value, axis=1)
+        r_baseline = np.sum(r_probs * r_boot, axis=1)
 
         # return, length n
         reward_long = 0.0 if rollout.done else r_baseline[-1]
-        r_sample_return = np.zeros(len(rollout))
+        r_sample = np.zeros(len(rollout))
         for idx in reversed(range(len(rollout))):
             reward_long *= self.discount
             reward_long += rollout.reward_list[idx]
-            r_sample_return[idx] = reward_long
+            r_sample[idx] = reward_long
             act = r_action[idx]
-            val = r_boot_value[idx, act]
+            val = r_boot[idx, act]
             retrace = r_retrace[idx, act]
             reward_long = retrace * (reward_long - val) + r_baseline[idx]
 
         # logits from the average net, length n
-        return (r_action, r_lratio, r_sample_return, r_boot_value[:-1],
-                r_baseline[:-1], r_avg_logits[:-1])
-
+        result = r_action, r_lratio, r_sample, r_boot[:-1], r_baseline[:-1]
+        if self.acer_kl_weight:
+            return (*result, r_avg_logits[:-1])
+        else:
+            return result
 

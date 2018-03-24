@@ -50,9 +50,10 @@ class ACERNet(ACNet):
             policy_loss_val = -tf.reduce_sum(adv_val * log_probs, axis=1)
 
             # KL (wrt averaged policy net) loss
-            ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
-            avg_probs = tf.nn.softmax(ph_avg_logits)
-            kl_loss = -kl_weight * tf.reduce_sum(avg_probs * log_probs, axis=1)
+            if kl_weight:
+                ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
+                avg_probs = tf.nn.softmax(ph_avg_logits)
+                kl_avg_online = -tf.reduce_sum(avg_probs * log_probs, axis=1)
 
             # state-action value
             value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
@@ -67,7 +68,9 @@ class ACERNet(ACNet):
         value_loss = tf.squared_difference(ph_sample_return, value_act)
 
         # total loss
-        self.tf_loss = policy_loss_ret + policy_loss_val + value_loss + kl_loss
+        self.tf_loss = policy_loss_ret + policy_loss_val + value_loss
+        if kl_weight:
+            self.tf_loss += kl_avg_online * kl_weight
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
 
@@ -77,7 +80,9 @@ class ACERNet(ACNet):
 
         # placeholders
         self.ph_train_list = [self.ph_state, ph_action, ph_lratio,
-            ph_sample_return, ph_boot_value, ph_baseline, ph_avg_logits]
+            ph_sample_return, ph_boot_value, ph_baseline]
+        if kl_weight:
+            self.ph_train_list.append(ph_avg_logits)
 
     def set_soft_update(self, new_weights, update_ratio):
         assign_list = []
