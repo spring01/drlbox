@@ -40,32 +40,31 @@ class ACERNet(ACNet):
             # policy loss: sample return part
             log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
             adv_ret = trunc_act * (ph_sample_return - ph_baseline)
-            policy_loss_ret = -tf.reduce_sum(adv_ret * log_probs_act)
+            policy_loss_ret = -(adv_ret * log_probs_act)
 
             # policy loss: bootstrapped value part
             probs = tf.nn.softmax(self.tf_logits)
             probs_c = tf.stop_gradient(probs)
             trunc_prob = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio) * probs_c
             adv_val = trunc_prob * (ph_boot_value - ph_baseline[:, tf.newaxis])
-            policy_loss_val = -tf.reduce_sum(adv_val * log_probs)
+            policy_loss_val = -tf.reduce_sum(adv_val * log_probs, axis=1)
 
             # KL (wrt averaged policy net) loss
             ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
             avg_probs = tf.nn.softmax(ph_avg_logits)
-            kl_loss = -kl_weight * tf.reduce_sum(avg_probs * log_probs)
+            kl_loss = -kl_weight * tf.reduce_sum(avg_probs * log_probs, axis=1)
 
             # state-action value
             value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
 
             # entropy
             if entropy_weight:
-                neg_entropy = tf.reduce_sum(probs * log_probs)
+                neg_entropy = tf.reduce_sum(probs * log_probs, axis=1)
         else:
             raise ValueError('policy_type must be softmax in ACER, for now')
 
         # value (critic) loss
-        value_squared_diff = tf.squared_difference(ph_sample_return, value_act)
-        value_loss = tf.reduce_sum(value_squared_diff)
+        value_loss = tf.squared_difference(ph_sample_return, value_act)
 
         # total loss
         self.tf_loss = policy_loss_ret + policy_loss_val + value_loss + kl_loss

@@ -16,7 +16,8 @@ class QNet(RLNet):
         action_onehot = tf.one_hot(ph_action, depth=self.tf_values.shape[1])
         ph_target = tf.placeholder(tf.float32, [None])
         act_values = tf.reduce_sum(self.tf_values * action_onehot, axis=1)
-        self.tf_loss = tf.losses.huber_loss(ph_target, act_values)
+        self.tf_loss = tf.losses.huber_loss(ph_target, act_values,
+                                            reduction=tf.losses.Reduction.NONE)
         kfac_value_loss = 'normal_predictive', (self.tf_values,)
         self.kfac_loss_list = [kfac_value_loss]
         self.ph_train_list = [self.ph_state, ph_action, ph_target]

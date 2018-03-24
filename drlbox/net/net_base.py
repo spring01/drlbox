@@ -23,14 +23,16 @@ class RLNet:
         raise NotImplementedError
 
     def set_optimizer(self, optimizer, clip_norm=None, train_weights=None):
-        grads_and_vars = optimizer.compute_gradients(self.tf_loss, self.weights)
+        self.ph_batch_weight = tf.placeholder(tf.float32, [None])
+        batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
+        grads_and_vars = optimizer.compute_gradients(batch_loss, self.weights)
         grads = [g for g, v in grads_and_vars]
         if clip_norm is not None:
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
             train_weights = self.weights
         op_grad = optimizer.apply_gradients(zip(grads, train_weights))
-        self.op_train = [self.tf_loss, op_grad]
+        self.op_train = [batch_loss, op_grad]
         self.op_periodic = []
         self.periodic_interval = None
         self.periodic_counter = 0
@@ -45,8 +47,11 @@ class RLNet:
     def action_values(self, state):
         raise NotImplementedError
 
-    def train_on_batch(self, *args):
+    def train_on_batch(self, *args, batch_weight=None):
+        if batch_weight is None:
+            batch_weight = [1.0] * len(args[0])     # trick to get batch size
         feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
+        feed_dict[self.ph_batch_weight] = batch_weight
         loss = self.sess.run(self.op_train, feed_dict=feed_dict)[0]
         if self.periodic_interval is not None:
             if self.periodic_counter >= self.periodic_interval:
