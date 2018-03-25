@@ -17,7 +17,7 @@ class ACERNet(ACNet):
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0,
                  policy_type=None):
         # sample return and baseline placeholders
-        ph_sample_return = tf.placeholder(tf.float32, [None])
+        ph_target = tf.placeholder(tf.float32, [None])
         ph_baseline = tf.placeholder(tf.float32, [None])
 
         if policy_type == 'softmax':
@@ -32,21 +32,21 @@ class ACERNet(ACNet):
             trunc_act = tf.reduce_sum(trunc * action_onehot, axis=1)
 
             # bootstrapped value placeholder
-            ph_boot_value = tf.placeholder(tf.float32, [None, num_action])
+            ph_boot = tf.placeholder(tf.float32, [None, num_action])
 
             # log policy
             log_probs = tf.nn.log_softmax(self.tf_logits)
 
             # policy loss: sample return part
             log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
-            adv_ret = trunc_act * (ph_sample_return - ph_baseline)
+            adv_ret = trunc_act * (ph_target - ph_baseline)
             policy_loss_ret = -(adv_ret * log_probs_act)
 
             # policy loss: bootstrapped value part
             probs = tf.nn.softmax(self.tf_logits)
             probs_c = tf.stop_gradient(probs)
             trunc_prob = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio) * probs_c
-            adv_val = trunc_prob * (ph_boot_value - ph_baseline[:, tf.newaxis])
+            adv_val = trunc_prob * (ph_boot - ph_baseline[:, tf.newaxis])
             policy_loss_val = -tf.reduce_sum(adv_val * log_probs, axis=1)
 
             # KL (wrt averaged policy net) loss
@@ -65,7 +65,7 @@ class ACERNet(ACNet):
             raise ValueError('policy_type must be softmax in ACER, for now')
 
         # value (critic) loss
-        value_loss = tf.squared_difference(ph_sample_return, value_act)
+        value_loss = tf.squared_difference(ph_target, value_act)
 
         # total loss
         self.tf_loss = policy_loss_ret + policy_loss_val + value_loss
@@ -74,13 +74,16 @@ class ACERNet(ACNet):
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
 
-         # kfac loss register
+        # error for prioritization: critic abs td error
+        self.tf_error = tf.abs(ph_target - value_act)
+
+        # kfac loss register
         kfac_value_loss = 'normal_predictive', (self.tf_value,)
         self.kfac_loss_list = [kfac_policy_loss, kfac_value_loss]
 
         # placeholders
         self.ph_train_list = [self.ph_state, ph_action, ph_lratio,
-            ph_sample_return, ph_boot_value, ph_baseline]
+                              ph_target, ph_boot, ph_baseline]
         if kl_weight:
             self.ph_train_list.append(ph_avg_logits)
 

@@ -72,15 +72,22 @@ class PriorityReplay(Replay):
         self.beta_delta = beta_delta
         self.max_priority = 1.0         # max priority we've ever seen so far
 
-    def append(self, transition):
+    def append(self, transition, error=None):
+        priority = self.compute_priority(error)
         if len(self) < self.maxlen or self.evict_mode == 'oldest':
-            self.update_idx(self.index, self.max_priority)
+            self.update_idx(self.index, priority)
             super().append(transition)
         else:
             _, evict_idx, _ = self.sample_sum_tree(1, self.sum_tree_evict)
             evict_idx = evict_idx[0]
-            self.update_idx(evict_idx, self.max_priority)
+            self.update_idx(evict_idx, priority)
             self.ring_buffer[evict_idx] = transition
+
+    def extend(self, batch, batch_error=None):
+        if batch_error is None:
+            batch_error = [None] * len(batch)
+        for transition, error in zip(batch, batch_error):
+            self.append(transition, error)
 
     def sample(self, batch_size):
         batch_result = self.sample_sum_tree(batch_size, self.sum_tree)
@@ -103,10 +110,17 @@ class PriorityReplay(Replay):
 
     def update_priority(self, batch_idx, batch_error):
         for ring_idx, error in zip(batch_idx, batch_error):
+            priority = self.compute_priority(error)
+            self.update_idx(ring_idx, priority)
+
+    def compute_priority(self, error):
+        if error is None:
+            return self.max_priority
+        else:
             priority = abs(error) + self.error_eps
             priority **= self.alpha
             self.max_priority = max(self.max_priority, priority)
-            self.update_idx(ring_idx, priority)
+            return priority
 
     def get_leaf(self, value, sum_tree):
         """

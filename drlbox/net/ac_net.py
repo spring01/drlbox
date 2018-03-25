@@ -45,11 +45,15 @@ class ACNet(RLNet):
         else:
             raise ValueError('policy_type {} invalid'.format(policy_type))
 
+        # loss
         policy_loss = -(log_probs_act * ph_advantage)
         value_loss = tf.squared_difference(ph_target, self.tf_value)
         self.tf_loss = policy_loss + value_loss
         if entropy_weight:
             self.tf_loss += neg_entropy * entropy_weight
+
+        # error for prioritization: critic abs td error
+        self.tf_error = tf.abs(ph_target - self.tf_value)
 
         # kfac loss register
         kfac_value_loss = 'normal_predictive', (self.tf_value,)

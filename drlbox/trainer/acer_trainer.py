@@ -51,11 +51,11 @@ class ACERTrainer(A3CTrainer):
         if self.acer_kl_weight and self.noisynet is not None:
             self.average_net.sample_noise()
 
-    def train_on_batch(self, batch):
-        batch_loss = super().train_on_batch(batch)
+    def train_on_batch(self, *args):
+        result = super().train_on_batch(*args)
         if self.acer_kl_weight:
             self.average_net.soft_update()
-        return batch_loss
+        return result
 
     def concat_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_boot = self.online_net.ac_values(cc_state)
@@ -88,18 +88,18 @@ class ACERTrainer(A3CTrainer):
 
         # return, length n
         reward_long = 0.0 if rollout.done else r_baseline[-1]
-        r_sample = np.zeros(len(rollout))
+        r_target = np.zeros(len(rollout))
         for idx in reversed(range(len(rollout))):
             reward_long *= self.discount
             reward_long += rollout.reward_list[idx]
-            r_sample[idx] = reward_long
+            r_target[idx] = reward_long
             act = r_action[idx]
             val = r_boot[idx, act]
             retrace = r_retrace[idx, act]
             reward_long = retrace * (reward_long - val) + r_baseline[idx]
 
         # logits from the average net, length n
-        result = r_action, r_lratio, r_sample, r_boot[:-1], r_baseline[:-1]
+        result = r_action, r_lratio, r_target, r_boot[:-1], r_baseline[:-1]
         if self.acer_kl_weight:
             return (*result, r_avg_logits[:-1])
         else:

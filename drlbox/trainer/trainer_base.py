@@ -12,7 +12,7 @@ import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 from drlbox.net.kfac.optimizer import KfacOptimizerTV
 from drlbox.net.kfac.build_layer_collection import build_layer_collection
-from drlbox.common.replay import Replay
+from drlbox.common.replay import Replay, PriorityReplay
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.tasker import Tasker
 from .step_counter import StepCounter
@@ -227,7 +227,7 @@ class Trainer(Tasker):
             if self.replay_type == 'uniform':
                 self.replay = Replay(**replay_kwargs)
             elif self.replay_type == 'prioritized':
-                raise NotImplementedError('prioritized replay not implemented')
+                self.replay = PriorityReplay(**replay_kwargs)
             else:
                 message = 'replay type {} invalid'.format(self.replay_type)
                 raise ValueError(message)
@@ -280,21 +280,32 @@ class Trainer(Tasker):
 
             if self.online_learning:
                 # on-policy training on the newly collected rollout list
-                batch_loss = self.train_on_batch(batch)
+                batch_loss, batch_error = self.train_on_batch(batch)
+                batch_loss_list = [batch_loss]
+            else:
+                batch_loss_list = []
 
             # off-policy training if there is a memory
             if self.replay is not None:
-                batch_loss_list = [batch_loss]
-                self.replay.extend(batch)
+                if self.replay_type == 'prioritized' and self.online_learning:
+                    self.replay.extend(batch, batch_error)
+                else:
+                    self.replay.extend(batch)
                 if self.replay.usable():
                     rep = np.random.poisson(self.replay_ratio)
                     for _ in range(rep):
                         batch, idx, weight = self.replay.sample(self.batch_size)
                         self.sync_to_global()
-                        batch_loss = self.train_on_batch(batch)
+                        if self.replay_type == 'prioritized':
+                            args = batch, weight
+                        else:
+                            args = batch,
+                        batch_loss, batch_error = self.train_on_batch(*args)
                         batch_loss_list.append(batch_loss)
-                batch_loss = np.mean(batch_loss_list)
+                        if self.replay_type == 'prioritized':
+                            self.replay.update_priority(idx, batch_error)
 
+            # step, print, etc.
             self.step_counter.increment(self.batch_size * self.rollout_maxlen)
             step = self.step_counter.step_count()
             if self.is_master:
@@ -302,7 +313,8 @@ class Trainer(Tasker):
                     self.save_model(step)
                     last_save = step
                 str_step = 'training step {}/{}'.format(step, self.train_steps)
-                self.print(str_step + ', loss {:3.3f}'.format(batch_loss))
+                mean_batch_loss = np.mean(batch_loss_list)
+                self.print(str_step + ', loss {:3.3f}'.format(mean_batch_loss))
         # save at the end of training
         if self.is_master:
             self.save_model(step)
@@ -437,7 +449,7 @@ class Trainer(Tasker):
         if self.noisynet is not None:
             self.online_net.sample_noise()
 
-    def train_on_batch(self, batch):
+    def train_on_batch(self, batch, batch_weight=None):
         rl_state = []
         rl_slice = []
         last_index = 0
@@ -455,6 +467,12 @@ class Trainer(Tasker):
                 last_index = index
         cc_state = np.concatenate(rl_state)
 
+        if batch_weight is None:
+            cc_weight = None
+        else:
+            cc_weight = [weight for rlist, weight in zip(batch, batch_weight)
+                         for rollout in rlist for _ in range(len(rollout))]
+
         # cc_boots is a tuple of concatenated bootstrap quantities
         cc_boots = self.concat_bootstrap(cc_state, rl_slice)
 
@@ -471,9 +489,11 @@ class Trainer(Tasker):
             feed_list.append((r_input, *r_feeds))
 
         # concatenate individual types of feeds from the list
-        train_args = map(np.concatenate, zip(*feed_list))
-        batch_loss = self.online_net.train_on_batch(*train_args)
-        return batch_loss
+        cc_args = *map(np.concatenate, zip(*feed_list)), cc_weight
+        batch_loss, cc_error = self.online_net.train_on_batch(*cc_args)
+        batch_error = [np.mean(cc_error[idx:(idx + self.rollout_maxlen)])
+                       for idx in range(0, len(cc_error), self.rollout_maxlen)]
+        return batch_loss, batch_error
 
     def concat_bootstrap(self, cc_state):
         raise NotImplementedError
