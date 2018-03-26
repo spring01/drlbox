@@ -59,13 +59,13 @@ class PriorityReplay(Replay):
 
     error_eps = 1e-2
 
-    def __init__(self, maxlen, minlen=None, evict_mode='oldest',
+    def __init__(self, maxlen, minlen=None, evict_rule='oldest',
                  alpha=0.6, beta=0.4, beta_delta=1e-8):
         super().__init__(maxlen, minlen)
         size_sum_tree = 2 * self.maxlen - 1
         self.sum_tree = [0.0] * size_sum_tree
-        self.evict_mode = evict_mode
-        if evict_mode == 'lowest':
+        self.evict_rule = evict_rule
+        if evict_rule == 'sample':
             self.sum_tree_evict = [0.0] * size_sum_tree
         self.alpha = alpha
         self.beta = beta
@@ -74,14 +74,16 @@ class PriorityReplay(Replay):
 
     def append(self, transition, error=None):
         priority = self.compute_priority(error)
-        if len(self) < self.maxlen or self.evict_mode == 'oldest':
+        if len(self) < self.maxlen or self.evict_rule == 'oldest':
             self.update_idx(self.index, priority)
             super().append(transition)
-        else:
+        elif self.evict_rule == 'sample':
             _, evict_idx, _ = self.sample_sum_tree(1, self.sum_tree_evict)
             evict_idx = evict_idx[0]
             self.update_idx(evict_idx, priority)
             self.ring_buffer[evict_idx] = transition
+        else:
+            raise TypeError('evict rule {} invalid'.format(self.evict_rule))
 
     def extend(self, batch, batch_error=None):
         if batch_error is None:
@@ -152,7 +154,7 @@ class PriorityReplay(Replay):
 
     def update_idx(self, ring_idx, priority):
         self.update_sum_tree(ring_idx, priority, self.sum_tree)
-        if self.evict_mode == 'lowest':
+        if self.evict_rule == 'sample':
             self.update_sum_tree(ring_idx, 1.0 / priority, self.sum_tree_evict)
 
     def update_sum_tree(self, ring_idx, priority, sum_tree):
