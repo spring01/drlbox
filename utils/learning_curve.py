@@ -18,37 +18,39 @@ if __name__ == '__main__':
         help='Large averaging window for average performance')
 
     args, unknown_args = parser.parse_known_args()
-    filename = unknown_args[0]
-    all_rewards = []
-    max_step = 0
-    with open(filename) as out:
-        for line in out:
-            if 'episode reward' in line:
-                reward_list = re.findall('[+-]?\d+\.\d+', line)
-                if len(reward_list):
-                    reward = float(reward_list[0])
-                    all_rewards.append(reward)
-            if 'training step' in line:
-                max_step = int(re.findall('\d+', line)[0])
+    color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '0.5']
+    if len(color_list) < len(unknown_args):
+        for _ in range(len(unknown_args) - len(color_list)):
+            color_list.append(np.random.rand(3))
+    for name, color in zip(unknown_args, color_list):
+        all_steps = []
+        all_rewards = []
+        step = 0
+        with open(name) as out:
+            for line in out:
+                if 'episode reward' in line:
+                    reward_list = re.findall('[+-]?\d+\.\d+', line)
+                    if reward_list:
+                        reward = float(reward_list[0])
+                        all_steps.append(step)
+                        all_rewards.append(reward)
+                        step += 1
+                if 'training step' in line:
+                    step = int(re.findall('\d+', line)[0])
 
-    num_episode = len(all_rewards)
+        num_episode = len(all_rewards)
 
-    win_small = np.ones(args.window_small) / args.window_small
-    all_rewards_padded_small = padding(all_rewards, args.window_small)
-    mean_small = np.convolve(all_rewards_padded_small, win_small, mode='valid')
-    len_mean_small = len(mean_small)
-    space_small = np.linspace(1, num_episode, len_mean_small)
+        win_small = np.ones(args.window_small) / args.window_small
+        padded_small = padding(all_rewards, args.window_small)
+        mean_small = np.convolve(padded_small, win_small, mode='valid')
 
-    win_large = np.ones(args.window_large) / args.window_large
-    all_rewards_padded_large = padding(all_rewards, args.window_large)
-    mean_large = np.convolve(all_rewards_padded_large, win_large, mode='valid')
-    space_large = np.linspace(1, num_episode, len(mean_large))
+        win_large = np.ones(args.window_large) / args.window_large
+        padded_large = padding(all_rewards, args.window_large)
+        mean_large = np.convolve(padded_large, win_large, mode='valid')
 
-    peak_pos = mean_small.argmax() / len_mean_small * max_step
-    print('Peak position is at around step {:d}'.format(int(peak_pos)))
-
-    plt.plot(space_small, mean_small, color='b', linewidth=4, alpha=0.2)
-    plt.plot(space_large, mean_large, color='b', linewidth=4)
+        plt.plot(all_steps, mean_small, color=color, linewidth=4, alpha=0.1)
+        plt.plot(all_steps, mean_large, color=color, linewidth=4, label=name)
     plt.tight_layout(pad=0.1)
+    plt.legend()
     plt.show()
 
