@@ -32,7 +32,8 @@ class RLNet:
         if train_weights is None:
             train_weights = self.weights
         op_grad = optimizer.apply_gradients(zip(grads, train_weights))
-        self.op_train = [batch_loss, self.tf_error, op_grad]
+        self.op_train = [op_grad]
+        self.op_result = [batch_loss, self.tf_error]
         self.op_periodic = []
         self.periodic_interval = None
         self.periodic_counter = 0
@@ -52,7 +53,10 @@ class RLNet:
             batch_weight = [1.0] * len(args[0])     # trick to get batch size
         feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
         feed_dict[self.ph_batch_weight] = batch_weight
-        loss, error = self.sess.run(self.op_train, feed_dict=feed_dict)[:2]
+
+        # run training and loss/error separately for correct running order
+        self.sess.run(self.op_train, feed_dict=feed_dict)
+        loss, error = self.sess.run(self.op_result, feed_dict=feed_dict)
         if self.periodic_interval is not None:
             if self.periodic_counter >= self.periodic_interval:
                 self.sess.run(self.op_periodic)
