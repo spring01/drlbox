@@ -119,8 +119,7 @@ class PriorityReplay(Replay):
         if error is None:
             return self.max_priority
         else:
-            priority = abs(error) + self.error_eps
-            priority **= self.alpha
+            priority = (abs(error) + self.error_eps)**self.alpha
             self.max_priority = max(self.max_priority, priority)
             return priority
 
