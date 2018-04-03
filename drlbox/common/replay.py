@@ -57,7 +57,7 @@ Proportional prioritization with ring-buffer and sum-tree indexing.
 '''
 class PriorityReplay(Replay):
 
-    error_eps = 1e-2
+    priority_eps = 1e-8
 
     def __init__(self, maxlen, minlen=None, evict_rule='oldest',
                  alpha=0.6, beta=0.4, beta_delta=1e-8):
@@ -70,26 +70,26 @@ class PriorityReplay(Replay):
         self.alpha = alpha
         self.beta = beta
         self.beta_delta = beta_delta
-        self.max_priority = 1.0         # max priority we've ever seen so far
+        self.max_un_prob = 1.0         # max priority we've ever seen so far
 
-    def append(self, transition, error=None):
-        priority = self.compute_priority(error)
+    def append(self, transition, priority=None):
+        un_prob = self.exponent_priority(priority)
         if len(self) < self.maxlen or self.evict_rule == 'oldest':
-            self.update_idx(self.index, priority)
+            self.update_idx(self.index, un_prob)
             super().append(transition)
         elif self.evict_rule == 'sample':
             _, evict_idx, _ = self.sample_sum_tree(1, self.sum_tree_evict)
             evict_idx = evict_idx[0]
-            self.update_idx(evict_idx, priority)
+            self.update_idx(evict_idx, un_prob)
             self.ring_buffer[evict_idx] = transition
         else:
             raise TypeError('evict rule {} invalid'.format(self.evict_rule))
 
-    def extend(self, batch, batch_error=None):
-        if batch_error is None:
-            batch_error = [None] * len(batch)
-        for transition, error in zip(batch, batch_error):
-            self.append(transition, error)
+    def extend(self, batch, batch_priority=None):
+        if batch_priority is None:
+            batch_priority = [None] * len(batch)
+        for transition, priority in zip(batch, batch_priority):
+            self.append(transition, priority)
 
     def sample(self, batch_size):
         batch_result = self.sample_sum_tree(batch_size, self.sum_tree)
@@ -101,37 +101,50 @@ class PriorityReplay(Replay):
         rand_list = [(random.random() + i) * len_seg for i in range(batch_size)]
         batch, batch_idx, batch_weights = [], [], []
         for rand in rand_list:
-            ring_idx, priority, transition = self.get_leaf(rand, sum_tree)
+            ring_idx, un_prob, transition = self.get_leaf(rand, sum_tree)
             batch.append(transition)
             batch_idx.append(ring_idx)
-            weight = (priority / sum_tree[0])**(-self.beta)
+            weight = (un_prob / sum_tree[0])**(-self.beta)
             batch_weights.append(weight)
         max_weight = max(batch_weights)
         batch_weights = [w / max_weight for w in batch_weights]
         return batch, batch_idx, batch_weights
 
-    def update_priority(self, batch_idx, batch_error):
-        for ring_idx, error in zip(batch_idx, batch_error):
-            priority = self.compute_priority(error)
-            self.update_idx(ring_idx, priority)
+    def update_priority(self, batch_idx, batch_priority):
+        for ring_idx, priority in zip(batch_idx, batch_priority):
+            un_prob = self.exponent_priority(priority)
+            self.update_idx(ring_idx, un_prob)
 
-    def compute_priority(self, error):
-        if error is None:
-            return self.max_priority
+    def exponent_priority(self, priority):
+        if priority is None:
+            return self.max_un_prob
         else:
-            priority = (abs(error) + self.error_eps)**self.alpha
-            self.max_priority = max(self.max_priority, priority)
-            return priority
+            un_prob = (abs(priority) + self.priority_eps)**self.alpha
+            self.max_un_prob = max(self.max_un_prob, un_prob)
+            return un_prob
+
+    def update_idx(self, ring_idx, un_prob):
+        self.update_sum_tree(ring_idx, un_prob, self.sum_tree)
+        if self.evict_rule == 'sample':
+            self.update_sum_tree(ring_idx, 1.0 / un_prob, self.sum_tree_evict)
+
+    def update_sum_tree(self, ring_idx, un_prob, sum_tree):
+        leaf_idx = ring_idx + (self.maxlen - 1)
+        change = un_prob - sum_tree[leaf_idx]
+        sum_tree[leaf_idx] = un_prob
+        while leaf_idx:
+            leaf_idx = (leaf_idx - 1) // 2
+            sum_tree[leaf_idx] += change
 
     def get_leaf(self, value, sum_tree):
         """
         Tree structure and array storage:
         Tree index:
-             0         -> storing priority sum
+             0         -> storing the sum of unnormalized probabilities
             / \
           1     2
          / \   / \
-        3   4 5   6    -> storing priority for transitions
+        3   4 5   6    -> storing unnormalized probabilities for transitions
         Array type for storing:
         [0, 1, 2, 3, 4, 5, 6]
         """
@@ -150,18 +163,4 @@ class PriorityReplay(Replay):
                     parent = right
         ring_idx = leaf_idx - (self.maxlen - 1)
         return ring_idx, sum_tree[leaf_idx], self.ring_buffer[ring_idx]
-
-    def update_idx(self, ring_idx, priority):
-        self.update_sum_tree(ring_idx, priority, self.sum_tree)
-        if self.evict_rule == 'sample':
-            self.update_sum_tree(ring_idx, 1.0 / priority, self.sum_tree_evict)
-
-    def update_sum_tree(self, ring_idx, priority, sum_tree):
-        leaf_idx = ring_idx + (self.maxlen - 1)
-        change = priority - sum_tree[leaf_idx]
-        sum_tree[leaf_idx] = priority
-        while leaf_idx:
-            leaf_idx = (leaf_idx - 1) // 2
-            sum_tree[leaf_idx] += change
-
 
