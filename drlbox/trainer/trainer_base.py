@@ -90,6 +90,7 @@ TRAINER_KWARGS = dict(
     online_learning=True,       # whether or not to perform online learning
     replay_type=None,           # None, 'uniform', or 'prioritized'
     replay_ratio=4,
+    replay_priority_type='differential', # None, 'error' or 'differential'
     replay_kwargs={},
     optimizer='adam',           # 'adam', 'kfac', or tf.train.Optimizer instance
     opt_clip_norm=40.0,
@@ -218,9 +219,7 @@ class Trainer(Tasker):
                                                  cluster=cluster)
 
         self.setup_nets(worker_dev, rep_dev, env)
-        if self.replay_type is None:
-            self.replay = None
-        else:
+        if self.replay_type is not None:
             replay_kwargs = {**REPLAY_KWARGS, **self.replay_kwargs}
             if self.is_master:
                 self.print_kwargs(replay_kwargs, 'Replay memory arguments')
@@ -280,15 +279,15 @@ class Trainer(Tasker):
 
             if self.online_learning:
                 # on-policy training on the newly collected rollout list
-                batch_loss, batch_error = self.train_on_batch(batch)
-                batch_loss_list = [batch_loss]
+                batch_result = self.train_on_batch(batch)
+                batch_loss_list = [batch_result[0]]
             else:
                 batch_loss_list = []
 
             # off-policy training if there is a memory
-            if self.replay is not None:
+            if self.replay_type is not None:
                 if self.replay_type == 'prioritized' and self.online_learning:
-                    self.replay.extend(batch, batch_error)
+                    self.replay.extend(batch, batch_result[1])
                 else:
                     self.replay.extend(batch)
                 if self.replay.usable():
@@ -297,13 +296,12 @@ class Trainer(Tasker):
                         batch, idx, weight = self.replay.sample(self.batch_size)
                         self.sync_to_global()
                         if self.replay_type == 'prioritized':
-                            args = batch, weight
+                            batch_result = self.train_on_batch(batch, weight)
+                            batch_loss, batch_priority = batch_result
+                            self.replay.update_priority(idx, batch_priority)
                         else:
-                            args = batch,
-                        batch_loss, batch_error = self.train_on_batch(*args)
+                            batch_loss, = self.train_on_batch(batch)
                         batch_loss_list.append(batch_loss)
-                        if self.replay_type == 'prioritized':
-                            self.replay.update_priority(idx, batch_error)
 
             # step, print, etc.
             self.step_counter.increment(self.batch_size * self.rollout_maxlen)
@@ -350,13 +348,20 @@ class Trainer(Tasker):
         return layer
 
     def set_online_optimizer(self):
+        if self.replay_type == 'prioritized':
+            opt_rep_kwargs = dict(priority_type=self.replay_priority_type,
+                                  batch_size=self.batch_size)
+        else:
+            opt_rep_kwargs = {}
+
         if self.optimizer == 'adam':
             adam_kwargs = {**ADAM_KWARGS, **self.opt_kwargs}
             if self.is_master:
                 self.print_kwargs(adam_kwargs, 'Adam arguments')
             adam = tf.train.AdamOptimizer(**adam_kwargs)
             self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
-                                          train_weights=self.global_net.weights)
+                                          train_weights=self.global_net.weights,
+                                          **opt_rep_kwargs)
         elif self.optimizer == 'kfac':
             kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
             if self.is_master:
@@ -369,7 +374,8 @@ class Trainer(Tasker):
                                    layer_collection=layer_collection,
                                    var_list=self.online_net.weights)
             self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
-                                     train_weights=self.global_net.weights)
+                                     train_weights=self.global_net.weights,
+                                     **opt_rep_kwargs)
         elif isinstance(self.optimizer, tf.train.Optimizer):
             # if self.optimizer is a (subclass) instance of tf.train.Optimizer
             self.online_net.set_optimizer(self.optimizer,
@@ -490,10 +496,8 @@ class Trainer(Tasker):
 
         # concatenate individual types of feeds from the list
         cc_args = *map(np.concatenate, zip(*feed_list)), cc_weight
-        batch_loss, cc_error = self.online_net.train_on_batch(*cc_args)
-        batch_error = [np.mean(cc_error[idx:(idx + self.rollout_maxlen)])
-                       for idx in range(0, len(cc_error), self.rollout_maxlen)]
-        return batch_loss, batch_error
+        batch_result = self.online_net.train_on_batch(*cc_args)
+        return batch_result
 
     def concat_bootstrap(self, cc_state):
         raise NotImplementedError

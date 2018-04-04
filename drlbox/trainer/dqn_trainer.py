@@ -82,12 +82,12 @@ class DQNTrainer(Trainer):
             self.target_net.sample_noise()
 
     def train_on_batch(self, *args):
-        result = super().train_on_batch(*args)
+        batch_result = super().train_on_batch(*args)
         self.batch_counter += 1
         if self.batch_counter >= self.sync_target_interval:
             self.batch_counter = 0
             self.target_net.sync()
-        return result
+        return batch_result
 
     def concat_bootstrap(self, cc_state, rl_slice):
         last_states = [cc_state[r_slice][-1] for r_slice in rl_slice]

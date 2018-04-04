@@ -22,26 +22,41 @@ class RLNet:
     def set_loss(self, *args, **kwargs):
         raise NotImplementedError
 
-    def set_optimizer(self, optimizer, clip_norm=None, train_weights=None):
+    def set_optimizer(self, opt, clip_norm=None, train_weights=None,
+                      priority_type=None, batch_size=None):
         self.ph_batch_weight = tf.placeholder(tf.float32, [None])
-        batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
-        grads_and_vars = optimizer.compute_gradients(batch_loss, self.weights)
+        tf_batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
+        grads_and_vars = opt.compute_gradients(tf_batch_loss, self.weights)
         grads = [g for g, v in grads_and_vars]
         if clip_norm is not None:
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         if train_weights is None:
             train_weights = self.weights
-        op_grad = optimizer.apply_gradients(zip(grads, train_weights))
-        self.op_train = [op_grad]
-        self.op_result = [batch_loss, self.tf_error]
+        self.op_train = opt.apply_gradients(zip(grads, train_weights))
+        self.op_result = [tf_batch_loss]
         self.op_periodic = []
         self.periodic_interval = None
         self.periodic_counter = 0
 
-    def set_kfac(self, kfac, inv_upd_interval, train_weights=None):
-        # kfac has a builtin trust-region scheme and so there is no clip_norm
-        self.set_optimizer(kfac, train_weights=train_weights)
-        self.op_train.append(kfac.cov_update_op)
+        # op_result should include priority term if requested
+        if priority_type is not None:
+            if priority_type == 'error':
+                tf_batch_priority = [tf.reduce_mean(error)
+                    for error in tf.split(self.tf_error, batch_size)]
+            elif priority_type == 'differential':
+                tf_batch_priority = []
+                for loss in tf.split(self.tf_loss, batch_size):
+                    grad_list = tf.gradients(loss, self.model.outputs)
+                    norm = sum(tf.norm(grad, ord=1) for grad in grad_list)
+                    tf_batch_priority.append(norm)
+            else:
+                message = 'priority_type={} invalid'.format(priority_type)
+                raise ValueError(message)
+            self.op_result.append(tf.stack(tf_batch_priority))
+
+    def set_kfac(self, kfac, inv_upd_interval, **kwargs):
+        self.set_optimizer(kfac, **kwargs)
+        self.op_train = [self.op_train, kfac.cov_update_op]
         self.op_periodic = kfac.inv_update_op
         self.periodic_interval = inv_upd_interval
 
@@ -54,15 +69,15 @@ class RLNet:
         feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
         feed_dict[self.ph_batch_weight] = batch_weight
 
-        # run training and loss/error separately for correct running order
+        # run training and result in order
         self.sess.run(self.op_train, feed_dict=feed_dict)
-        loss, error = self.sess.run(self.op_result, feed_dict=feed_dict)
+        result = self.sess.run(self.op_result, feed_dict=feed_dict)
         if self.periodic_interval is not None:
             if self.periodic_counter >= self.periodic_interval:
                 self.sess.run(self.op_periodic)
                 self.periodic_counter = 0
             self.periodic_counter += 1
-        return loss, error
+        return result
 
     def state_value(self, *args, **kwargs):
         raise NotImplementedError

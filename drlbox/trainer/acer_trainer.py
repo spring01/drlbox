@@ -52,10 +52,10 @@ class ACERTrainer(A3CTrainer):
             self.average_net.sample_noise()
 
     def train_on_batch(self, *args):
-        result = super().train_on_batch(*args)
+        batch_result = super().train_on_batch(*args)
         if self.acer_kl_weight:
             self.average_net.soft_update()
-        return result
+        return batch_result
 
     def concat_bootstrap(self, cc_state, rl_slice):
         cc_logits, cc_boot = self.online_net.ac_values(cc_state)
