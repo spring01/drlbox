@@ -3,6 +3,7 @@ import argparse
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 
 def padding(signal, window_size):
@@ -16,40 +17,61 @@ if __name__ == '__main__':
         help='Small averaging window for instantaneous performance')
     parser.add_argument('--window-large', default=1000, type=int,
         help='Large averaging window for average performance')
+    parser.add_argument('--colors', default=None, type=str, nargs='+',
+        help='Color list')
+    parser.add_argument('--linewidth', default=3.0, type=float,
+        help='Line width')
 
     args, unknown_args = parser.parse_known_args()
-    color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '0.5']
-    if len(color_list) < len(unknown_args):
-        for _ in range(len(unknown_args) - len(color_list)):
-            color_list.append(np.random.rand(3))
-    for name, color in zip(unknown_args, color_list):
-        all_steps = []
-        all_rewards = []
+    if args.colors is None:
+        color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '0.5']
+        if len(color_list) < len(unknown_args):
+            for _ in range(len(unknown_args) - len(color_list)):
+                color_list.append(np.random.rand(3))
+    else:
+        color_list = args.colors
+    for filename, color in zip(unknown_args, color_list):
+        # find rewards and steps
+        step_reward = OrderedDict()
         step = 0
-        with open(name) as out:
+        with open(filename) as out:
             for line in out:
                 if 'episode reward' in line:
                     reward_list = re.findall('[+-]?\d+\.\d+', line)
                     if reward_list:
                         reward = float(reward_list[0])
-                        all_steps.append(step)
-                        all_rewards.append(reward)
-                        step += 1
+                        if step in step_reward:
+                            step_reward[step].append(reward)
+                        else:
+                            step_reward[step] = [reward]
                 if 'training step' in line:
                     step = int(re.findall('\d+', line)[0])
 
-        num_episode = len(all_rewards)
+        # interpolate steps to arrange episodic rewards
+        step_list = list(step_reward.keys())
+        int_step_reward = OrderedDict()
+        for step, next_step in zip(step_list[:-1], step_list[1:]):
+            int_step_array = np.linspace(step, next_step,
+                                         len(step_reward[step]), endpoint=False)
+            for int_step, reward in zip(int_step_array, step_reward[step]):
+                int_step_reward[int_step] = reward
+        all_steps = list(int_step_reward.keys())
+        all_rewards = [int_step_reward[step] for step in all_steps]
 
-        win_small = np.ones(args.window_small) / args.window_small
-        padded_small = padding(all_rewards, args.window_small)
-        mean_small = np.convolve(padded_small, win_small, mode='valid')
+        if args.window_small:
+            win_small = np.ones(args.window_small) / args.window_small
+            padded_small = padding(all_rewards, args.window_small)
+            mean_small = np.convolve(padded_small, win_small, mode='valid')
+            plt.plot(all_steps, mean_small, color=color,
+                     linewidth=args.linewidth, alpha=0.1)
 
-        win_large = np.ones(args.window_large) / args.window_large
-        padded_large = padding(all_rewards, args.window_large)
-        mean_large = np.convolve(padded_large, win_large, mode='valid')
+        if args.window_large:
+            win_large = np.ones(args.window_large) / args.window_large
+            padded_large = padding(all_rewards, args.window_large)
+            mean_large = np.convolve(padded_large, win_large, mode='valid')
+            plt.plot(all_steps, mean_large, color=color,
+                     linewidth=args.linewidth, label=filename)
 
-        plt.plot(all_steps, mean_small, color=color, linewidth=4, alpha=0.1)
-        plt.plot(all_steps, mean_large, color=color, linewidth=4, label=name)
     plt.tight_layout(pad=0.1)
     plt.legend()
     plt.show()
