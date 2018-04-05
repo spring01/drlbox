@@ -310,9 +310,12 @@ class Trainer(Tasker):
                 if step - last_save > self.save_interval:
                     self.save_model(step)
                     last_save = step
-                str_step = 'training step {}/{}'.format(step, self.train_steps)
-                mean_batch_loss = np.mean(batch_loss_list)
-                self.print(str_step + ', loss {:3.3f}'.format(mean_batch_loss))
+                if batch_loss_list:
+                    loss_print = '{:3.3f}'.format(np.mean(batch_loss_list))
+                else:
+                    loss_print = 'None'
+                self.print('training step {}/{}, loss {}'
+                           .format(step, self.train_steps, loss_print))
         # save at the end of training
         if self.is_master:
             self.save_model(step)
