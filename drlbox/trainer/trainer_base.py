@@ -1,25 +1,5 @@
+"""Base class of trainers
 
-from multiprocessing import Process, Event, cpu_count
-import socket
-
-import os
-import signal
-import time
-from datetime import timedelta
-
-import tensorflow as tf
-import numpy as np
-from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
-from drlbox.net.kfac.optimizer import KfacOptimizerTV
-from drlbox.net.kfac.build_layer_collection import build_layer_collection
-from drlbox.common.replay import Replay, PriorityReplay
-from drlbox.common.util import discrete_action, continuous_action
-from drlbox.common.tasker import Tasker
-from .step_counter import StepCounter
-from .rollout import Rollout
-
-
-'''
 Explanation of batched n-step training and arguments:
 
 1. Rollout:
@@ -47,7 +27,26 @@ Explanation of batched n-step training and arguments:
 
     Argument 'batch_size' is the number of rollout lists.
 
-'''
+"""
+from multiprocessing import Process, ProcessError, Event, cpu_count
+import socket
+
+import os
+import signal
+import time
+from datetime import timedelta
+
+import tensorflow as tf
+import numpy as np
+from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
+from drlbox.net.kfac.optimizer import KfacOptimizerTV
+from drlbox.net.kfac.build_layer_collection import build_layer_collection
+from drlbox.common.replay import Replay, PriorityReplay
+from drlbox.common.util import discrete_action, continuous_action
+from drlbox.common.tasker import Tasker
+from drlbox.trainer.step_counter import StepCounter
+from drlbox.trainer.rollout import Rollout
+
 
 LOCALHOST = 'localhost'
 JOBNAME = 'local'
@@ -81,22 +80,22 @@ Trainer default kwargs
 TRAINER_KWARGS = dict(
     feature_maker=None,
     model_maker=None,           # if set, ignores feature_maker
-    num_parallel=cpu_count(),
+    num_parallel=None,
     port_begin=2220,
     discount=0.99,
     train_steps=1000000,
     rollout_maxlen=32,
     batch_size=1,
     online_learning=True,       # whether or not to perform online learning
-    replay_type=None,           # None, 'uniform', or 'prioritized'
+    replay_type=None,           # None, 'uniform', 'prioritized'
     replay_ratio=4,
-    replay_priority_type='differential', # None, 'error' or 'differential'
+    replay_priority_type='differential',  # None, 'error' 'differential'
     replay_kwargs={},
-    optimizer='adam',           # 'adam', 'kfac', or tf.train.Optimizer instance
+    optimizer='adam',           # 'adam', 'kfac', tf.train.Optimizer instance
     opt_clip_norm=40.0,
     opt_kwargs={},
     kfac_inv_upd_interval=10,
-    noisynet=None,              # None, 'ig', or 'fg'
+    noisynet=None,              # None, 'ig', 'fg'
     save_dir=None,              # directory to save tf.keras models
     save_interval=10000,
     catch_signal=False,         # effective on multiprocessing only
@@ -104,11 +103,13 @@ TRAINER_KWARGS = dict(
 
 
 class Trainer(Tasker):
+    """Base class of trainers."""
 
     dense_layer = tf.keras.layers.Dense
     KWARGS = {**Tasker.KWARGS, **TRAINER_KWARGS}
 
     def run(self):
+        """Run the training process."""
         # change default dense_layer to noisy layer if requested
         if self.noisynet is None:
             pass
@@ -121,7 +122,10 @@ class Trainer(Tasker):
         else:
             raise ValueError('noisynet={} is invalid'.format(self.noisynet))
 
-        self.port_list = [self.port_begin + i for i in range(self.num_parallel)]
+        if self.num_parallel is None:
+            self.num_parallel = cpu_count()
+        self.port_list = [self.port_begin + i
+                          for i in range(self.num_parallel)]
 
         # single process
         if self.num_parallel == 1:
@@ -130,7 +134,7 @@ class Trainer(Tasker):
 
         # multiprocess parallel training
         for port in self.port_list:
-            if not self.port_available(LOCALHOST, port):
+            if not port_available(LOCALHOST, port):
                 raise NameError('port {} is not available'.format(port))
         self.print('Claiming {} port {} ...'.format(LOCALHOST, self.port_list))
         self.event_finished = Event()
@@ -140,7 +144,7 @@ class Trainer(Tasker):
                 worker = Process(target=self.worker, args=(wid,))
                 worker.start()
                 self.worker_list.append(worker)
-        except:
+        except ProcessError:
             self.terminate_workers()
 
         # set handlers if requested
@@ -152,7 +156,6 @@ class Trainer(Tasker):
             self.print('SIGINT and SIGTERM will be caught by drlbox')
 
         # terminates the entire training when the master worker terminates
-        master_worker = self.worker_list[0]
         wait_counter = 0
         start_time = time.time()
         while not self.event_finished.is_set():
@@ -174,15 +177,18 @@ class Trainer(Tasker):
         self.print('Asynchronous training has ended')
 
     def signal_handler(self, signum, frame):
+        """Signal handler for SIGINT and SIGTERM."""
         self.event_finished.set()
 
     def terminate_workers(self):
+        """Gracefully terminate workers (in backward order of spawning)."""
         for worker in self.worker_list[::-1]:
             while worker.is_alive():
                 worker.terminate()
                 time.sleep(0.01)
 
     def worker(self, wid):
+        """Run a worker process."""
         assert callable(self.env_maker)
         env = self.env_maker()
 
@@ -208,7 +214,7 @@ class Trainer(Tasker):
         # ports, cluster, and server
         cluster_list = ['{}:{}'.format(LOCALHOST, p) for p in self.port_list]
         cluster = tf.train.ClusterSpec({JOBNAME: cluster_list})
-        server = tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
+        tf.train.Server(cluster, job_name=JOBNAME, task_index=wid)
         self.print('Starting server #{}'.format(wid))
 
         self.setup_algorithm()
@@ -247,6 +253,7 @@ class Trainer(Tasker):
                     time.sleep(1)
 
     def train_on_env(self, env):
+        """Perform training on a Gym env."""
         step = self.step_counter.step_count()
         if self.is_master:
             last_save = step
@@ -257,13 +264,13 @@ class Trainer(Tasker):
         while step <= self.train_steps:
             self.sync_to_global()
             batch = []
-            for batch_step in range(self.batch_size):
+            for _ in range(self.batch_size):
                 rlist = [Rollout(state)]
                 for rlist_step in range(self.rollout_maxlen):
                     net_input = self.state_to_input(state)
                     act_val = self.online_net.action_values([net_input])[0]
                     action = self.policy.select_action(act_val)
-                    state, reward, done, info = env.step(action)
+                    state, reward, done, _ = env.step(action)
                     ep_reward += reward
                     rlist[-1].append(state, action, reward, done, act_val)
                     if done:
@@ -291,17 +298,16 @@ class Trainer(Tasker):
                 else:
                     self.replay.extend(batch)
                 if self.replay.usable():
-                    rep = np.random.poisson(self.replay_ratio)
-                    for _ in range(rep):
-                        batch, idx, weight = self.replay.sample(self.batch_size)
+                    for _ in range(np.random.poisson(self.replay_ratio)):
+                        batch, index, weight = \
+                            self.replay.sample(self.batch_size)
                         self.sync_to_global()
                         if self.replay_type == 'prioritized':
-                            batch_result = self.train_on_batch(batch, weight)
-                            batch_loss, batch_priority = batch_result
-                            self.replay.update_priority(idx, batch_priority)
+                            loss, priority = self.train_on_batch(batch, weight)
+                            self.replay.update_priority(index, priority)
                         else:
-                            batch_loss, = self.train_on_batch(batch)
-                        batch_loss_list.append(batch_loss)
+                            loss, = self.train_on_batch(batch)
+                        batch_loss_list.append(loss)
 
             # step, print, etc.
             self.step_counter.increment(self.batch_size * self.rollout_maxlen)
@@ -320,11 +326,8 @@ class Trainer(Tasker):
         if self.is_master:
             self.save_model(step)
 
-    def port_available(self, host, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        return sock.connect_ex((host, port)) != 0
-
     def build_net(self, env=None, is_global=False):
+        """Build a neural net."""
         net = self.net_cls()
         if self.load_model is not None:
             if is_global:
@@ -345,12 +348,8 @@ class Trainer(Tasker):
             net.set_noise_list()
         return net
 
-    def layer_flatten(self, layer):
-        if len(layer.shape) > 2:
-            layer = tf.keras.layers.Flatten()(layer)
-        return layer
-
     def set_online_optimizer(self):
+        """Set optimizer for the online network."""
         if self.replay_type == 'prioritized':
             opt_rep_kwargs = dict(priority_type=self.replay_priority_type,
                                   batch_size=self.batch_size)
@@ -362,8 +361,8 @@ class Trainer(Tasker):
             if self.is_master:
                 self.print_kwargs(adam_kwargs, 'Adam arguments')
             adam = tf.train.AdamOptimizer(**adam_kwargs)
-            self.online_net.set_optimizer(adam, clip_norm=self.opt_clip_norm,
-                                          train_weights=self.global_net.weights,
+            self.online_net.set_optimizer(adam, self.opt_clip_norm,
+                                          self.global_net.weights,
                                           **opt_rep_kwargs)
         elif self.optimizer == 'kfac':
             kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
@@ -381,13 +380,13 @@ class Trainer(Tasker):
                                      **opt_rep_kwargs)
         elif isinstance(self.optimizer, tf.train.Optimizer):
             # if self.optimizer is a (subclass) instance of tf.train.Optimizer
-            self.online_net.set_optimizer(self.optimizer,
-                                          clip_norm=self.opt_clip_norm,
-                                          train_weights=self.global_net.weights)
+            self.online_net.set_optimizer(self.optimizer, self.opt_clip_norm,
+                                          self.global_net.weights)
         else:
             raise ValueError('Optimizer {} invalid'.format(self.optimizer))
 
     def get_output_dir(self, env_name):
+        """Get an output directory for saving Keras models."""
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir, exist_ok=True)
             self.print('Made output dir', self.save_dir)
@@ -400,7 +399,7 @@ class Trainer(Tasker):
                 folder_name = int(folder_name.split('-run')[-1])
                 if folder_name > experiment_id:
                     experiment_id = folder_name
-            except:
+            except ValueError:
                 pass
         experiment_id += 1
         save_dir = os.path.join(save_dir, env_name)
@@ -409,18 +408,19 @@ class Trainer(Tasker):
         return save_dir
 
     def save_model(self, step):
+        """Save a Keras model."""
         if self.output is not None:
             filename = os.path.join(self.output, 'model_{}.h5'.format(step))
             self.online_net.save_model(filename)
             self.print('keras model written to {}'.format(filename))
 
-    '''
-    Methods subject to overloading
-    '''
+    # Methods subject to overloading
     def setup_algorithm(self):
+        """Setup properties needed by the algorithm."""
         raise NotImplementedError
 
     def setup_nets(self, worker_dev, rep_dev, env):
+        """Setup all neural networks."""
         # global net
         with tf.device(rep_dev):
             self.global_net = self.build_net(env, is_global=True)
@@ -443,9 +443,11 @@ class Trainer(Tasker):
             self.step_counter.set_increment()
 
     def build_model(self, state, feature, **kwargs):
+        """Return a Keras model."""
         raise NotImplementedError
 
     def set_session(self, sess):
+        """Set TensorFlow session for networks and step counter."""
         for obj in self.global_net, self.online_net, self.step_counter:
             obj.set_session(sess)
         if self.load_model is not None:
@@ -453,28 +455,30 @@ class Trainer(Tasker):
             self.global_net.sync()
 
     def sync_to_global(self):
+        """Synchronize the online network to the global network."""
         if self.num_parallel > 1:
             self.online_net.sync()
         if self.noisynet is not None:
             self.online_net.sample_noise()
 
     def train_on_batch(self, batch, batch_weight=None):
-        rl_state = []
-        rl_slice = []
+        """Train on a batch of rollout lists."""
+        b_r_state = []
+        b_r_slice = []
         last_index = 0
-        unrolled_batch = []
+        b_rollout = []
         for rlist in batch:
             for rollout in rlist:
-                unrolled_batch.append(rollout)
+                b_rollout.append(rollout)
                 r_state = []
                 for state in rollout.state_list:
                     r_state.append(self.state_to_input(state))
                 r_state = np.array(r_state)
-                rl_state.append(r_state)
+                b_r_state.append(r_state)
                 index = last_index + len(r_state)
-                rl_slice.append(slice(last_index, index))
+                b_r_slice.append(slice(last_index, index))
                 last_index = index
-        cc_state = np.concatenate(rl_state)
+        cc_state = np.concatenate(b_r_state)
 
         if batch_weight is None:
             cc_weight = None
@@ -483,32 +487,35 @@ class Trainer(Tasker):
                          for rollout in rlist for _ in range(len(rollout))]
 
         # cc_boots is a tuple of concatenated bootstrap quantities
-        cc_boots = self.concat_bootstrap(cc_state, rl_slice)
+        cc_boots = self.concat_bootstrap(cc_state, b_r_slice)
 
-        # rl_boots is a list of tuple of boostrap quantities
+        # b_r_boots is a list of tuple of boostrap quantities
         # and each tuple corresponds to a rollout
-        rl_boots = [tuple(boot[r_slice] for boot in cc_boots)
-                    for r_slice in rl_slice]
+        b_r_boots = [tuple(boot[r_slice] for boot in cc_boots)
+                     for r_slice in b_r_slice]
 
         # feed_list contains all arguments to train_on_batch
         feed_list = []
-        for rollout, r_state, r_boot in zip(unrolled_batch, rl_state, rl_boots):
+        for rollout, r_state, r_boot in zip(b_rollout, b_r_state, b_r_boots):
             r_input = r_state[:-1]
             r_feeds = self.rollout_feed(rollout, *r_boot)
             feed_list.append((r_input, *r_feeds))
 
         # concatenate individual types of feeds from the list
-        cc_args = *map(np.concatenate, zip(*feed_list)), cc_weight
+        cc_args = *(np.concatenate(fd) for fd in zip(*feed_list)), cc_weight
         batch_result = self.online_net.train_on_batch(*cc_args)
         return batch_result
 
-    def concat_bootstrap(self, cc_state):
+    def concat_bootstrap(self, cc_state, b_r_slice):
+        """Return bootstrapped quantities for a concatenated batch."""
         raise NotImplementedError
 
     def rollout_feed(self, rollout, *rollout_bootstraps):
+        """Return feeds for a rollout."""
         raise NotImplementedError
 
     def rollout_target(self, rollout, value_last):
+        """Return target value for a rollout."""
         reward_long = 0.0 if rollout.done else value_last
         r_target = np.zeros(len(rollout))
         for idx in reversed(range(len(rollout))):
@@ -517,3 +524,8 @@ class Trainer(Tasker):
             r_target[idx] = reward_long
         return r_target
 
+
+def port_available(host, port):
+    """Check availability of the given port on host."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    return sock.connect_ex((host, port)) != 0

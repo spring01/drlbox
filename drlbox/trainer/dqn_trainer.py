@@ -1,9 +1,9 @@
-
+"""DQN trainer"""
 import numpy as np
 import tensorflow as tf
 from drlbox.net import QNet
 from drlbox.common.policy import DecayEpsGreedyPolicy
-from .trainer_base import Trainer
+from drlbox.trainer.trainer_base import Trainer
 
 
 DQN_KWARGS = dict(
@@ -44,9 +44,8 @@ class DQNTrainer(Trainer):
             if type(feature) is tuple:
                 assert len(feature) == 2
                 # separated adv/value streams when feature is a length 2 tuple
-                feature_adv, feature_value = map(self.layer_flatten, feature)
+                feature_adv, feature_value = feature
             else:
-                feature = self.layer_flatten(feature)
                 size_last_hid = feature.shape.as_list()[-1]
                 assert size_last_hid % 2 == 0
                 size_dueling = size_last_hid // 2
@@ -65,7 +64,6 @@ class DQNTrainer(Trainer):
             baseline = tf.keras.layers.Lambda(l_baseline)(adv)
             q_value = tf.keras.layers.Add()([value, baseline, adv])
         else:
-            feature = self.layer_flatten(feature)
             q_value = self.dense_layer(self.action_dim)(feature)
         model = tf.keras.models.Model(inputs=state, outputs=q_value)
         return model
@@ -89,26 +87,18 @@ class DQNTrainer(Trainer):
             self.target_net.sync()
         return batch_result
 
-    def concat_bootstrap(self, cc_state, rl_slice):
-        last_states = [cc_state[r_slice][-1] for r_slice in rl_slice]
+    def concat_bootstrap(self, cc_state, b_r_slice):
+        last_states = [cc_state[r_slice][-1] for r_slice in b_r_slice]
         last_states = np.array(last_states)
         concat_len = cc_state.shape[0]
-        cc_target_value = self.concat_value(self.target_net, concat_len,
-                                            last_states, rl_slice)
+        cc_target_value = concat_value(self.target_net, concat_len,
+                                       last_states, b_r_slice)
         if self.dqn_double:
-            cc_online_value = self.concat_value(self.online_net, concat_len,
-                                                last_states, rl_slice)
+            cc_online_value = concat_value(self.online_net, concat_len,
+                                           last_states, b_r_slice)
             return cc_target_value, cc_online_value
         else:
             return cc_target_value,
-
-    def concat_value(self, net, concat_len, last_states, rl_slice):
-        last_values = net.action_values(last_states)
-        value_shape = concat_len, *last_values.shape[1:]
-        cc_value = np.zeros(value_shape)
-        for r_slice, last_val in zip(rl_slice, last_values):
-            cc_value[r_slice][-1] = last_val
-        return cc_value
 
     def rollout_feed(self, rollout, r_target_value, r_online_value=None):
         r_action = np.array(rollout.action_list)
@@ -120,3 +110,11 @@ class DQNTrainer(Trainer):
         r_target = self.rollout_target(rollout, target_last_q)
         return r_action, r_target
 
+
+def concat_value(net, concat_len, last_states, b_r_slice):
+    last_values = net.action_values(last_states)
+    value_shape = concat_len, *last_values.shape[1:]
+    cc_value = np.zeros(value_shape)
+    for r_slice, last_val in zip(b_r_slice, last_values):
+        cc_value[r_slice][-1] = last_val
+    return cc_value
