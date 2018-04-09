@@ -45,14 +45,17 @@ if __name__ == '__main__':
                         else:
                             step_reward[step] = [reward]
                 if 'training step' in line:
-                    step = int(re.findall('\d+', line)[0])
+                    step_next = int(re.findall('\d+', line)[0])
+                    if step_next > step:
+                        step = step_next
 
         # interpolate steps to arrange episodic rewards
         step_list = list(step_reward.keys())
         int_step_reward = OrderedDict()
         for step, next_step in zip(step_list[:-1], step_list[1:]):
             int_step_array = np.linspace(step, next_step,
-                                         len(step_reward[step]), endpoint=False)
+                                         len(step_reward[step]),
+                                         endpoint=False)
             for int_step, reward in zip(int_step_array, step_reward[step]):
                 int_step_reward[int_step] = reward
         all_steps = list(int_step_reward.keys())
