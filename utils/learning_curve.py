@@ -17,20 +17,36 @@ if __name__ == '__main__':
         help='Small averaging window for instantaneous performance')
     parser.add_argument('--window-large', default=1000, type=int,
         help='Large averaging window for average performance')
-    parser.add_argument('--colors', default=None, type=str, nargs='+',
-        help='Color list')
     parser.add_argument('--linewidth', default=3.0, type=float,
         help='Line width')
+    parser.add_argument('--colors', default=None, type=str, nargs='+',
+        help='Color list')
+    parser.add_argument('--labels', default=None, type=str, nargs='+',
+        help='Labels for making the legend')
 
     args, unknown_args = parser.parse_known_args()
+
+    # colors
     if args.colors is None:
         color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '0.5']
         if len(color_list) < len(unknown_args):
             for _ in range(len(unknown_args) - len(color_list)):
                 color_list.append(np.random.rand(3))
     else:
-        color_list = args.colors
-    for filename, color in zip(unknown_args, color_list):
+        color_list = []
+        for color, number in zip(args.colors[:-1:2], args.colors[1::2]):
+            color_list.extend([color] * int(number))
+
+    # labels
+    if args.labels is None:
+        label_list = unknown_args
+    else:
+        label_list = []
+        for label, number in zip(args.labels[:-1:2], args.labels[1::2]):
+            label_list.extend([label] * int(number))
+
+    # plot a learning curve for each file
+    for filename, color, label in zip(unknown_args, color_list, label_list):
         # find rewards and steps
         step_reward = OrderedDict()
         step = 0
@@ -73,7 +89,7 @@ if __name__ == '__main__':
             padded_large = padding(all_rewards, args.window_large)
             mean_large = np.convolve(padded_large, win_large, mode='valid')
             plt.plot(all_steps, mean_large, color=color,
-                     linewidth=args.linewidth, label=filename)
+                     linewidth=args.linewidth, label=label)
 
     plt.tight_layout(pad=0.1)
     plt.legend()
