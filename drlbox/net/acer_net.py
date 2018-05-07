@@ -1,6 +1,7 @@
 
 import tensorflow as tf
-from .ac_net import ACNet
+from drlbox.common.namescope import TF_NAMESCOPE
+from drlbox.net.ac_net import ACNet
 
 
 '''
@@ -16,66 +17,69 @@ class ACERNet(ACNet):
 
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0,
                  policy_type=None):
-        # sample return and baseline placeholders
-        ph_target = tf.placeholder(tf.float32, [None])
-        ph_baseline = tf.placeholder(tf.float32, [None])
+        with tf.name_scope(TF_NAMESCOPE):
+            # sample return and baseline placeholders
+            ph_target = tf.placeholder(tf.float32, [None])
+            ph_baseline = tf.placeholder(tf.float32, [None])
 
-        if policy_type == 'softmax':
-            kfac_policy_loss = 'categorical_predictive', (self.tf_logits,)
-            num_action = self.tf_logits.shape[1]
-            ph_action = tf.placeholder(tf.int32, [None])
-            action_onehot = tf.one_hot(ph_action, depth=num_action)
+            if policy_type == 'softmax':
+                kfac_policy_loss = 'categorical_predictive', (self.tf_logits,)
+                num_act = self.tf_logits.shape[1]
+                ph_action = tf.placeholder(tf.int32, [None])
+                onehot_act = tf.one_hot(ph_action, depth=num_act)
 
-            # importance sampling weight and trunc
-            ph_lratio = tf.placeholder(tf.float32, [None, num_action])
-            trunc = tf.minimum(trunc_max, ph_lratio)
-            trunc_act = tf.reduce_sum(trunc * action_onehot, axis=1)
+                # importance sampling weight and trunc
+                ph_lratio = tf.placeholder(tf.float32, [None, num_act])
+                trunc = tf.minimum(trunc_max, ph_lratio)
+                trunc_act = tf.reduce_sum(trunc * onehot_act, axis=1)
 
-            # bootstrapped value placeholder
-            ph_boot = tf.placeholder(tf.float32, [None, num_action])
+                # bootstrapped value placeholder
+                ph_boot = tf.placeholder(tf.float32, [None, num_act])
 
-            # log policy
-            log_probs = tf.nn.log_softmax(self.tf_logits)
+                # log policy
+                log_probs = tf.nn.log_softmax(self.tf_logits)
 
-            # policy loss: sample return part
-            log_probs_act = tf.reduce_sum(log_probs * action_onehot, axis=1)
-            adv_ret = trunc_act * (ph_target - ph_baseline)
-            policy_loss_ret = -(adv_ret * log_probs_act)
+                # policy loss: sample return part
+                log_probs_act = tf.reduce_sum(log_probs * onehot_act, axis=1)
+                adv_ret = trunc_act * (ph_target - ph_baseline)
+                policy_loss_ret = -(adv_ret * log_probs_act)
 
-            # policy loss: bootstrapped value part
-            probs = tf.nn.softmax(self.tf_logits)
-            probs_c = tf.stop_gradient(probs)
-            trunc_prob = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio) * probs_c
-            adv_val = trunc_prob * (ph_boot - ph_baseline[:, tf.newaxis])
-            policy_loss_val = -tf.reduce_sum(adv_val * log_probs, axis=1)
+                # policy loss: bootstrapped value part
+                probs = tf.nn.softmax(self.tf_logits)
+                probs_c = tf.stop_gradient(probs)
+                trunc = tf.maximum(0.0, 1.0 - trunc_max / ph_lratio)
+                trunc_prob = trunc * probs_c
+                adv_val = trunc_prob * (ph_boot - ph_baseline[:, tf.newaxis])
+                policy_loss_val = -tf.reduce_sum(adv_val * log_probs, axis=1)
 
-            # KL (wrt averaged policy net) loss
+                # KL (wrt averaged policy net) loss
+                if kl_weight:
+                    ph_avg_logits = tf.placeholder(tf.float32, [None, num_act])
+                    avg_probs = tf.nn.softmax(ph_avg_logits)
+                    avg_probs_log_probs = avg_probs * log_probs
+                    kl_avg_online = -tf.reduce_sum(avg_probs_log_probs, axis=1)
+
+                # state-action value
+                value_act = tf.reduce_sum(self.tf_value * onehot_act, axis=1)
+
+                # entropy
+                if entropy_weight:
+                    neg_entropy = tf.reduce_sum(probs * log_probs, axis=1)
+            else:
+                raise ValueError('policy_type must be softmax in ACER for now')
+
+            # value (critic) loss
+            value_loss = tf.squared_difference(ph_target, value_act)
+
+            # total loss
+            self.tf_loss = policy_loss_ret + policy_loss_val + value_loss
             if kl_weight:
-                ph_avg_logits = tf.placeholder(tf.float32, [None, num_action])
-                avg_probs = tf.nn.softmax(ph_avg_logits)
-                kl_avg_online = -tf.reduce_sum(avg_probs * log_probs, axis=1)
-
-            # state-action value
-            value_act = tf.reduce_sum(self.tf_value * action_onehot, axis=1)
-
-            # entropy
+                self.tf_loss += kl_avg_online * kl_weight
             if entropy_weight:
-                neg_entropy = tf.reduce_sum(probs * log_probs, axis=1)
-        else:
-            raise ValueError('policy_type must be softmax in ACER, for now')
+                self.tf_loss += neg_entropy * entropy_weight
 
-        # value (critic) loss
-        value_loss = tf.squared_difference(ph_target, value_act)
-
-        # total loss
-        self.tf_loss = policy_loss_ret + policy_loss_val + value_loss
-        if kl_weight:
-            self.tf_loss += kl_avg_online * kl_weight
-        if entropy_weight:
-            self.tf_loss += neg_entropy * entropy_weight
-
-        # error for prioritization: critic abs td error
-        self.tf_error = tf.abs(ph_target - value_act)
+            # error for prioritization: critic abs td error
+            self.tf_error = tf.abs(ph_target - value_act)
 
         # kfac loss register
         kfac_value_loss = 'normal_predictive', (self.tf_value,)

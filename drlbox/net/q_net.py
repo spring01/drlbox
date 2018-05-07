@@ -1,6 +1,7 @@
 
 import tensorflow as tf
-from .net_base import RLNet
+from drlbox.common.namescope import TF_NAMESCOPE
+from drlbox.net.net_base import RLNet
 
 
 class QNet(RLNet):
@@ -12,17 +13,18 @@ class QNet(RLNet):
         self.tf_values, = model.outputs
 
     def set_loss(self):
-        ph_action = tf.placeholder(tf.int32, [None])
-        action_onehot = tf.one_hot(ph_action, depth=self.tf_values.shape[1])
-        ph_target = tf.placeholder(tf.float32, [None])
-        value_act = tf.reduce_sum(self.tf_values * action_onehot, axis=1)
+        with tf.name_scope(TF_NAMESCOPE):
+            ph_action = tf.placeholder(tf.int32, [None])
+            onehot_act = tf.one_hot(ph_action, depth=self.tf_values.shape[1])
+            ph_target = tf.placeholder(tf.float32, [None])
+            value_act = tf.reduce_sum(self.tf_values * onehot_act, axis=1)
 
-        # loss
-        self.tf_loss = tf.losses.huber_loss(ph_target, value_act,
-                                            reduction=tf.losses.Reduction.NONE)
+            # loss
+            self.tf_loss = tf.losses.huber_loss(ph_target, value_act,
+                reduction=tf.losses.Reduction.NONE)
 
-        # error for prioritization: abs td error
-        self.tf_error = tf.abs(ph_target - value_act)
+            # error for prioritization: abs td error
+            self.tf_error = tf.abs(ph_target - value_act)
 
         # kfac loss list
         self.kfac_loss_list = [('normal_predictive', (self.tf_values,))]

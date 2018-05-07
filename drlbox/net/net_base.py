@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+from drlbox.common.namescope import TF_NAMESCOPE
 from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 
 
@@ -16,43 +17,46 @@ class RLNet:
         self.sess = sess
 
     def set_sync_weights(self, sync_weights):
-        zip_weights = zip(self.weights, sync_weights)
-        self.op_sync = tf.group(*[wt.assign(swt) for wt, swt in zip_weights])
+        with tf.name_scope(TF_NAMESCOPE):
+            op_sync_list = [wt.assign(swt)
+                            for wt, swt in zip(self.weights, sync_weights)]
+            self.op_sync = tf.group(*op_sync_list)
 
     def set_loss(self, *args, **kwargs):
         raise NotImplementedError
 
     def set_optimizer(self, opt, clip_norm=None, train_weights=None,
                       priority_type=None, batch_size=None):
-        self.ph_batch_weight = tf.placeholder(tf.float32, [None])
-        tf_batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
-        grads_and_vars = opt.compute_gradients(tf_batch_loss, self.weights)
-        grads = [g for g, v in grads_and_vars]
-        if clip_norm is not None:
-            grads, _ = tf.clip_by_global_norm(grads, clip_norm)
-        if train_weights is None:
-            train_weights = self.weights
-        self.op_train = opt.apply_gradients(zip(grads, train_weights))
-        self.op_result = [tf_batch_loss]
-        self.op_periodic = []
-        self.periodic_interval = None
-        self.periodic_counter = 0
+        with tf.name_scope(TF_NAMESCOPE):
+            self.ph_batch_weight = tf.placeholder(tf.float32, [None])
+            tf_batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
+            grads_and_vars = opt.compute_gradients(tf_batch_loss, self.weights)
+            grads = [g for g, v in grads_and_vars]
+            if clip_norm is not None:
+                grads, _ = tf.clip_by_global_norm(grads, clip_norm)
+            if train_weights is None:
+                train_weights = self.weights
+            self.op_train = opt.apply_gradients(zip(grads, train_weights))
+            self.op_result = [tf_batch_loss]
+            self.op_periodic = []
+            self.periodic_interval = None
+            self.periodic_counter = 0
 
-        # op_result should include priority term if requested
-        if priority_type is not None:
-            if priority_type == 'error':
-                tf_batch_priority = [tf.reduce_mean(error)
-                    for error in tf.split(self.tf_error, batch_size)]
-            elif priority_type == 'differential':
-                tf_batch_priority = []
-                for loss in tf.split(self.tf_loss, batch_size):
-                    grad_list = tf.gradients(loss, self.model.outputs)
-                    norm = sum(tf.norm(grad, ord=1) for grad in grad_list)
-                    tf_batch_priority.append(norm)
-            else:
-                message = 'priority_type={} invalid'.format(priority_type)
-                raise ValueError(message)
-            self.op_result.append(tf.stack(tf_batch_priority))
+            # op_result should include priority term if requested
+            if priority_type is not None:
+                if priority_type == 'error':
+                    tf_batch_priority = [tf.reduce_mean(error)
+                        for error in tf.split(self.tf_error, batch_size)]
+                elif priority_type == 'differential':
+                    tf_batch_priority = []
+                    for loss in tf.split(self.tf_loss, batch_size):
+                        grad_list = tf.gradients(loss, self.model.outputs)
+                        norm = sum(tf.norm(grad, ord=1) for grad in grad_list)
+                        tf_batch_priority.append(norm)
+                else:
+                    message = 'priority_type={} invalid'.format(priority_type)
+                    raise ValueError(message)
+                self.op_result.append(tf.stack(tf_batch_priority))
 
     def set_kfac(self, kfac, inv_upd_interval, **kwargs):
         self.set_optimizer(kfac, **kwargs)
