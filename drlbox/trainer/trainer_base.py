@@ -46,6 +46,7 @@ from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.tasker import Tasker
 from drlbox.trainer.step_counter import StepCounter
 from drlbox.trainer.rollout import Rollout
+from drlbox.common.namescope import TF_NAMESCOPE
 
 
 LOCALHOST = 'localhost'
@@ -368,13 +369,14 @@ class Trainer(Tasker):
             kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
             if self.is_master:
                 self.print_kwargs(kfac_kwargs, 'KFAC arguments')
-            layer_collection = build_layer_collection(
-                layer_list=self.online_net.model.layers,
-                loss_list=self.online_net.kfac_loss_list,
-                )
-            kfac = KfacOptimizerTV(**kfac_kwargs,
-                                   layer_collection=layer_collection,
-                                   var_list=self.online_net.weights)
+            with tf.name_scope(TF_NAMESCOPE):
+                layer_collection = build_layer_collection(
+                    layer_list=self.online_net.model.layers,
+                    loss_list=self.online_net.kfac_loss_list,
+                    )
+                kfac = KfacOptimizerTV(**kfac_kwargs,
+                                       layer_collection=layer_collection,
+                                       var_list=self.online_net.weights)
             self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
                                      train_weights=self.global_net.weights,
                                      **opt_rep_kwargs)
