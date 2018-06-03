@@ -69,7 +69,7 @@ class RLNet:
 
     def train_on_batch(self, *args, batch_weight=None):
         if batch_weight is None:
-            batch_weight = [1.0] * len(args[0])     # trick to get batch size
+            batch_weight = [1.0] * len(args[0])  # len(args[0]) is batch size
         feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
         feed_dict[self.ph_batch_weight] = batch_weight
 
