@@ -7,11 +7,23 @@ from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 class RLNet:
     """Base class RLNet"""
 
-    op_sync = None
-    kfac_loss_list = []
+    op_sync = None          # tf operation of syncing to target weights
+    kfac_loss_list = []     # list of losses used in K-FAC
 
     def set_model(self, model):
         """Set Keras model; to be overloaded in derived classes."""
+        raise NotImplementedError
+
+    def set_loss(self, *args, **kwargs):
+        """Set loss; to be overloaded in derived classes."""
+        raise NotImplementedError
+
+    def action_values(self, state):
+        """Return state-action values; to be overloaded by derived classes"""
+        raise NotImplementedError
+
+    def state_value(self, *args, **kwargs):
+        """Return state-only value; to be overloaded in derived classes."""
         raise NotImplementedError
 
     def set_session(self, sess):
@@ -24,10 +36,6 @@ class RLNet:
             op_sync_list = [wt.assign(swt)
                             for wt, swt in zip(self.weights, sync_weights)]
             self.op_sync = tf.group(*op_sync_list)
-
-    def set_loss(self, *args, **kwargs):
-        """Set loss; to be overloaded in derived classes."""
-        raise NotImplementedError
 
     def set_optimizer(self, opt, clip_norm=None, train_weights=None,
                       priority_type=None, batch_size=None):
@@ -88,10 +96,6 @@ class RLNet:
         self.op_periodic = kfac.inv_update_op
         self.periodic_interval = inv_upd_interval
 
-    def action_values(self, state):
-        """Return state-action values; to be overloaded by derived classes"""
-        raise NotImplementedError
-
     def train_on_batch(self, *args, batch_weight=None):
         """Train the neural network on a batch of rollouts
         Args:
@@ -115,10 +119,6 @@ class RLNet:
                 self.periodic_counter = 0
             self.periodic_counter += 1
         return result
-
-    def state_value(self, *args, **kwargs):
-        """Return state-only value; to be overloaded in derived classes."""
-        raise NotImplementedError
 
     def sync(self):
         """Sync this net to the preset syncing target"""
