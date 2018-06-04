@@ -1,32 +1,48 @@
-
+"""Base class for a trainable neural net for RL"""
 import tensorflow as tf
 from drlbox.common.namescope import TF_NAMESCOPE
 from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
 
 
 class RLNet:
+    """Base class RLNet"""
 
     op_sync = None
     kfac_loss_list = []
 
-    # net constructed by set_model only can predict but cannot be trained
     def set_model(self, model):
+        """Set Keras model; to be overloaded in derived classes."""
         raise NotImplementedError
 
     def set_session(self, sess):
+        """Set TensorFlow session"""
         self.sess = sess
 
     def set_sync_weights(self, sync_weights):
+        """Set sync weight target. 'sync_weight' is a list of tf tensors."""
         with tf.name_scope(TF_NAMESCOPE):
             op_sync_list = [wt.assign(swt)
                             for wt, swt in zip(self.weights, sync_weights)]
             self.op_sync = tf.group(*op_sync_list)
 
     def set_loss(self, *args, **kwargs):
+        """Set loss; to be overloaded in derived classes."""
         raise NotImplementedError
 
     def set_optimizer(self, opt, clip_norm=None, train_weights=None,
                       priority_type=None, batch_size=None):
+        """Set optimizer.
+        Args:
+            opt: an instance of tf.train.Optimizer
+            clip_norm: None means no gradient clipping, otherwise it is
+                the maximum norm of gradient clipping, i.e. the second argument
+                to be passed to tf.clip_by_global_norm
+            train_weights: (list of) neural network weights to be optimized
+            priority_type: None, 'error', or 'differential'; priority type in
+                prioritized experience replay
+            batch_size: batch size for neural network optimization; only useful
+                when priority_type == 'differential'
+        """
         with tf.name_scope(TF_NAMESCOPE):
             self.ph_batch_weight = tf.placeholder(tf.float32, [None])
             tf_batch_loss = tf.reduce_sum(self.tf_loss * self.ph_batch_weight)
@@ -59,17 +75,34 @@ class RLNet:
                 self.op_result.append(tf.stack(tf_batch_priority))
 
     def set_kfac(self, kfac, inv_upd_interval, **kwargs):
+        """Set K-FAC optimizer
+        Args:
+            kfac: an instance of drlbox.net.kfac.optimizer.KfacOptimizerTV
+                (derived from tf.contrib.kfac.optimizer.KfacOptimizer)
+            inv_upd_interval: interval for updating the inverse of the Fisher
+                information matrix
+            kwargs: keyword arguments to be passed to
+        """
         self.set_optimizer(kfac, **kwargs)
         self.op_train = [self.op_train, kfac.cov_update_op]
         self.op_periodic = kfac.inv_update_op
         self.periodic_interval = inv_upd_interval
 
     def action_values(self, state):
+        """Return state-action values; to be overloaded by derived classes"""
         raise NotImplementedError
 
     def train_on_batch(self, *args, batch_weight=None):
+        """Train the neural network on a batch of rollouts
+        Args:
+            args: training arguments. Different in each child class.
+                e.g., in A3C, args = states, actions, advantages, target_values
+                      in DQN, args = states, actions, target_values
+            batch_weight: sample weight to be applied on each rollout
+        """
         if batch_weight is None:
-            batch_weight = [1.0] * len(args[0])  # len(args[0]) is batch size
+            # args[0] is input states, len(args[0]) is therefore batch size
+            batch_weight = [1.0] * len(args[0])
         feed_dict = {ph: arg for ph, arg in zip(self.ph_train_list, args)}
         feed_dict[self.ph_batch_weight] = batch_weight
 
@@ -84,21 +117,26 @@ class RLNet:
         return result
 
     def state_value(self, *args, **kwargs):
+        """Return state-only value; to be overloaded in derived classes."""
         raise NotImplementedError
 
     def sync(self):
+        """Sync this net to the preset syncing target"""
         self.sess.run(self.op_sync)
 
     def set_noise_list(self):
+        """Set a list of noise variables if NoisyNet is involved."""
         self.noise_list = []
         for layer in self.model.layers:
             if type(layer) in {NoisyDenseIG, NoisyDenseFG}:
                 self.noise_list.extend(layer.noise_list)
 
     def sample_noise(self):
+        """Resample noise variables in NoisyNet."""
         for noise in self.noise_list:
             self.sess.run(noise.initializer)
 
     def save_model(self, filename):
+        """Save the Keras model to filename."""
         self.model.save(filename)
 
