@@ -15,7 +15,7 @@ class ACNet(RLNet):
         self.weights = model.weights
         self.ph_state, = model.inputs
         self.tf_logits, tf_value = model.outputs
-        self.tf_value = tf_value[:, 0]
+        self.tf_value = tf_value[:, 0]  # shape [batch_size, 1] -> [batch_size]
 
     def set_loss(self, entropy_weight=0.01, min_var=None, policy_type=None):
         """Set the loss function to be minimized
