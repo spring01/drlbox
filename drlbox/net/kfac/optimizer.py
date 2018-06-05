@@ -13,6 +13,8 @@ class KfacOptimizerTV(opt.KfacOptimizer):
         Returns:
           An `Operation` that applies the specified gradients.
         """
+        if hasattr(self, '_maybe_make_and_save_everything'):
+            self._maybe_make_and_save_everything()  # added in tf 1.8
         grads, train_vars = zip(*grads_and_vars)
         grads_and_vars = list(zip(grads, self.variables))
 
