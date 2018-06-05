@@ -1,14 +1,16 @@
-
+"""Actor critic net"""
 import tensorflow as tf
 from drlbox.common.namescope import TF_NAMESCOPE
 from drlbox.net.net_base import RLNet
 
 
 class ACNet(RLNet):
+    """Class for actor critic net"""
 
-    LOGPI = 1.1447298858494002
+    LOGPI = 1.1447298858494002  # constant of log(pi)
 
     def set_model(self, model):
+        """Set Keras model"""
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
@@ -16,6 +18,14 @@ class ACNet(RLNet):
         self.tf_value = tf_value[:, 0]
 
     def set_loss(self, entropy_weight=0.01, min_var=None, policy_type=None):
+        """Set the loss function to be minimized
+        Args:
+            entropy_weight: float, weight of the entropy regularization term.
+            min_var: float, only used in continuous action space. When the
+                action is parameterized as a Gaussian, it is the lower bound
+                of the Gaussian variance.
+            policy_type: string, 'softmax' or 'gaussian'.
+        """
         with tf.name_scope(TF_NAMESCOPE):
             tf_logits = self.tf_logits
             ph_advantage = tf.placeholder(tf.float32, [None])
@@ -68,12 +78,15 @@ class ACNet(RLNet):
                               ph_advantage, ph_target]
 
     def action_values(self, state):
+        """Return the output of the policy network, i.e., 'logits'."""
         return self.sess.run(self.tf_logits, feed_dict={self.ph_state: state})
 
     def state_value(self, state):
+        """Return the output of the value network."""
         return self.sess.run(self.tf_value, feed_dict={self.ph_state: state})
 
     def ac_values(self, state):
+        """Return both outputs of the policy and value networks."""
         return self.sess.run([self.tf_logits, self.tf_value],
                              feed_dict={self.ph_state: state})
 
