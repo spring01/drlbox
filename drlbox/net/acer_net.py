@@ -1,15 +1,15 @@
-
+"""Net class for ACER"""
 import tensorflow as tf
 from drlbox.common.namescope import TF_NAMESCOPE
 from drlbox.net.ac_net import ACNet
 
 
-'''
-ACER assumes discrete action for now.
-'''
 class ACERNet(ACNet):
+    """Class that handles loss/update in ACER. Assumes discrete action for now.
+    """
 
     def set_model(self, model):
+        """Set a Keras model"""
         self.model = model
         self.weights = model.weights
         self.ph_state, = model.inputs
@@ -17,6 +17,15 @@ class ACERNet(ACNet):
 
     def set_loss(self, entropy_weight=0.01, kl_weight=0.1, trunc_max=10.0,
                  policy_type=None):
+        """Set the ACER loss function
+        Args:
+            entropy_weight: float; weight of the entropy regularization term
+            kl_weight: float; weight of the KL divergence loss term, with
+                respect to the Polyak averaging net
+            trunc_max: float; maximum allowed value of the truncated
+                importance sampling weight
+            policy_type: None or 'softmax'; type of the stochastic policy
+        """
         with tf.name_scope(TF_NAMESCOPE):
             # sample return and baseline placeholders
             ph_target = tf.placeholder(tf.float32, [None])
@@ -92,6 +101,7 @@ class ACERNet(ACNet):
             self.ph_train_list.append(ph_avg_logits)
 
     def set_soft_update(self, new_weights, update_ratio):
+        """Set the soft update operation for the Polyak averaging net"""
         assign_list = []
         for wt, nwt in zip(self.weights, new_weights):
             upd = (1.0 - update_ratio) * wt + update_ratio * nwt
@@ -99,5 +109,6 @@ class ACERNet(ACNet):
         self.op_soft_update = tf.group(*assign_list)
 
     def soft_update(self):
+        """Perform the soft update operation for the Polyak averaging net"""
         self.sess.run(self.op_soft_update)
 

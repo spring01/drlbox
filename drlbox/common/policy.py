@@ -101,7 +101,7 @@ class GaussianPolicy(Policy):
         self.high = high
 
     def select_action(self, action_values):
-        """ Returns an np.array of floats representing the continuous action
+        """Returns an np.array of floats representing the continuous action
         'action_values' is supposed to be 'logits'. In continuous control,
         'action_values' is interpreted as a spherical Gaussian signal where
         action_values[:-1] is the mean, and action_values[-1] is the variance.

@@ -26,7 +26,6 @@ Explanation of batched n-step training and arguments:
     a single batch executes exactly one update to the network weights.
 
     Argument 'batch_size' is the number of rollout lists.
-
 """
 from multiprocessing import Process, ProcessError, Event, cpu_count
 import socket
