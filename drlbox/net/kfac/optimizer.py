@@ -1,8 +1,13 @@
-
+"""Derived class (from tensorflow.contrib.kfac.optimzer.KfacOptimizer) that
+handles the case where the variables we use to compute K-FAC updates are
+different from the variables we want to update.
+"""
 from tensorflow.contrib.kfac import optimizer as opt
 
 
 class KfacOptimizerTV(opt.KfacOptimizer):
+    """K-FAC optimzer class that can apply updates on another set of variables.
+    """
 
     def apply_gradients(self, grads_and_vars, *args, **kwargs):
         """Applies gradients to variables.
