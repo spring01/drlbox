@@ -1,4 +1,4 @@
-
+"""Rederived LayerCollection in order to handle NoisyNet"""
 from tensorflow.contrib.kfac.python.ops.layer_collection import (LayerCollection,
     VARIABLE_SCOPE, APPROX_KRONECKER_NAME, _FULLY_CONNECTED_APPROX_TO_BLOCK_TYPES)
 from .fisher_blocks import FullyConnectedNoisyNetFGKFACBasicFB
@@ -10,6 +10,9 @@ _FULLY_CONNECTED_NOISYNETFG_APPROX_TO_BLOCK_TYPES = {
 
 
 class LayerCollectionExt(LayerCollection):
+    """Rederived LayerCollection class that can register a factorized Gaussian
+    NoisyNet layer.
+    """
 
     def register_fully_connected_noisynetfg(self,
                                             params_quiet,
