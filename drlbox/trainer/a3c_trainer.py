@@ -17,7 +17,7 @@ class A3CTrainer(Trainer):
     net_cls = ACNet
 
     def setup_algorithm(self):
-        """Setup properties needed by A3C."""
+        """Setup properties required by A3C."""
         if self.action_mode == 'discrete':
             policy_type = 'softmax'
             size_logits = self.action_dim
