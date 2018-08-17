@@ -16,11 +16,13 @@ DQN_KWARGS = dict(
     )
 
 class DQNTrainer(Trainer):
+    """DQN trainer"""
 
     KWARGS = {**Trainer.KWARGS, **DQN_KWARGS}
     net_cls = QNet
 
     def setup_algorithm(self):
+        """Setup properties required by DQN."""
         self.loss_kwargs = {}
         assert self.action_mode == 'discrete'
 
@@ -32,6 +34,7 @@ class DQNTrainer(Trainer):
         self.model_kwargs = {}
 
     def setup_nets(self, worker_dev, rep_dev, env):
+        """Setup the target network in DQN."""
         super().setup_nets(worker_dev, rep_dev, env)
         with tf.device(worker_dev):
             self.target_net = self.build_net(env)
@@ -39,6 +42,7 @@ class DQNTrainer(Trainer):
         self.batch_counter = 0
 
     def build_model(self, state, feature):
+        """Return a Keras model."""
         assert self.action_mode == 'discrete'
         if self.dqn_dueling:
             if type(feature) is tuple:
@@ -69,16 +73,21 @@ class DQNTrainer(Trainer):
         return model
 
     def set_session(self, sess):
+        """Setup a TensorFlow session."""
         super().set_session(sess)
         self.target_net.set_session(sess)
         self.target_net.sync()
 
     def sync_to_global(self):
+        """Sync the local network to the global network and resample weight
+        noises in the target network if necessary.
+        """
         super().sync_to_global()
         if self.noisynet is not None:
             self.target_net.sample_noise()
 
     def train_on_batch(self, *args):
+        """Train on a batch."""
         batch_result = super().train_on_batch(*args)
         self.batch_counter += 1
         if self.batch_counter >= self.sync_target_interval:
@@ -87,6 +96,7 @@ class DQNTrainer(Trainer):
         return batch_result
 
     def concat_bootstrap(self, cc_state, b_r_slice):
+        """Return concatenated bootstrap training target values."""
         last_states = [cc_state[r_slice][-1] for r_slice in b_r_slice]
         last_states = np.array(last_states)
         concat_len = cc_state.shape[0]
@@ -100,6 +110,7 @@ class DQNTrainer(Trainer):
             return cc_target_value,
 
     def rollout_feed(self, rollout, r_target_value, r_online_value=None):
+        """Return training targets for a rollout."""
         r_action = np.array(rollout.action_list)
         if self.dqn_double:
             greedy_last_value = r_online_value[-1]
@@ -111,6 +122,7 @@ class DQNTrainer(Trainer):
 
 
 def concat_value(net, concat_len, last_states, b_r_slice):
+    """Return one type of concatenated value."""
     last_values = net.action_values(last_states)
     value_shape = concat_len, *last_values.shape[1:]
     cc_value = np.zeros(value_shape)
