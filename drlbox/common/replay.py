@@ -1,15 +1,15 @@
-
+"""Replay memories, uniform and prioritized"""
 import random
 import pickle
 
 
 FILL_PERCENT = 0.1
 
-'''
-Ring-buffer uniformly sampled replay memory.
-Both 'append' and 'sample' are O(1)
-'''
+
 class Replay:
+    """Ring-buffer uniformly sampled replay memory.
+    Both 'append' and 'sample' are O(1)
+    """
 
     def __init__(self, maxlen, minlen=None):
         self.maxlen = maxlen
@@ -52,10 +52,9 @@ class Replay:
         return replay
 
 
-'''
-Proportional prioritization with ring-buffer and sum-tree indexing.
-'''
+
 class PriorityReplay(Replay):
+    """Proportional prioritization with ring-buffer and sum-tree indexing."""
 
     priority_eps = 1e-8
 
