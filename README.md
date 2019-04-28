@@ -8,7 +8,7 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
 `pip install -e .` in your favorite virtual env.
 
 ## Requirements
-- tensorflow>=1.5.0 (lower versions may be used if `optimizer='kfac'` is never invoked)
+- tensorflow>=1.5.0
 - gym>=0.9.6
 - gym[atari] (optional)
 
@@ -22,10 +22,7 @@ Most (deep) RL algorithms work by optimizing a neural network through interactin
   - **DQN**  (https://arxiv.org/abs/1602.01783)  Asynchronous multi-step Q-learning.
 
 - **Algorithm related options**
-  - `optimizer='kfac'`: Based on the idea of **ACKTR** (https://arxiv.org/abs/1708.05144), which is simply A3C with the K-FAC optimizer instead of Adam.  This implementation is an asynchronous variant of the original version based on synchronous algorithms (e.g., A2C), and so weight updates will be more frequent but the K-FAC curvature estimate may be less accurate.  Relies on `tf.contrib.kfac` and so currently the neural net may only contain `Dense`, `Conv2D`, and (self-implemented) `drlbox.layer.noisy_dense.NoisyNetFG` layers.
   - `noisynet='ig'` or `noisynet='fg'`: Based on the idea of **NoisyNet** (https://arxiv.org/abs/1706.10295), which introduces independent (`'ig'`) or factorized (`'fg'`) Gaussian noises to network weights.  Allows the exploration strategy to change across different training stages and adapt to different parts of the state representation.
-
-Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not compatible with each other, as we haven't coded the K-FAC approximation for independent Gaussian noise NoisyNet layer yet.  On the other hand, `noisynet='fg'` works fine with `optimizer='kfac'`.
 
 # Usage
 ## Arguments
@@ -48,9 +45,9 @@ Side note: options `noisynet='ig'` and `optimizer='kfac'` are currently not comp
   - `replay_type`: *`None` or `str`*.  Type of the replay memory.  Choices are `[None, 'uniform']` where `None` means no replay memory.  Default: `None` (note: some algorithms such as ACER and IMPALA will set `replay_type='uniform'` by default).
   - `replay_ratio`: *`int`*.  After putting a newly collected online batch into the replay memory, a random integer number of offline, off-policy batch learnings will be performed, and the random integer number will be coming from a Poisson distribution using this argument as the Poisson parameter.  Default: `4`.
   - `replay_kwargs`: *`dict`*.  Keyword arguments that will be passed to the replay constructor after combining with the default replay keyword arguments `dict(maxlen=1000, minlen=100)`.  Default: `{}`.
-  - `optimizer`: *`str` or a `tf.train.Optimizer` instance*.  `str` choices are `['adam', 'kfac']`.  Default: `adam`.
+  - `optimizer`: *`str` or a `tf.train.Optimizer` instance*.  `str` choices are `['adam']`.  Default: `adam`.
   - `opt_clip_norm`: *`float`*.  Maximum global gradient norm for gradient clipping.  Default: `40.0`.
-  - `opt_kwargs`: *`dict`*.  Keyword arguments that will be passed to the optimizer constructor after combining with the default keyword arguments.  For `'adam'`, the default keyword arguments are `dict(learning_rate=1e-4, epsilon=1e-4)`.  For `'kfac'`, the default keyword arguments are `dict(learning_rate=1e-4, cov_ema_decay=0.95, damping=1e-3, norm_constraint=1e-3, momentum=0.0)`.  Default: `{}`.
+  - `opt_kwargs`: *`dict`*.  Keyword arguments that will be passed to the optimizer constructor after combining with the default keyword arguments.  For `'adam'`, the default keyword arguments are `dict(learning_rate=1e-4, epsilon=1e-4)`.  Default: `{}`.
   - `noisynet`: *`None` or `str`*.  Whether or not to enable NoisyNet in building the neural net.  Detailed in the above **Algorithm related options** section.  `str` choices are `['fg', 'ig']` corresponding to factorized and independent Gaussian noises, respectively.  Default: `None`.
   - `save_dir`: *`str`*.  Path to save intermediate `tf.keras` models during training.  Will not save any model if set to `None`.  Defaul: `None`.
   - `save_interval`: *`int`*.  Number of (global) env steps between saving `tf.keras` models during training.  Default: `10000`.

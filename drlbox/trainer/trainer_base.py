@@ -38,8 +38,6 @@ from datetime import timedelta
 import tensorflow as tf
 import numpy as np
 from drlbox.layer.noisy_dense import NoisyDenseIG, NoisyDenseFG
-from drlbox.net.kfac.optimizer import KfacOptimizerTV
-from drlbox.net.kfac.build_layer_collection import build_layer_collection
 from drlbox.common.replay import Replay, PriorityReplay
 from drlbox.common.util import discrete_action, continuous_action
 from drlbox.common.tasker import Tasker
@@ -57,13 +55,6 @@ Optimizer related default kwargs
 ADAM_KWARGS = dict(
     learning_rate=1e-4,
     epsilon=1e-4,
-    )
-KFAC_KWARGS = dict(
-    learning_rate=1e-4,
-    cov_ema_decay=0.95,
-    damping=1e-3,
-    norm_constraint=1e-3,
-    momentum=0.0,
     )
 
 '''
@@ -91,10 +82,9 @@ TRAINER_KWARGS = dict(
     replay_ratio=4,
     replay_priority_type='differential',  # None, 'error' 'differential'
     replay_kwargs={},
-    optimizer='adam',           # 'adam', 'kfac', tf.train.Optimizer instance
+    optimizer='adam',           # 'adam', tf.train.Optimizer instance
     opt_clip_norm=40.0,
     opt_kwargs={},
-    kfac_inv_upd_interval=10,
     noisynet=None,              # None, 'ig', 'fg'
     save_dir=None,              # directory to save tf.keras models
     save_interval=10000,
@@ -364,21 +354,6 @@ class Trainer(Tasker):
             self.online_net.set_optimizer(adam, self.opt_clip_norm,
                                           self.global_net.weights,
                                           **opt_rep_kwargs)
-        elif self.optimizer == 'kfac':
-            kfac_kwargs = {**KFAC_KWARGS, **self.opt_kwargs}
-            if self.is_master:
-                self.print_kwargs(kfac_kwargs, 'KFAC arguments')
-            with tf.name_scope(TF_NAMESCOPE):
-                layer_collection = build_layer_collection(
-                    layer_list=self.online_net.model.layers,
-                    loss_list=self.online_net.kfac_loss_list,
-                    )
-                kfac = KfacOptimizerTV(**kfac_kwargs,
-                                       layer_collection=layer_collection,
-                                       var_list=self.online_net.weights)
-            self.online_net.set_kfac(kfac, self.kfac_inv_upd_interval,
-                                     train_weights=self.global_net.weights,
-                                     **opt_rep_kwargs)
         elif isinstance(self.optimizer, tf.train.Optimizer):
             # if self.optimizer is a (subclass) instance of tf.train.Optimizer
             self.online_net.set_optimizer(self.optimizer, self.opt_clip_norm,
